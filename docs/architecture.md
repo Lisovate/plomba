@@ -5,8 +5,10 @@ Written 2026-10-26, before development started. It will change as the build prog
 ## Components
 
 ```
+Meta AI glasses (optional) ── video + audio via Wearables Device Access Toolkit ──┐
+                                                                                   ▼
 iPhone app (Swift, SwiftUI, ARKit, RealityKit)
-  ├─ camera keyframes, audio, AR poses
+  ├─ camera keyframes (phone or glasses), audio, AR poses
   └─ HTTPS / WebSocket ─▶ Backend (TypeScript, Node)
                             ├─ Meta Model API: SAM 3.1, Muse Spark, Muse Voice Transcribe, Muse Image
                             ├─ containers, handovers, marks, evidence (database + media store)
@@ -18,6 +20,10 @@ Stretch: Quest 3 web app (WebXR) showing a container's history at full size
 
 - **The backend holds all API keys.** The app never talks to model APIs directly.
 - **SAM output is parsed on the backend** into polygons for the app.
+- **Glasses are a second capture source.**
+  - The iPhone app receives the glasses' video and audio through the Wearables Device Access Toolkit and sends keyframes into the same pipeline.
+  - AR overlays and confirmation stay on the phone.
+  - Development and tests use the toolkit's Mock Device Kit, which replays an H.265 video file as the glasses' camera feed.
 
 ## How each model is used
 

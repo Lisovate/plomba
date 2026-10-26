@@ -6,7 +6,7 @@
 
 On its way from a seaport to the customer, a container changes hands several times: ship, port terminal, train, inland terminal, truck, depot. Each handover moves liability for damage. Yet at most inland and rail terminals, the container's condition is still recorded on paper or in loose phone photos. When a dent turns up later, nobody can prove where it happened.
 
-Plomba is an iPhone app for the checker doing the walk-around at a handover. It uses Meta's models to see, read, listen and reason, and AR to show what the previous handover recorded on the same container.
+Plomba is an iPhone app for the checker doing the walk-around at a handover, with optional hands-free capture from Meta AI glasses. It uses Meta's models to see, read, listen and reason, and AR on the phone to show what the previous handover recorded on the same container.
 
 ## What it will do
 
@@ -23,6 +23,11 @@ Plomba is an iPhone app for the checker doing the walk-around at a handover. It 
    - an EDIFACT CODECO gate message;
    - a draft claim when new damage is found;
    - a tamper-evident entry in the container's history.
+
+## Devices
+
+- **iPhone:** the main device. Camera, ARKit overlays, review and confirmation.
+- **Meta AI glasses (planned):** hands-free capture. The glasses stream video and audio to the iPhone app through Meta's Wearables Device Access Toolkit, so the checker can walk around the container with both hands free. AR overlays stay on the phone.
 
 ## Meta models
 

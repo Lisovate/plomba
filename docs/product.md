@@ -52,6 +52,7 @@ A container's handover is recorded on an **equipment interchange receipt (EIR)**
 - Offline mode with Muse Glimmer
 - Synthetic rare-damage test cases with Muse Image (excluded from reported accuracy)
 - Draft claims from the comparison agent
+- Hands-free capture from Meta AI glasses (Wearables Device Access Toolkit), developed and tested with its Mock Device Kit
 - Rail wagon number capture at rail handovers
 - A mixed-reality "claims room" on Quest 3 showing a container's history at full size
 
