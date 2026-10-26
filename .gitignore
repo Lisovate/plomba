@@ -1,0 +1,25 @@
+# Secrets: never commit
+*.key
+*-key.txt
+*.pem
+.env
+.env.*
+!.env.example
+
+# Dependencies and builds
+node_modules/
+dist/
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Data and media (record sources and licences in docs; keep raw files out of git)
+data/raw/
+data/cache/
+media/raw/
+*.mp4
+*.mov
+
+# OS
+.DS_Store
