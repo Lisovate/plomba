@@ -50,6 +50,21 @@ Room-scale AR anchors only work in the same place on the same device. A containe
 
 Between the model updates (1–2 per second), ARKit's tracking keeps the overlay steady. **Fallback:** overlays drawn on recorded frames by mapping each flat face onto the image.
 
+## Developing the glasses path without glasses
+
+Meta's Wearables Device Access Toolkit includes a **Mock Device Kit**. It simulates paired glasses (registration, permissions, device states, camera streaming, photo capture), so the glasses path can be built before any hardware is available.
+
+- **Pair a mock device and set a video as its camera:** `MockDeviceKit.shared.pairGlasses(model: .rayBanMeta)`, then `camera.setCameraFeed(fileURL:)` with a recorded walk-around. Photos use `camera.setCapturedImage(fileURL:)`.
+- **Video format:** the feed must be **H.265**, e.g. `ffmpeg -i in.mp4 -c:v hevc_videotoolbox -tag:v hvc1 out.mov`.
+- **Run it on a physical iPhone.** Frame delivery from the mock device is reported broken in the iOS 26.5 and 27 Simulators.
+- **Footage:** walk-arounds recorded at head height with the iPhone stand in for the glasses camera. Anything shown from this path is labelled "simulated glasses feed (Mock Device Kit)".
+- **Scope:** camera glasses only. The mock kit doesn't simulate display glasses, so Plomba shows nothing on a heads-up display; AR stays on the phone.
+
+References:
+- https://wearables.developer.meta.com/docs/develop/dat/mock-device-kit/
+- https://wearables.developer.meta.com/docs/develop/dat/testing-mdk-ios/
+- https://github.com/facebook/meta-wearables-dat-ios
+
 ## Data model (first version)
 
 - **Container:** number, owner code, size/type, dimensions.
