@@ -36,7 +36,7 @@ Plomba is an iPhone app for the checker doing the walk-around at a handover. It 
 
 ## Status
 
-**2026-10-26: Day 0.** The repository contains project documentation only; development starts on 2026-10-27. Progress is recorded day by day in [docs/build-log.md](docs/build-log.md).
+**2026-10-26: Day 0.** Project documentation is in place, and development starts today after the kickoff. Progress is recorded day by day in [docs/build-log.md](docs/build-log.md).
 
 Plomba is being built for the **Meta Global AI Developer Hackathon 2026** (Startup Track, theme "Build for Your World"). Everything in this repository is created during the hackathon, starting 2026-10-26.
 
