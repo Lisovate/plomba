@@ -165,6 +165,13 @@ describe('a handover', () => {
     ).toThrow(ValidationError);
   });
 
+  it('lists open handovers first, with counts', async () => {
+    const { service, handover } = await startedHandover();
+    await service.addPhoto(handover.id, { face: 'D', data: await makePhoto() });
+    const [first] = service.recent();
+    expect(first).toMatchObject({ id: handover.id, status: 'open', photoCount: 1, markCount: 0 });
+  });
+
   it('reports unknown handovers and containers', async () => {
     const { service } = createTestHandoverService();
     expect(() => service.detail('00000000-0000-4000-8000-0000000000ff')).toThrow(NotFoundError);

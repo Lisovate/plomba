@@ -1,0 +1,628 @@
+/*
+ * Mobile first, for use outdoors: high contrast, large tap targets (gloves),
+ * nothing that depends on hover.
+ */
+
+:root {
+  --navy: #0b1d33;
+  --navy-2: #16304f;
+  --seal: #ffc20e;
+  --ink: #0f172a;
+  --muted: #5b6676;
+  --line: #d5dbe3;
+  --surface: #ffffff;
+  --background: #eef1f5;
+  --ok: #157f3b;
+  --warn: #a15c00;
+  --danger: #b42318;
+  --radius: 14px;
+  --tap: 48px;
+
+  color-scheme: light;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--background);
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  margin: 0 0 0.5rem;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+
+h2 {
+  font-size: 1.15rem;
+}
+
+code,
+.container-number {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: calc(env(safe-area-inset-top) + 0.6rem) 1rem 0.6rem;
+  background: var(--navy);
+  color: #fff;
+}
+
+.app-header .link {
+  color: #fff;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.15rem;
+  text-decoration: none;
+}
+
+.offline-banner {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  background: var(--warn);
+  color: #fff;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1rem 1rem 3rem;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.row > * {
+  flex: 1;
+}
+
+.row.wrap {
+  flex-wrap: wrap;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.08);
+}
+
+.muted {
+  color: var(--muted);
+  margin: 0.25rem 0;
+}
+
+/* Controls ------------------------------------------------------------- */
+
+button,
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  padding: 0 1.1rem;
+  border: 2px solid var(--navy);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--navy);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button.primary,
+.button.primary {
+  background: var(--navy);
+  color: #fff;
+}
+
+button.large,
+.button.large {
+  min-height: 60px;
+  font-size: 1.1rem;
+}
+
+button.small {
+  min-height: 40px;
+  padding: 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+button.link {
+  display: inline-block;
+  min-height: auto;
+  padding: 0.25rem 0;
+  border: none;
+  background: none;
+  color: var(--navy-2);
+  font-weight: 500;
+  text-decoration: underline;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button:focus-visible,
+.button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--seal);
+  outline-offset: 2px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+input,
+select {
+  min-height: var(--tap);
+  padding: 0 0.75rem;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+}
+
+.hint {
+  font-weight: 400;
+  font-size: 0.9rem;
+  color: var(--danger);
+}
+
+.hint.ok {
+  color: var(--ok);
+}
+
+fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+legend {
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.segmented {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.segmented legend {
+  width: 100%;
+}
+
+.segmented label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  border: 2px solid var(--navy);
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.segmented label.selected {
+  background: var(--navy);
+  color: #fff;
+}
+
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chips legend {
+  width: 100%;
+}
+
+.chip {
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border-width: 2px;
+  font-weight: 400;
+}
+
+.chip.selected {
+  background: var(--seal);
+  border-color: var(--navy);
+}
+
+.chips select {
+  flex-basis: 100%;
+}
+
+/* Feedback ------------------------------------------------------------- */
+
+.notice {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  background: #fff6db;
+  border-left: 4px solid var(--seal);
+}
+
+.notice.error {
+  background: #fdecea;
+  border-left-color: var(--danger);
+}
+
+.badge {
+  display: inline-block;
+  margin: 0.25rem 0;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: var(--line);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.badge.ok {
+  background: #dcf3e3;
+  color: var(--ok);
+}
+
+.badge.danger {
+  background: #fdecea;
+  color: var(--danger);
+}
+
+.spinner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 600;
+}
+
+.spinner-dot {
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--line);
+  border-top-color: var(--navy);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner-dot {
+    animation-duration: 3s;
+  }
+}
+
+/* Container numbers ------------------------------------------------------ */
+
+.big-number {
+  margin: 0.25rem 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+  display: block;
+}
+
+.container-number .changed {
+  background: var(--seal);
+  border-radius: 3px;
+}
+
+.container-number .check-digit {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+  border-radius: 2px;
+  padding: 0 0.1em;
+}
+
+.verdict-verified {
+  border-top: 6px solid var(--ok);
+}
+
+.verdict-corrected,
+.verdict-ambiguous {
+  border-top: 6px solid var(--seal);
+}
+
+.verdict-unreadable {
+  border-top: 6px solid var(--danger);
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.choice {
+  font-size: 1.25rem;
+  justify-content: flex-start;
+}
+
+.choice.selected {
+  background: var(--navy);
+  color: #fff;
+}
+
+.hash {
+  font-size: 0.8rem;
+  word-break: break-all;
+  color: var(--muted);
+}
+
+/* Lists ------------------------------------------------------------------ */
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.list-item.selected {
+  outline: 3px solid var(--seal);
+}
+
+.list-item.ghost {
+  border: 2px dashed var(--warn);
+}
+
+/* Camera ------------------------------------------------------------------ */
+
+.camera {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.camera-view {
+  position: relative;
+  min-height: 240px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+}
+
+.camera-view video {
+  display: block;
+  width: 100%;
+  max-height: 65dvh;
+  object-fit: contain;
+}
+
+.camera-status {
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.camera-guide {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 0.6rem 0.9rem;
+  background: rgb(11 29 51 / 0.75);
+  font-size: 0.95rem;
+}
+
+.camera-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.shutter {
+  width: 76px;
+  height: 76px;
+  padding: 0;
+  border-radius: 50%;
+  border: 6px solid var(--navy);
+  background: var(--seal);
+  box-shadow: 0 0 0 4px #fff inset;
+}
+
+.preview {
+  width: 100%;
+  border-radius: var(--radius);
+}
+
+/* Faces and overlay --------------------------------------------------------- */
+
+.face-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.4rem;
+}
+
+.face-tab {
+  position: relative;
+  padding: 0 0.25rem;
+  font-size: 0.9rem;
+}
+
+.face-tab.done {
+  border-color: var(--ok);
+}
+
+.face-tab.selected {
+  background: var(--navy);
+  color: #fff;
+}
+
+.face-tab .count {
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--seal);
+  color: var(--navy);
+  font-size: 0.8rem;
+  line-height: 22px;
+}
+
+.overlay-frame {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+}
+
+.overlay-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.overlay-corners,
+.overlay-draw {
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.grid-cell {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.45);
+}
+
+.face-outline {
+  fill: none;
+  stroke: var(--seal);
+}
+
+.mark-ghost polygon {
+  fill: rgb(255 194 14 / 0.12);
+  stroke: var(--seal);
+  stroke-dasharray: 8 6;
+}
+
+.mark polygon {
+  fill: rgb(180 35 24 / 0.18);
+  stroke: #ff3b30;
+}
+
+.mark.selected polygon {
+  stroke: var(--seal);
+  fill: rgb(255 194 14 / 0.25);
+}
+
+.mark text,
+.mark-ghost text {
+  fill: #fff;
+  paint-order: stroke;
+  stroke: #000;
+  stroke-width: 3px;
+  font-family: ui-monospace, Menlo, monospace;
+  font-weight: 700;
+}
+
+.mark-ghost.resolved {
+  opacity: 0.35;
+}
+
+.handle {
+  fill: rgb(255 194 14 / 0.35);
+  stroke: var(--seal);
+}
+
+.handle.active {
+  fill: var(--seal);
+}
+
+.drawing {
+  fill: rgb(255 59 48 / 0.15);
+  stroke: #ff3b30;
+  stroke-dasharray: 6 4;
+}
+
+.sealed {
+  border-top: 6px solid var(--ok);
+}

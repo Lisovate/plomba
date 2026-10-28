@@ -176,6 +176,13 @@ export const HandoverDetailSchema = z.object({
   previousMarks: z.array(MarkSchema),
 });
 
+export const HandoverSummarySchema = HandoverSchema.extend({
+  markCount: z.number().int(),
+  photoCount: z.number().int(),
+});
+
+export const HandoverListSchema = z.array(HandoverSummarySchema);
+
 export const ChainStatusSchema = z.object({
   ok: z.boolean(),
   length: z.number().int(),
@@ -216,6 +223,11 @@ export type Mark = z.infer<typeof MarkSchema>;
 export type CreateMark = z.infer<typeof CreateMarkSchema>;
 export type UpdateMark = z.infer<typeof UpdateMarkSchema>;
 export type HandoverDetail = z.infer<typeof HandoverDetailSchema>;
+export type HandoverSummary = z.infer<typeof HandoverSummarySchema>;
 export type ChainStatus = z.infer<typeof ChainStatusSchema>;
 export type ContainerHistory = z.infer<typeof ContainerHistorySchema>;
 export type Problem = z.infer<typeof ProblemSchema>;
+
+/** Request bodies as clients write them, before defaults are applied. */
+export type StartHandoverInput = z.input<typeof StartHandoverSchema>;
+export type CreateMarkInput = z.input<typeof CreateMarkSchema>;

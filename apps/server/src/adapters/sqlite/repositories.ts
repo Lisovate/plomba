@@ -4,7 +4,7 @@
  */
 
 import type { DatabaseSync } from 'node:sqlite';
-import type { Container, Handover, Mark, Photo } from '@plomba/contracts';
+import type { Container, Handover, HandoverSummary, Mark, Photo } from '@plomba/contracts';
 import type { Face, Quad } from '@plomba/core';
 import { ConflictError } from '../../errors.ts';
 import type {
@@ -164,6 +164,25 @@ export class SqliteHandoverRepository implements HandoverRepository {
         .prepare('SELECT * FROM handovers WHERE container_number = ? ORDER BY started_at DESC')
         .all(containerNumber) as Row[]
     ).map(toHandover);
+  }
+
+  listRecent(limit: number): HandoverSummary[] {
+    return (
+      this.#db
+        .prepare(
+          `SELECT h.*,
+             (SELECT count(*) FROM marks m WHERE m.handover_id = h.id AND m.source != 'rejected') AS mark_count,
+             (SELECT count(*) FROM photos p WHERE p.handover_id = h.id) AS photo_count
+           FROM handovers h
+           ORDER BY h.status = 'open' DESC, h.started_at DESC
+           LIMIT ?`,
+        )
+        .all(limit) as Row[]
+    ).map((row) => ({
+      ...toHandover(row),
+      markCount: num(row, 'mark_count'),
+      photoCount: num(row, 'photo_count'),
+    }));
   }
 
   chain(containerNumber: string): ChainLink[] {

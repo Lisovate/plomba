@@ -10,6 +10,7 @@ import type {
   CreateMark,
   Handover,
   HandoverDetail,
+  HandoverSummary,
   Mark,
   Photo,
   RegisterContainer,
@@ -138,6 +139,10 @@ export class HandoverService {
       });
     });
     return this.#handover(id);
+  }
+
+  recent(limit = 30): HandoverSummary[] {
+    return this.#d.handovers.listRecent(limit);
   }
 
   detail(id: string): HandoverDetail {

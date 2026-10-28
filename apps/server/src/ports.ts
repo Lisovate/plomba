@@ -6,6 +6,7 @@
 import type {
   Container,
   Handover,
+  HandoverSummary,
   Mark,
   MarkingsRead,
   MarkSource,
@@ -119,6 +120,8 @@ export interface HandoverRepository {
   /** The most recent closed handover of a container. */
   findLastClosed(containerNumber: string): Handover | undefined;
   listForContainer(containerNumber: string): Handover[];
+  /** Open handovers first, then the most recently started; with photo and mark counts. */
+  listRecent(limit: number): HandoverSummary[];
   /** The container's sealed records, oldest first. */
   chain(containerNumber: string): ChainLink[];
   /** Marks the handover closed and appends it to the chain. Throws `ConflictError` if the sequence is taken. */

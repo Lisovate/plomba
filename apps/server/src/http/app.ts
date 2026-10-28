@@ -129,6 +129,8 @@ function api(deps: AppDeps): Hono {
     return c.json(handovers.start(input), 201);
   });
 
+  api.get('/handovers', (c) => c.json(handovers.recent()));
+
   api.get('/handovers/:id', (c) => c.json(handovers.detail(c.req.param('id'))));
 
   api.post('/handovers/:id/photos', uploadLimit, async (c) => {
@@ -166,12 +168,11 @@ function api(deps: AppDeps): Hono {
 
 function serveWebApp(app: Hono, root: string): void {
   app.use('/*', serveStatic({ root }));
-  // Client-side routes: anything that isn't a file gets the app shell.
-  let shell: Promise<string> | undefined;
+  // Client-side routes: anything that isn't a file gets the app shell. Read on
+  // each request (the OS caches it) so a redeployed build is picked up.
   app.get('*', async (c) => {
-    shell ??= readFile(join(root, 'index.html'), 'utf8');
     c.header('cache-control', 'no-cache');
-    return c.html(await shell);
+    return c.html(await readFile(join(root, 'index.html'), 'utf8'));
   });
 }
 
