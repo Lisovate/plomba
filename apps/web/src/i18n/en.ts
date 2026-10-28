@@ -151,6 +151,21 @@ export const en = {
   'dictate.stop': 'Stop and transcribe',
   'dictate.working': 'Muse Voice is transcribing…',
   'dictate.denied': 'The microphone is not available.',
+  'claim.title': 'Damage claim',
+  'claim.draft': 'Draft a claim with Muse Spark',
+  'claim.drafting': 'Muse Spark is reading the records and drafting the claim…',
+  'claim.verified': 'Checked against the sealed records',
+  'claim.attempts': 'Drafts written until every check passed: {count}. Tools used: {tools}.',
+  'claim.to': 'To',
+  'claim.subject': 'Subject',
+  'claim.copy': 'Copy the letter',
+  'claim.copied': 'Copied',
+  'claim.check.items-are-new-damage':
+    'Every item is damage recorded as new in this sealed handover',
+  'claim.check.codes-and-photos-match':
+    'Locations, damage codes and photo SHA-256 hashes match the records',
+  'claim.check.letter-cites-records':
+    'The letter cites the container number and both sealed record hashes',
   'face.D': 'door end',
   'face.R': 'right side',
   'face.F': 'front end',

@@ -4,6 +4,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import {
   CloseHandoverSchema,
   CreateMarkSchema,
+  DraftClaimSchema,
   FaceSchema,
   RegisterContainerSchema,
   StartHandoverSchema,
@@ -18,6 +19,7 @@ import type { Logger } from 'pino';
 import type { z } from 'zod';
 import { AppError, ValidationError } from '../errors.ts';
 import type { MediaStore } from '../ports.ts';
+import type { ClaimService } from '../services/claims.ts';
 import type { HandoverService } from '../services/handovers.ts';
 import type { IdentifyService } from '../services/identify.ts';
 import type { SpeechService } from '../services/speech.ts';
@@ -26,6 +28,7 @@ export interface AppDeps {
   readonly identify: IdentifyService;
   readonly handovers: HandoverService;
   readonly speech: SpeechService;
+  readonly claims: ClaimService;
   readonly media: MediaStore;
   readonly logger: Logger;
   /** The built web app, served with a single-page-app fallback. */
@@ -103,7 +106,7 @@ export function createApp(deps: AppDeps): Hono {
 
 function api(deps: AppDeps): Hono {
   const api = new Hono();
-  const { identify, handovers, speech } = deps;
+  const { identify, handovers, speech, claims } = deps;
   const uploadLimit = bodyLimit({
     maxSize: MAX_UPLOAD_BYTES,
     onError: () => {
@@ -181,6 +184,11 @@ function api(deps: AppDeps): Hono {
   api.post('/handovers/:id/close', async (c) => {
     const options = await readJson(c, CloseHandoverSchema);
     return c.json(await handovers.close(c.req.param('id'), options));
+  });
+
+  api.post('/handovers/:id/claim', async (c) => {
+    const { language } = await readJson(c, DraftClaimSchema);
+    return c.json(await claims.draft(c.req.param('id'), language));
   });
 
   api.get('/handovers/:id/codeco', (c) => {

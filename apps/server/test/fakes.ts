@@ -10,6 +10,9 @@ import {
   SqlitePhotoRepository,
 } from '../src/adapters/sqlite/repositories.ts';
 import type {
+  Agent,
+  AgentRun,
+  AgentTask,
   DamageDetector,
   DamageFinding,
   ImageInput,
@@ -222,5 +225,42 @@ export class FakeTranscriber implements SpeechTranscriber {
   async transcribe(audio: Uint8Array) {
     this.calls++;
     return { text: 'wgniecenie przy drzwiach', durationMs: audio.byteLength > 44 ? 1000 : 0 };
+  }
+}
+
+/**
+ * An agent that calls every tool once, then gives the scripted answers in
+ * order, one per `answer()`. Records the feedback it was given.
+ */
+export class ScriptedAgent implements Agent {
+  readonly feedback: string[] = [];
+  readonly toolResults: unknown[] = [];
+  tasks: AgentTask<unknown>[] = [];
+
+  readonly answers: ((toolResults: readonly unknown[]) => unknown)[];
+
+  constructor(answers: ((toolResults: readonly unknown[]) => unknown)[]) {
+    this.answers = answers;
+  }
+
+  start<T>(task: AgentTask<T>): AgentRun<T> {
+    this.tasks.push(task as AgentTask<unknown>);
+    const toolCalls: string[] = [];
+    let turn = 0;
+    return {
+      toolCalls,
+      correct: (feedback) => this.feedback.push(feedback),
+      answer: async () => {
+        if (turn === 0) {
+          for (const tool of task.tools) {
+            toolCalls.push(tool.name);
+            this.toolResults.push(await tool.run({}));
+          }
+        }
+        const script = this.answers[turn++];
+        if (!script) throw new Error('No more scripted answers');
+        return task.parser.parse(script(this.toolResults));
+      },
+    };
   }
 }

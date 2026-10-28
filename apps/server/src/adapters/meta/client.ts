@@ -10,13 +10,40 @@ export type ResponsesContent =
   | { readonly type: 'input_text'; readonly text: string }
   | { readonly type: 'input_image'; readonly image_url: string };
 
+export interface ResponsesMessage {
+  readonly type: 'message';
+  readonly role: 'user' | 'system' | 'developer';
+  readonly content: readonly ResponsesContent[];
+}
+
+export interface FunctionCallOutput {
+  readonly type: 'function_call_output';
+  readonly call_id: string;
+  readonly output: string;
+}
+
+/**
+ * Input items: messages, tool results, and output items of earlier responses
+ * replayed as they came (requests aren't stored, so the history travels with
+ * every request).
+ */
+export type ResponsesInputItem =
+  | ResponsesMessage
+  | FunctionCallOutput
+  | ResponsesResponse['output'][number];
+
+export interface FunctionTool {
+  readonly type: 'function';
+  readonly name: string;
+  readonly description: string;
+  readonly parameters: Record<string, unknown>;
+}
+
 export interface ResponsesRequest {
   readonly model: string;
-  readonly input: readonly {
-    readonly type: 'message';
-    readonly role: 'user' | 'system' | 'developer';
-    readonly content: readonly ResponsesContent[];
-  }[];
+  readonly input: readonly ResponsesInputItem[];
+  readonly tools?: readonly FunctionTool[];
+  readonly parallel_tool_calls?: boolean;
   readonly instructions?: string;
   readonly reasoning?: { readonly effort: 'minimal' | 'low' | 'medium' | 'high' };
   readonly text?: {
@@ -40,6 +67,12 @@ export interface ResponsesResponse {
     | {
         readonly type: 'message';
         readonly content: readonly { readonly type: string; readonly text?: string }[];
+      }
+    | {
+        readonly type: 'function_call';
+        readonly call_id: string;
+        readonly name: string;
+        readonly arguments: string;
       }
     | { readonly type: string }
   )[];

@@ -5,6 +5,7 @@
  */
 
 import {
+  ClaimResultSchema,
   type CloseHandoverInput,
   type ContainerHistory,
   ContainerHistorySchema,
@@ -121,6 +122,9 @@ export const api = {
 
   updateMark: (id: string, markId: string, patch: UpdateMark) =>
     request(path`/api/handovers/${id}/marks/${markId}`, json('PATCH', patch), MarkSchema),
+
+  draftClaim: (id: string, language: 'en' | 'pl') =>
+    request(path`/api/handovers/${id}/claim`, json('POST', { language }), ClaimResultSchema),
 
   closeHandover: (id: string, options: CloseHandoverInput = {}) =>
     request(path`/api/handovers/${id}/close`, json('POST', options), HandoverSchema),

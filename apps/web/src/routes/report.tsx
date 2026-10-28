@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { api, queryKeys } from '../api/client.ts';
+import { ClaimPanel } from '../components/claim-panel.tsx';
 import { FaceOverlay } from '../components/face-overlay.tsx';
 import { ContainerNumberText, ErrorNotice, Spinner } from '../components/ui.tsx';
 import { type Translate, useI18n } from '../i18n/index.tsx';
@@ -178,6 +179,10 @@ export function ReportScreen() {
           </div>
         ))}
       </section>
+
+      {handover.seal &&
+        active.some((m) => m.previousMarkId === null) &&
+        handover.previousHandoverId && <ClaimPanel handoverId={handover.id} />}
 
       {handover.seal && (
         <section className="no-print card">

@@ -14,6 +14,7 @@ import type {
   Photo,
 } from '@plomba/contracts';
 import type { ComponentCode, DamageCode, Face, FaceRect, Point, Quad } from '@plomba/core';
+import type { z } from 'zod';
 
 // Models -------------------------------------------------------------------
 
@@ -86,6 +87,40 @@ export interface DamageFinding {
 /** Finds and codes visible damage on a photo of the container (Muse Spark). */
 export interface DamageDetector {
   detect(image: SizedImage): Promise<DamageFinding[]>;
+}
+
+/** A function the agent may call. Arguments arrive as parsed JSON. */
+export interface AgentTool {
+  readonly name: string;
+  readonly description: string;
+  /** JSON schema of the arguments. */
+  readonly parameters: Record<string, unknown>;
+  run(args: Record<string, unknown>): Promise<unknown>;
+}
+
+export interface AgentTask<T> {
+  readonly instructions: string;
+  readonly prompt: string;
+  readonly images?: readonly ImageInput[];
+  readonly tools: readonly AgentTool[];
+  /** JSON schema of the final answer (strict structured output). */
+  readonly answer: { readonly name: string; readonly schema: Record<string, unknown> };
+  readonly parser: z.ZodType<T>;
+}
+
+/** One conversation with a tool-using model. */
+export interface AgentRun<T> {
+  /** Lets the model call tools until it gives a final answer. */
+  answer(): Promise<T>;
+  /** Sends feedback on the last answer; the next `answer()` continues from it. */
+  correct(feedback: string): void;
+  /** Every tool call so far, in order. */
+  readonly toolCalls: readonly string[];
+}
+
+/** A model that calls tools and answers in a fixed JSON shape (Muse Spark). */
+export interface Agent {
+  start<T>(task: AgentTask<T>): AgentRun<T>;
 }
 
 /** Turns a spoken note into text (Muse Voice Transcribe). */

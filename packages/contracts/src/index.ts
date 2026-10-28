@@ -212,6 +212,49 @@ export const ContainerHistorySchema = z.object({
   chain: ChainStatusSchema,
 });
 
+// Claims -------------------------------------------------------------------
+
+export const DraftClaimSchema = z.object({
+  language: z.enum(['en', 'pl']).default('en'),
+});
+
+export const ClaimItemSchema = z.object({
+  markId: z.string(),
+  locationCode: z.string(),
+  damageCode: z.string(),
+  description: z.string(),
+  photoSha256: z.string().nullable(),
+});
+
+export const ClaimSchema = z.object({
+  addressee: z.string(),
+  subject: z.string(),
+  summary: z.string(),
+  items: z.array(ClaimItemSchema),
+  letter: z.string(),
+});
+
+export const ClaimCheckSchema = z.enum([
+  'items-are-new-damage',
+  'codes-and-photos-match',
+  'letter-cites-records',
+]);
+
+export const ClaimResultSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('no-new-damage'), explanation: z.string() }),
+  z.object({
+    status: z.literal('drafted'),
+    claim: ClaimSchema,
+    verification: z.object({
+      /** Drafts the agent wrote before one passed every check. */
+      attempts: z.number().int(),
+      toolCalls: z.array(z.string()),
+      /** The checks the draft passed. */
+      checks: z.array(ClaimCheckSchema),
+    }),
+  }),
+]);
+
 // Speech -------------------------------------------------------------------
 
 export const TranscriptionSchema = z.object({
@@ -252,6 +295,9 @@ export type ChainStatus = z.infer<typeof ChainStatusSchema>;
 export type ContainerHistory = z.infer<typeof ContainerHistorySchema>;
 export type Problem = z.infer<typeof ProblemSchema>;
 export type Transcription = z.infer<typeof TranscriptionSchema>;
+export type Claim = z.infer<typeof ClaimSchema>;
+export type ClaimResult = z.infer<typeof ClaimResultSchema>;
+export type ClaimCheck = z.infer<typeof ClaimCheckSchema>;
 
 /** Request bodies as clients write them, before defaults are applied. */
 export type StartHandoverInput = z.input<typeof StartHandoverSchema>;

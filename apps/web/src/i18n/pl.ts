@@ -152,6 +152,22 @@ export const pl: Messages = {
   'dictate.stop': 'Zakończ i przepisz',
   'dictate.working': 'Muse Voice przepisuje…',
   'dictate.denied': 'Mikrofon jest niedostępny.',
+  'claim.title': 'Reklamacja uszkodzeń',
+  'claim.draft': 'Przygotuj reklamację z Muse Spark',
+  'claim.drafting': 'Muse Spark czyta rekordy i przygotowuje reklamację…',
+  'claim.verified': 'Sprawdzono z zaplombowanymi rekordami',
+  'claim.attempts':
+    'Wersje napisane, zanim wszystkie kontrole przeszły: {count}. Użyte narzędzia: {tools}.',
+  'claim.to': 'Do',
+  'claim.subject': 'Temat',
+  'claim.copy': 'Kopiuj pismo',
+  'claim.copied': 'Skopiowano',
+  'claim.check.items-are-new-damage':
+    'Każda pozycja to uszkodzenie odnotowane jako nowe w tym zaplombowanym przekazaniu',
+  'claim.check.codes-and-photos-match':
+    'Miejsca, kody uszkodzeń i skróty SHA-256 zdjęć zgadzają się z rekordami',
+  'claim.check.letter-cites-records':
+    'Pismo podaje numer kontenera i skróty obu zaplombowanych rekordów',
   'face.D': 'ściana drzwiowa',
   'face.R': 'prawa ściana',
   'face.F': 'ściana czołowa',

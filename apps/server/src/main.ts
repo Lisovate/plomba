@@ -11,6 +11,7 @@ import { serve } from '@hono/node-server';
 import { pino } from 'pino';
 import { MetaClient } from './adapters/meta/client.ts';
 import { MuseSparkDamageDetector, MuseSparkMarkingsReader } from './adapters/meta/muse-spark.ts';
+import { MuseSparkAgent } from './adapters/meta/muse-spark-agent.ts';
 import { MuseVoiceTranscriber } from './adapters/meta/muse-voice.ts';
 import { Sam3Segmenter } from './adapters/meta/sam.ts';
 import { createTransactionRunner, openDatabase } from './adapters/sqlite/database.ts';
@@ -23,6 +24,7 @@ import {
 import { ConfigError, loadConfig } from './config.ts';
 import { createApp } from './http/app.ts';
 import { FileMediaStore } from './media/file-media-store.ts';
+import { ClaimService } from './services/claims.ts';
 import { HandoverService } from './services/handovers.ts';
 import { IdentifyService } from './services/identify.ts';
 import { SpeechService } from './services/speech.ts';
@@ -52,13 +54,16 @@ function main(): void {
   const segmenter = new Sam3Segmenter(meta, { model: config.meta.segmentationModel });
   const transcriber = new MuseVoiceTranscriber(meta, { model: config.meta.speechModel });
 
+  const repositories = {
+    containers: new SqliteContainerRepository(db),
+    handovers: new SqliteHandoverRepository(db),
+    photos: new SqlitePhotoRepository(db),
+    marks: new SqliteMarkRepository(db),
+  };
   const app = createApp({
     identify: new IdentifyService(reader),
     handovers: new HandoverService({
-      containers: new SqliteContainerRepository(db),
-      handovers: new SqliteHandoverRepository(db),
-      photos: new SqlitePhotoRepository(db),
-      marks: new SqliteMarkRepository(db),
+      ...repositories,
       media,
       segmenter,
       detector,
@@ -68,6 +73,7 @@ function main(): void {
       ediSenderId: config.ediSenderId,
     }),
     speech: new SpeechService(transcriber),
+    claims: new ClaimService({ ...repositories, media, agent: new MuseSparkAgent(meta, spark) }),
     media,
     logger,
     webDistDir: config.webDistDir,

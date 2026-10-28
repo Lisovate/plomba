@@ -72,3 +72,7 @@ A dated record of what was built and when. The newest entry is at the bottom.
   - The browser records in its own codec (WebM/Opus or MP4/AAC) and converts the note to 24 kHz mono WAV, so the server needs no ffmpeg.
   - Recognition is biased to Polish and English and to container vocabulary.
   - A synthetic Polish note (espeak-ng) came back word for word in 3.7 s for 9.4 s of audio, apart from "wgniecenie" → "wgniecenia"; tested end to end through Chromium's fake microphone.
+- **Claim agent.**
+  - Muse Spark calls tools (the handover comparison, the container history) and drafts a claim for new damage.
+  - The server checks every cited item, code and photo hash, and the record hashes in the letter, against the sealed records, and sends failing drafts back as feedback.
+  - Live: 7 s, first draft passed, only the new dent claimed, in English and Polish.

@@ -762,3 +762,21 @@ legend {
   background: var(--danger);
   border-color: var(--danger);
 }
+
+/* Claims ---------------------------------------------------------------- */
+
+.letter {
+  white-space: pre-wrap;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.85rem;
+  background: var(--background);
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.checks ul {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  color: var(--ok);
+}

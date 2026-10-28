@@ -60,7 +60,7 @@ Node 24 runs the TypeScript sources directly (type stripping), so the server has
 | Spoken notes | Muse Voice Transcribe 1.0, push-to-talk | A note recorded in the browser, converted there to 24 kHz mono WAV | Note text in Polish or English, biased to container vocabulary | Built |
 | Voice commands, disputes by speaker | Muse Voice Transcribe, streaming and diarisation | Live audio | Commands; statements labelled by speaker | Planned |
 | Compare and close | Deterministic code | Previous and current handover | EIR report, CODECO message | Built |
-| Draft a claim | Muse Spark, tools | The comparison, photos and codes | Draft claim for new damage | Planned |
+| Draft a claim | Muse Spark 1.3, tool calling + structured output | Photos of the new damage; tools for the comparison and the container's history | A claim letter whose items and evidence are verified against the sealed records | Built |
 | Offline mode | Muse Glimmer | As above, reduced | Number reading and damage labelling without internet | Planned |
 | Test cases | Muse Image | Real photo plus an instruction edit | Labelled synthetic damage, never counted in accuracy | Planned |
 
@@ -121,6 +121,22 @@ SAM 3.1 doesn't find container damage from concept prompts: `dent`, `damage` and
 3. **The outline is mapped onto the face** through the inverse homography. It becomes a rectangle and outline in metres with a computed CEDEX location code, stored as a mark with source `proposed`.
    - Findings below 30% confidence, mostly off the face, or overlapping an existing mark are dropped.
 4. **The checker confirms or rejects every proposal.** A handover can't be sealed while proposals are pending.
+
+## The claim agent: verified, not trusted
+
+When a sealed handover shows damage that the previous handover didn't record, Muse Spark drafts a claim against the party that had custody in between (`services/claims.ts`).
+
+1. **The agent gathers facts with tools.** `get_handover_comparison` returns both handovers, the new damage with sizes in mm and photo hashes, and what happened to earlier damage. `get_container_history` returns every sealed handover and whether the hash chain verifies. Photos of the new damage go with the task.
+2. **It answers in a fixed JSON shape**: addressee, subject, summary, cited items and the letter.
+3. **The service verifies the draft against the sealed records.**
+   - Every cited item must be new damage, with the recorded location, damage code and photo SHA-256.
+   - Every new damage must be cited.
+   - The letter must state the container number and both record hashes.
+
+   Any failure goes back to the agent as feedback, up to three drafts, and the API returns only a draft that passed. Tests use a scripted agent that cites an invented mark first.
+4. **The conversation travels with each request.** Requests are sent with `store: false`, so the agent replays the model's output items (including its encrypted reasoning) and the tool results instead of using `previous_response_id`.
+
+Live, on a container with one old hole and one new dent, Muse Spark called both tools, passed verification on the first draft and claimed only the dent. It took 7 s, in English or Polish.
 
 ## Evidence and the hash chain
 
