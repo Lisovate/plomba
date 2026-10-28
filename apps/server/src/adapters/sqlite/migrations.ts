@@ -76,4 +76,8 @@ export const MIGRATIONS: readonly string[] = [
 
   CREATE INDEX marks_by_handover ON marks(handover_id, created_at);
   `,
+  // 2026-10-28: damage outlines traced by SAM 3.1, as JSON [{x, y}] in metres on the face.
+  `
+  ALTER TABLE marks ADD COLUMN outline TEXT;
+  `,
 ];

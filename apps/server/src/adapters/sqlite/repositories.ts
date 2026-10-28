@@ -25,6 +25,8 @@ type Row = Record<string, unknown>;
 const str = (row: Row, key: string) => row[key] as string;
 const strOrNull = (row: Row, key: string) => (row[key] ?? null) as string | null;
 const num = (row: Row, key: string) => row[key] as number;
+const parseJsonOrNull = <T>(value: string | null): T | null =>
+  value === null ? null : (JSON.parse(value) as T);
 
 export class SqliteContainerRepository implements ContainerRepository {
   readonly #db: DatabaseSync;
@@ -233,7 +235,7 @@ function toPhoto(row: Row): Photo {
     sha256,
     width: num(row, 'width'),
     height: num(row, 'height'),
-    corners: corners === null ? null : (JSON.parse(corners) as Photo['corners']),
+    corners: parseJsonOrNull<Photo['corners']>(corners),
     cornersSource: strOrNull(row, 'corners_source') as Photo['cornersSource'],
     redactedRegions: num(row, 'redacted_regions'),
     capturedAt: str(row, 'captured_at'),
@@ -294,6 +296,7 @@ function toMark(row: Row): Mark {
     handoverId: str(row, 'handover_id'),
     face: str(row, 'face') as Face,
     rect: { u0: num(row, 'u0'), v0: num(row, 'v0'), u1: num(row, 'u1'), v1: num(row, 'v1') },
+    outline: parseJsonOrNull<Mark['outline']>(strOrNull(row, 'outline')),
     locationCode: str(row, 'location_code'),
     damageCode: strOrNull(row, 'damage_code') as Mark['damageCode'],
     componentCode: strOrNull(row, 'component_code') as Mark['componentCode'],
@@ -321,9 +324,9 @@ export class SqliteMarkRepository implements MarkRepository {
   insert(m: NewMark): void {
     this.#db
       .prepare(
-        `INSERT INTO marks (id, handover_id, face, u0, v0, u1, v1, location_code, damage_code,
-           component_code, status, source, previous_mark_id, photo_id, note, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO marks (id, handover_id, face, u0, v0, u1, v1, outline, location_code,
+           damage_code, component_code, status, source, previous_mark_id, photo_id, note, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         m.id,
@@ -333,6 +336,7 @@ export class SqliteMarkRepository implements MarkRepository {
         m.rect.v0,
         m.rect.u1,
         m.rect.v1,
+        m.outline && JSON.stringify(m.outline),
         m.locationCode,
         m.damageCode,
         m.componentCode,
@@ -348,8 +352,8 @@ export class SqliteMarkRepository implements MarkRepository {
   update(m: Mark): void {
     this.#db
       .prepare(
-        `UPDATE marks SET u0 = ?, v0 = ?, u1 = ?, v1 = ?, location_code = ?, damage_code = ?,
-           component_code = ?, status = ?, source = ?, note = ?
+        `UPDATE marks SET u0 = ?, v0 = ?, u1 = ?, v1 = ?, outline = ?, location_code = ?,
+           damage_code = ?, component_code = ?, status = ?, source = ?, note = ?
          WHERE id = ?`,
       )
       .run(
@@ -357,6 +361,7 @@ export class SqliteMarkRepository implements MarkRepository {
         m.rect.v0,
         m.rect.u1,
         m.rect.v1,
+        m.outline && JSON.stringify(m.outline),
         m.locationCode,
         m.damageCode,
         m.componentCode,

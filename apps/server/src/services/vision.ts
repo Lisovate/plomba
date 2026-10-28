@@ -15,18 +15,30 @@ export const PRIVACY_CONCEPTS = ['human face', 'license plate'] as const;
 /** A detected face outline must cover at least this share of the photo to be trusted. */
 const MIN_FACE_AREA_SHARE = 0.05;
 
-/** Image pixels covered by a mask, mapped from mask resolution to the photo. */
-export function* maskPoints(object: SegmentedObject): Generator<Point> {
+/**
+ * The leftmost and rightmost mask pixel of every row, in photo pixels. Every
+ * vertex of the mask's convex hull is among them, so they're enough for
+ * outlines and corner detection at a fraction of the pixels.
+ */
+export function maskBoundary(object: SegmentedObject): Point[] {
   const { width, height, data, bounds } = object.mask;
   const sx = (bounds.right - bounds.left) / width;
   const sy = (bounds.bottom - bounds.top) / height;
+  const points: Point[] = [];
   for (let row = 0; row < height; row++) {
+    let first = -1;
+    let last = -1;
     for (let col = 0; col < width; col++) {
       if (data[row * width + col]) {
-        yield { x: bounds.left + (col + 0.5) * sx, y: bounds.top + (row + 0.5) * sy };
+        if (first < 0) first = col;
+        last = col;
       }
     }
+    if (first < 0) continue;
+    const y = bounds.top + (row + 0.5) * sy;
+    points.push({ x: bounds.left + first * sx, y }, { x: bounds.left + (last + 1) * sx, y });
   }
+  return points;
 }
 
 function maskArea(object: SegmentedObject): number {
@@ -64,7 +76,7 @@ export async function detectFaceCorners(
   }
   if (!best) return null;
   try {
-    const quad = quadFromPoints(maskPoints(best.object));
+    const quad = quadFromPoints(maskBoundary(best.object));
     return quadArea(quad) >= MIN_FACE_AREA_SHARE * image.width * image.height ? quad : null;
   } catch (error) {
     if (error instanceof DegenerateGeometryError) return null;

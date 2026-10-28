@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyHomography,
+  convexHull,
   DegenerateGeometryError,
   faceToImage,
   imagePointsToFaceRect,
@@ -107,5 +108,22 @@ describe('face to image', () => {
     expect(back.v0).toBeCloseTo(rect.v0, 6);
     expect(back.u1).toBeCloseTo(rect.u1, 6);
     expect(back.v1).toBeCloseTo(rect.v1, 6);
+  });
+});
+
+describe('convexHull', () => {
+  it('keeps the outer points of a filled square and drops the inside', () => {
+    const points: Point[] = [];
+    for (let x = 0; x <= 4; x++) for (let y = 0; y <= 4; y++) points.push({ x, y });
+    expect(convexHull(points)).toEqual([
+      { x: 0, y: 0 },
+      { x: 4, y: 0 },
+      { x: 4, y: 4 },
+      { x: 0, y: 4 },
+    ]);
+  });
+
+  it('returns short inputs unchanged', () => {
+    expect(convexHull([{ x: 1, y: 1 }])).toEqual([{ x: 1, y: 1 }]);
   });
 });

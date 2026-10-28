@@ -97,3 +97,13 @@ export function clampToFace(face: Face, rect: FaceRect, dimensions: ContainerDim
     v1: clamp(Math.max(rect.v0, rect.v1), height),
   };
 }
+
+/** Intersection over union of two rectangles on the same face: 0 when apart, 1 when identical. */
+export function rectOverlap(a: FaceRect, b: FaceRect): number {
+  const w = Math.min(a.u1, b.u1) - Math.max(a.u0, b.u0);
+  const h = Math.min(a.v1, b.v1) - Math.max(a.v0, b.v0);
+  if (w <= 0 || h <= 0) return 0;
+  const intersection = w * h;
+  const area = (r: FaceRect) => (r.u1 - r.u0) * (r.v1 - r.v0);
+  return intersection / (area(a) + area(b) - intersection);
+}

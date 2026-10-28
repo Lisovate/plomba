@@ -175,3 +175,24 @@ export function imagePointsToFaceRect(imageToFace: Homography, points: Iterable<
   if (!Number.isFinite(u0)) throw new DegenerateGeometryError('No points');
   return { u0, v0, u1, v1 };
 }
+
+/** The convex hull of a set of points (Andrew's monotone chain), counter-clockwise in a y-up frame. */
+export function convexHull(input: Iterable<Point>): Point[] {
+  const points = [...input].sort((a, b) => a.x - b.x || a.y - b.y);
+  if (points.length <= 2) return points;
+  const cross = (o: Point, a: Point, b: Point) =>
+    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower: Point[] = [];
+  for (const p of points) {
+    while (lower.length >= 2 && cross(lower.at(-2) as Point, lower.at(-1) as Point, p) <= 0)
+      lower.pop();
+    lower.push(p);
+  }
+  const upper: Point[] = [];
+  for (const p of points.reverse()) {
+    while (upper.length >= 2 && cross(upper.at(-2) as Point, upper.at(-1) as Point, p) <= 0)
+      upper.pop();
+    upper.push(p);
+  }
+  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
+}

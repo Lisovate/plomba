@@ -58,6 +58,11 @@ export function FacePanel(props: FacePanelProps) {
     },
   });
 
+  const propose = useMutation({
+    mutationFn: () => api.proposeDamage(handoverId, photo?.id ?? ''),
+    onSuccess: refresh,
+  });
+
   const addMark = useMutation({
     mutationFn: (input: Parameters<typeof api.addMark>[1]) => api.addMark(handoverId, input),
     onSuccess: async () => {
@@ -140,8 +145,16 @@ export function FacePanel(props: FacePanelProps) {
           }
         />
       )}
-      {(saveCorners.isError || addMark.isError) && (
-        <ErrorNotice error={saveCorners.error ?? addMark.error} />
+      {propose.isPending && <Spinner label={t('handover.finding')} />}
+      {propose.isSuccess && (
+        <p className="notice">
+          {propose.data.length > 0
+            ? t('handover.found', { count: propose.data.length })
+            : t('handover.noneFound')}
+        </p>
+      )}
+      {(saveCorners.isError || addMark.isError || propose.isError) && (
+        <ErrorNotice error={saveCorners.error ?? addMark.error ?? propose.error} />
       )}
 
       {editable && !pendingRect && (
@@ -169,6 +182,14 @@ export function FacePanel(props: FacePanelProps) {
             </>
           ) : (
             <>
+              <button
+                type="button"
+                className="primary"
+                disabled={!photo.corners || propose.isPending}
+                onClick={() => propose.mutate()}
+              >
+                {t('handover.findDamage')}
+              </button>
               <button
                 type="button"
                 className={mode === 'draw' ? 'primary' : 'secondary'}

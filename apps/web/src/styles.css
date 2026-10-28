@@ -438,6 +438,10 @@ legend {
   outline: 3px solid var(--seal);
 }
 
+.list-item.proposed {
+  border: 2px dashed #ff8c00;
+}
+
 .list-item.ghost {
   border: 2px dashed var(--warn);
 }
@@ -587,6 +591,12 @@ legend {
 .mark polygon {
   fill: rgb(180 35 24 / 0.18);
   stroke: #ff3b30;
+}
+
+.mark.proposed polygon {
+  fill: rgb(255 140 0 / 0.2);
+  stroke: #ff8c00;
+  stroke-dasharray: 10 5;
 }
 
 .mark.selected polygon {

@@ -150,6 +150,10 @@ function api(deps: AppDeps): Hono {
     return c.json(handovers.updateCorners(c.req.param('id'), c.req.param('photoId'), corners));
   });
 
+  api.post('/handovers/:id/photos/:photoId/proposals', async (c) =>
+    c.json(await handovers.proposeDamage(c.req.param('id'), c.req.param('photoId')), 201),
+  );
+
   api.post('/handovers/:id/marks', async (c) => {
     const input = await readJson(c, CreateMarkSchema);
     return c.json(handovers.addMark(c.req.param('id'), input), 201);

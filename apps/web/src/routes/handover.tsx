@@ -100,7 +100,14 @@ export function HandoverScreen() {
         }}
       />
 
-      {editable ? <SealButton handoverId={handover.id} /> : <SealInfo detail={detail.data} />}
+      {editable ? (
+        <SealButton
+          handoverId={handover.id}
+          pendingProposals={view.activeMarks.filter((m) => m.source === 'proposed').length}
+        />
+      ) : (
+        <SealInfo detail={detail.data} />
+      )}
     </div>
   );
 }
@@ -227,8 +234,9 @@ function MarksList({
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const reject = useMutation({
-    mutationFn: (mark: Mark) => api.updateMark(handoverId, mark.id, { source: 'rejected' }),
+  const review = useMutation({
+    mutationFn: ({ mark, source }: { mark: Mark; source: 'confirmed' | 'rejected' }) =>
+      api.updateMark(handoverId, mark.id, { source }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.handover(handoverId) }),
   });
 
@@ -240,22 +248,41 @@ function MarksList({
         {marks.map((mark) => (
           <li
             key={mark.id}
-            className={mark.id === selectedMarkId ? 'list-item selected' : 'list-item'}
+            className={[
+              'list-item',
+              mark.source === 'proposed' ? 'proposed' : '',
+              mark.id === selectedMarkId ? 'selected' : '',
+            ].join(' ')}
           >
             <button type="button" className="link" onClick={() => onSelect(mark)}>
               <code>{mark.locationCode}</code> {damageLabel(mark.damageCode)}
               {mark.componentCode && <span className="muted"> · {mark.componentCode}</span>}
             </button>
-            <span className="muted">{t(`mark.status.${mark.status}`)}</span>
+            <span className="muted">
+              {mark.source === 'proposed' ? t('mark.proposed') : t(`mark.status.${mark.status}`)}
+            </span>
+            {mark.note && <span className="muted">{mark.note}</span>}
             {editable && (
-              <button
-                type="button"
-                className="secondary small"
-                disabled={reject.isPending}
-                onClick={() => reject.mutate(mark)}
-              >
-                {t('mark.reject')}
-              </button>
+              <div className="row wrap">
+                {mark.source === 'proposed' && (
+                  <button
+                    type="button"
+                    className="primary small"
+                    disabled={review.isPending}
+                    onClick={() => review.mutate({ mark, source: 'confirmed' })}
+                  >
+                    {t('mark.confirm')}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="secondary small"
+                  disabled={review.isPending}
+                  onClick={() => review.mutate({ mark, source: 'rejected' })}
+                >
+                  {t('mark.reject')}
+                </button>
+              </div>
             )}
           </li>
         ))}
@@ -264,7 +291,13 @@ function MarksList({
   );
 }
 
-function SealButton({ handoverId }: { handoverId: string }) {
+function SealButton({
+  handoverId,
+  pendingProposals,
+}: {
+  handoverId: string;
+  pendingProposals: number;
+}) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const seal = useMutation({
@@ -278,10 +311,11 @@ function SealButton({ handoverId }: { handoverId: string }) {
   return (
     <div className="stack">
       {seal.isError && <ErrorNotice error={seal.error} />}
+      {pendingProposals > 0 && <p className="notice">{t('handover.reviewFirst')}</p>}
       <button
         type="button"
         className="primary large"
-        disabled={seal.isPending}
+        disabled={seal.isPending || pendingProposals > 0}
         onClick={() => {
           if (window.confirm(t('handover.sealConfirm'))) seal.mutate();
         }}

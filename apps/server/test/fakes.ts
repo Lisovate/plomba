@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { MarkingsRead } from '@plomba/contracts';
+import type { CreateMark, MarkingsRead } from '@plomba/contracts';
 import { pino } from 'pino';
 import sharp from 'sharp';
 import { createTransactionRunner, openDatabase } from '../src/adapters/sqlite/database.ts';
@@ -10,11 +10,15 @@ import {
   SqlitePhotoRepository,
 } from '../src/adapters/sqlite/repositories.ts';
 import type {
+  DamageDetector,
+  DamageFinding,
   ImageInput,
   MarkingsReader,
   MediaStore,
+  PixelBox,
   SegmentedObject,
   Segmenter,
+  SizedImage,
   StoredMedia,
 } from '../src/ports.ts';
 import { HandoverService } from '../src/services/handovers.ts';
@@ -82,6 +86,7 @@ export function rectangleObject(
   const width = right - left;
   const height = bottom - top;
   return {
+    id: '0',
     box: { left, top, right, bottom },
     confidence,
     mask: {
@@ -96,11 +101,56 @@ export function rectangleObject(
 export class FakeSegmenter implements Segmenter {
   readonly calls: string[] = [];
   readonly responses = new Map<string, SegmentedObject[]>();
+  /** When set, `refine` outlines each box as a filled rectangle; otherwise finds nothing. */
+  outlineBoxes = true;
 
   async segment(_image: ImageInput, concept: string): Promise<SegmentedObject[]> {
     this.calls.push(concept);
     return this.responses.get(concept) ?? [];
   }
+
+  async refine(_image: SizedImage, boxes: readonly PixelBox[]) {
+    this.calls.push(`refine:${boxes.length}`);
+    return boxes.map((b, i) =>
+      this.outlineBoxes
+        ? {
+            ...rectangleObject(
+              Math.round(b.left),
+              Math.round(b.top),
+              Math.round(b.right),
+              Math.round(b.bottom),
+              0.8,
+            ),
+            id: String(i + 1),
+          }
+        : null,
+    );
+  }
+}
+
+export class FakeDetector implements DamageDetector {
+  findings: DamageFinding[] = [];
+
+  async detect(_image: SizedImage): Promise<DamageFinding[]> {
+    return this.findings;
+  }
+}
+
+/** A confirmed new mark with no codes; override what a test cares about. */
+export function markInput(overrides: Partial<CreateMark> = {}): CreateMark {
+  return {
+    face: 'R',
+    rect: { u0: 0, v0: 0, u1: 1, v1: 1 },
+    outline: null,
+    damageCode: null,
+    componentCode: null,
+    status: 'new',
+    source: 'confirmed',
+    previousMarkId: null,
+    photoId: null,
+    note: null,
+    ...overrides,
+  };
 }
 
 export class MemoryMediaStore implements MediaStore {
@@ -120,6 +170,7 @@ export class MemoryMediaStore implements MediaStore {
 export function createTestHandoverService() {
   const db = openDatabase(':memory:');
   const segmenter = new FakeSegmenter();
+  const detector = new FakeDetector();
   const media = new MemoryMediaStore();
   const service = new HandoverService({
     containers: new SqliteContainerRepository(db),
@@ -128,9 +179,10 @@ export function createTestHandoverService() {
     marks: new SqliteMarkRepository(db),
     media,
     segmenter,
+    detector,
     transaction: createTransactionRunner(db),
     clock: fixedClock(),
     newId: sequentialIds(),
   });
-  return { db, segmenter, media, service };
+  return { db, segmenter, detector, media, service };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { faceCells, isDamageCode, locationCode, longSectionCount } from '../src/cedex.ts';
-import { faceSize } from '../src/faces.ts';
+import { faceSize, rectOverlap } from '../src/faces.ts';
 import { parseSizeType } from '../src/size-type.ts';
 
 const twenty = parseSizeType('22G1')?.dimensions;
@@ -95,5 +95,14 @@ describe('code lists', () => {
   it('keeps damage codes separate from locations', () => {
     expect(isDamageCode('DT')).toBe(true);
     expect(isDamageCode('toString')).toBe(false);
+  });
+});
+
+describe('rectOverlap', () => {
+  it('is 1 for identical rectangles, 0 for separate ones and in between otherwise', () => {
+    const a = { u0: 0, v0: 0, u1: 2, v1: 1 };
+    expect(rectOverlap(a, a)).toBe(1);
+    expect(rectOverlap(a, { u0: 3, v0: 0, u1: 4, v1: 1 })).toBe(0);
+    expect(rectOverlap(a, { u0: 1, v0: 0, u1: 3, v1: 1 })).toBeCloseTo(1 / 3);
   });
 });

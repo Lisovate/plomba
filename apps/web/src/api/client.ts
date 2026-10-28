@@ -18,6 +18,7 @@ import {
   PhotoSchema,
   type Problem,
   ProblemSchema,
+  ProposalsSchema,
   type RegisterContainer,
   type StartHandoverInput,
   type UpdateMark,
@@ -98,6 +99,13 @@ export const api = {
       path`/api/handovers/${id}/photos/${photoId}/corners`,
       json('PUT', { corners }),
       PhotoSchema,
+    ),
+
+  proposeDamage: (id: string, photoId: string) =>
+    request(
+      path`/api/handovers/${id}/photos/${photoId}/proposals`,
+      { method: 'POST' },
+      ProposalsSchema,
     ),
 
   addMark: (id: string, body: CreateMarkInput) =>

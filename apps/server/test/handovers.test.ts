@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ConflictError, NotFoundError, ValidationError } from '../src/errors.ts';
-import { createTestHandoverService, makePhoto, rectangleObject } from './fakes.ts';
+import { createTestHandoverService, makePhoto, markInput, rectangleObject } from './fakes.ts';
 
 const NUMBER = 'CSQU3054383';
 
@@ -56,7 +56,7 @@ describe('a handover', () => {
     expect(segmenter.calls.sort()).toEqual(['human face', 'license plate', 'shipping container']);
     expect(photo.redactedRegions).toBe(1);
     expect(photo.cornersSource).toBe('detected');
-    expect(photo.corners?.[0]).toEqual({ x: 40.5, y: 30.5 });
+    expect(photo.corners?.[0]).toEqual({ x: 40, y: 30.5 });
     expect(media.files.has(photo.sha256)).toBe(true);
     expect(photo.url).toBe(`/media/${photo.sha256}`);
   });
@@ -76,17 +76,15 @@ describe('a handover', () => {
 
   it('codes a mark from its position on the face', async () => {
     const { service, handover } = await startedHandover();
-    const mark = service.addMark(handover.id, {
-      face: 'R',
-      rect: { u0: 0.2, v0: 0.2, u1: 0.5, v1: 0.6 },
-      damageCode: 'DT',
-      componentCode: 'PAA',
-      status: 'new',
-      source: 'confirmed',
-      previousMarkId: null,
-      photoId: null,
-      note: null,
-    });
+    const mark = service.addMark(
+      handover.id,
+      markInput({
+        face: 'R',
+        rect: { u0: 0.2, v0: 0.2, u1: 0.5, v1: 0.6 },
+        damageCode: 'DT',
+        componentCode: 'PAA',
+      }),
+    );
     expect(mark.locationCode).toBe('RB1N');
 
     const moved = service.updateMark(handover.id, mark.id, {
@@ -97,17 +95,10 @@ describe('a handover', () => {
 
   it('seals handovers into a verifiable chain and carries marks forward', async () => {
     const { service, db, handover } = await startedHandover();
-    const dent = service.addMark(handover.id, {
-      face: 'L',
-      rect: { u0: 1, v0: 1, u1: 1.3, v1: 1.2 },
-      damageCode: 'DT',
-      componentCode: null,
-      status: 'new',
-      source: 'confirmed',
-      previousMarkId: null,
-      photoId: null,
-      note: null,
-    });
+    const dent = service.addMark(
+      handover.id,
+      markInput({ face: 'L', rect: { u0: 1, v0: 1, u1: 1.3, v1: 1.2 }, damageCode: 'DT' }),
+    );
     const first = await service.close(handover.id);
     expect(first.status).toBe('closed');
     expect(first.seal?.sequence).toBe(0);
@@ -124,17 +115,16 @@ describe('a handover', () => {
     expect(second.previousHandoverId).toBe(handover.id);
     expect(detail.previousMarks.map((m) => m.id)).toEqual([dent.id]);
 
-    service.addMark(second.id, {
-      face: 'L',
-      rect: dent.rect,
-      damageCode: 'DT',
-      componentCode: null,
-      status: 'still-there',
-      source: 'confirmed',
-      previousMarkId: dent.id,
-      photoId: null,
-      note: null,
-    });
+    service.addMark(
+      second.id,
+      markInput({
+        face: 'L',
+        rect: dent.rect,
+        damageCode: 'DT',
+        status: 'still-there',
+        previousMarkId: dent.id,
+      }),
+    );
     const sealed = await service.close(second.id);
     expect(sealed.seal?.previousHash).toBe(first.seal?.hash);
 
@@ -151,17 +141,15 @@ describe('a handover', () => {
   it('rejects marks that point at the wrong previous handover', async () => {
     const { service, handover } = await startedHandover();
     expect(() =>
-      service.addMark(handover.id, {
-        face: 'R',
-        rect: { u0: 0, v0: 0, u1: 1, v1: 1 },
-        damageCode: null,
-        componentCode: null,
-        status: 'still-there',
-        source: 'confirmed',
-        previousMarkId: '00000000-0000-4000-8000-0000000000ff',
-        photoId: null,
-        note: null,
-      }),
+      service.addMark(
+        handover.id,
+        markInput({
+          face: 'R',
+          rect: { u0: 0, v0: 0, u1: 1, v1: 1 },
+          status: 'still-there',
+          previousMarkId: '00000000-0000-4000-8000-0000000000ff',
+        }),
+      ),
     ).toThrow(ValidationError);
   });
 
@@ -176,5 +164,85 @@ describe('a handover', () => {
     const { service } = createTestHandoverService();
     expect(() => service.detail('00000000-0000-4000-8000-0000000000ff')).toThrow(NotFoundError);
     await expect(service.history('CSQU3054383')).rejects.toThrow(NotFoundError);
+  });
+});
+
+describe('damage proposals', () => {
+  // A 400×300 photo in which the right side of a 20 ft container fills x 40–360, y 30–270.
+  async function registeredPhoto() {
+    const context = await startedHandover();
+    context.segmenter.responses.set('shipping container', [rectangleObject(40, 30, 360, 270)]);
+    const photo = await context.service.addPhoto(context.handover.id, {
+      face: 'R',
+      data: await makePhoto(),
+    });
+    return { ...context, photo };
+  }
+
+  const dentNearDoors = {
+    box: { left: 60, top: 200, right: 100, bottom: 250 },
+    damageCode: 'DT',
+    componentCode: 'PAA',
+    description: 'dent near the doors',
+    confidence: 0.9,
+  } as const;
+
+  it('maps findings onto the face as proposed marks and drops the rest', async () => {
+    const { service, detector, handover, photo } = await registeredPhoto();
+    detector.findings = [
+      dentNearDoors,
+      {
+        ...dentNearDoors,
+        box: { left: 0, top: 0, right: 30, bottom: 20 },
+        description: 'off the container',
+      },
+      { ...dentNearDoors, box: { left: 200, top: 100, right: 220, bottom: 120 }, confidence: 0.1 },
+    ];
+
+    const proposals = await service.proposeDamage(handover.id, photo.id);
+
+    expect(proposals).toHaveLength(1);
+    const [dent] = proposals;
+    expect(dent).toMatchObject({
+      source: 'proposed',
+      status: 'new',
+      damageCode: 'DT',
+      componentCode: 'PAA',
+      photoId: photo.id,
+      locationCode: 'RB1N',
+    });
+    expect(dent?.outline?.length).toBeGreaterThanOrEqual(3);
+    expect(dent?.note).toBe('dent near the doors (Muse Spark 90%, outlined by SAM 3.1 at 80%)');
+  });
+
+  it('does not propose the same damage twice', async () => {
+    const { service, detector, handover, photo } = await registeredPhoto();
+    detector.findings = [dentNearDoors];
+    expect(await service.proposeDamage(handover.id, photo.id)).toHaveLength(1);
+    expect(await service.proposeDamage(handover.id, photo.id)).toEqual([]);
+  });
+
+  it("falls back to the model's box when SAM outlines nothing", async () => {
+    const { service, segmenter, detector, handover, photo } = await registeredPhoto();
+    segmenter.outlineBoxes = false;
+    detector.findings = [dentNearDoors];
+    const [dent] = await service.proposeDamage(handover.id, photo.id);
+    expect(dent?.outline).toHaveLength(4);
+    expect(dent?.note).toBe('dent near the doors (Muse Spark 90%)');
+  });
+
+  it('refuses to seal until every proposal is confirmed or rejected', async () => {
+    const { service, detector, handover, photo } = await registeredPhoto();
+    detector.findings = [dentNearDoors];
+    const [dent] = await service.proposeDamage(handover.id, photo.id);
+    await expect(service.close(handover.id)).rejects.toThrow(ConflictError);
+    service.updateMark(handover.id, dent?.id ?? '', { source: 'confirmed' });
+    await expect(service.close(handover.id)).resolves.toMatchObject({ status: 'closed' });
+  });
+
+  it('needs the face corners first', async () => {
+    const { service, handover } = await startedHandover();
+    const photo = await service.addPhoto(handover.id, { face: 'D', data: await makePhoto() });
+    await expect(service.proposeDamage(handover.id, photo.id)).rejects.toThrow(ConflictError);
   });
 });

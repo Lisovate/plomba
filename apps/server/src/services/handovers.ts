@@ -27,6 +27,7 @@ import {
   parseContainerNumber,
   parseSizeType,
   type Quad,
+  rectOverlap,
   verifyChain,
 } from '@plomba/core';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
@@ -34,6 +35,7 @@ import { blurRegions, normaliseImage } from '../media/images.ts';
 import type {
   Clock,
   ContainerRepository,
+  DamageDetector,
   HandoverRepository,
   IdGenerator,
   MarkRepository,
@@ -42,6 +44,7 @@ import type {
   Segmenter,
   TransactionRunner,
 } from '../ports.ts';
+import { findingsToDrafts } from './damage.ts';
 import { detectFaceCorners, findPrivacyRegions } from './vision.ts';
 
 export interface HandoverServiceDeps {
@@ -51,6 +54,7 @@ export interface HandoverServiceDeps {
   readonly marks: MarkRepository;
   readonly media: MediaStore;
   readonly segmenter: Segmenter;
+  readonly detector: DamageDetector;
   readonly transaction: TransactionRunner;
   readonly clock: Clock;
   readonly newId: IdGenerator;
@@ -58,6 +62,9 @@ export interface HandoverServiceDeps {
 
 /** Attempts at sealing when another handover of the same container wins the race. */
 const SEAL_ATTEMPTS = 3;
+
+/** A proposal overlapping an existing mark this much is the same damage. */
+const DUPLICATE_OVERLAP = 0.5;
 
 export class HandoverService {
   readonly #d: HandoverServiceDeps;
@@ -225,6 +232,7 @@ export class HandoverService {
         handoverId,
         face: input.face,
         rect,
+        outline: input.outline,
         locationCode: locationCode(input.face, rect, dimensions),
         damageCode: input.damageCode,
         componentCode: input.componentCode,
@@ -257,6 +265,66 @@ export class HandoverService {
   }
 
   /**
+   * Looks for damage on a registered photo: Muse Spark finds and codes it,
+   * SAM 3.1 outlines it, and each finding becomes a proposed mark on the face
+   * for the checker to confirm or reject. Damage already marked is skipped.
+   */
+  async proposeDamage(handoverId: string, photoId: string): Promise<Mark[]> {
+    const handover = this.#openHandover(handoverId);
+    const photo = this.#photo(handoverId, photoId);
+    const { corners } = photo;
+    if (!corners) throw new ConflictError('Place the face corners before looking for damage');
+    const data = await this.#d.media.get(photo.sha256);
+    if (!data) throw new NotFoundError(`The file of photo ${photoId} is missing`);
+    const image = {
+      data,
+      mimeType: 'image/jpeg' as const,
+      width: photo.width,
+      height: photo.height,
+    };
+
+    const findings = await this.#d.detector.detect(image);
+    const outlines = await this.#d.segmenter.refine(
+      image,
+      findings.map((f) => f.box),
+    );
+    const { dimensions } = this.#container(handover.containerNumber);
+    const drafts = findingsToDrafts(findings, outlines, photo.face, dimensions, corners);
+
+    return this.#d.transaction(() => {
+      this.#openHandover(handoverId);
+      const existing = this.#d.marks
+        .listForHandover(handoverId)
+        .filter((m) => m.face === photo.face && m.source !== 'rejected');
+      const created: Mark[] = [];
+      for (const draft of drafts) {
+        if (existing.some((m) => rectOverlap(m.rect, draft.rect) > DUPLICATE_OVERLAP)) continue;
+        const id = this.#d.newId();
+        this.#d.marks.insert({
+          id,
+          handoverId,
+          face: photo.face,
+          rect: draft.rect,
+          outline: draft.outline,
+          locationCode: locationCode(photo.face, draft.rect, dimensions),
+          damageCode: draft.damageCode,
+          componentCode: draft.componentCode,
+          status: 'new',
+          source: 'proposed',
+          previousMarkId: null,
+          photoId,
+          note: draft.note,
+          createdAt: this.#now(),
+        });
+        const mark = this.#mark(handoverId, id);
+        existing.push(mark);
+        created.push(mark);
+      }
+      return created;
+    });
+  }
+
+  /**
    * Closes the handover and appends it to the container's hash chain. The
    * sealed record lists every photo by its SHA-256, so the photos are covered
    * by the chain too.
@@ -264,6 +332,9 @@ export class HandoverService {
   async close(handoverId: string): Promise<Handover> {
     for (let attempt = 1; ; attempt++) {
       const handover = this.#openHandover(handoverId);
+      if (this.#d.marks.listForHandover(handoverId).some((m) => m.source === 'proposed')) {
+        throw new ConflictError('Confirm or reject the proposed damage before sealing');
+      }
       const closedAt = this.#now();
       const record = this.#sealedRecord(handover, closedAt);
       const links = this.#d.handovers.chain(handover.containerNumber);
@@ -319,6 +390,7 @@ export class HandoverService {
         id: m.id,
         face: m.face,
         rect: m.rect,
+        outline: m.outline,
         locationCode: m.locationCode,
         damageCode: m.damageCode,
         componentCode: m.componentCode,

@@ -13,13 +13,18 @@ import type {
   MarkStatus,
   Photo,
 } from '@plomba/contracts';
-import type { Face, FaceRect, Quad } from '@plomba/core';
+import type { ComponentCode, DamageCode, Face, FaceRect, Point, Quad } from '@plomba/core';
 
 // Models -------------------------------------------------------------------
 
 export interface ImageInput {
   readonly data: Uint8Array;
   readonly mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+}
+
+export interface SizedImage extends ImageInput {
+  readonly width: number;
+  readonly height: number;
 }
 
 /** Reads container markings from a photo (Muse Spark). */
@@ -44,6 +49,8 @@ export interface PixelBox {
 }
 
 export interface SegmentedObject {
+  /** The object's ID in the model's output (for box prompts, the prompt's 1-based index). */
+  readonly id: string;
   /** Bounding box in source image pixels. */
   readonly box: PixelBox;
   /** 0–1, when the model reports it. */
@@ -58,9 +65,27 @@ export interface SegmentedObject {
   };
 }
 
-/** Finds every instance of a concept in a photo (SAM 3.1). */
+/** Finds and outlines objects in a photo (SAM 3.1). */
 export interface Segmenter {
+  /** Every instance of a concept named by a short noun phrase. */
   segment(image: ImageInput, concept: string): Promise<SegmentedObject[]>;
+  /** The object inside each box, outlined; `null` where nothing is found. */
+  refine(image: SizedImage, boxes: readonly PixelBox[]): Promise<(SegmentedObject | null)[]>;
+}
+
+export interface DamageFinding {
+  /** Where the damage is, roughly, in source pixels. */
+  readonly box: PixelBox;
+  readonly damageCode: DamageCode;
+  readonly componentCode: ComponentCode | null;
+  readonly description: string;
+  /** The model's own confidence, 0–1. */
+  readonly confidence: number;
+}
+
+/** Finds and codes visible damage on a photo of the container (Muse Spark). */
+export interface DamageDetector {
+  detect(image: SizedImage): Promise<DamageFinding[]>;
 }
 
 // Storage ------------------------------------------------------------------
@@ -153,6 +178,7 @@ export interface NewMark {
   readonly handoverId: string;
   readonly face: Face;
   readonly rect: FaceRect;
+  readonly outline: readonly Point[] | null;
   readonly locationCode: string;
   readonly damageCode: string | null;
   readonly componentCode: string | null;

@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { serve } from '@hono/node-server';
 import { pino } from 'pino';
 import { MetaClient } from './adapters/meta/client.ts';
-import { MuseSparkMarkingsReader } from './adapters/meta/muse-spark.ts';
+import { MuseSparkDamageDetector, MuseSparkMarkingsReader } from './adapters/meta/muse-spark.ts';
 import { Sam3Segmenter } from './adapters/meta/sam.ts';
 import { createTransactionRunner, openDatabase } from './adapters/sqlite/database.ts';
 import {
@@ -44,10 +44,9 @@ function main(): void {
     timeoutMs: config.meta.timeoutMs,
     logger,
   });
-  const reader = new MuseSparkMarkingsReader(meta, {
-    model: config.meta.visionModel,
-    reasoningEffort: config.meta.reasoningEffort,
-  });
+  const spark = { model: config.meta.visionModel, reasoningEffort: config.meta.reasoningEffort };
+  const reader = new MuseSparkMarkingsReader(meta, spark);
+  const detector = new MuseSparkDamageDetector(meta, spark);
   const segmenter = new Sam3Segmenter(meta, { model: config.meta.segmentationModel });
 
   const app = createApp({
@@ -59,6 +58,7 @@ function main(): void {
       marks: new SqliteMarkRepository(db),
       media,
       segmenter,
+      detector,
       transaction: createTransactionRunner(db),
       clock: { now: () => new Date() },
       newId: randomUUID,

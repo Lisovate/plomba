@@ -133,6 +133,8 @@ export const MarkSchema = z.object({
   handoverId: z.uuid(),
   face: FaceSchema,
   rect: FaceRectSchema,
+  /** The damage's outline on the face in metres, when a model traced it. */
+  outline: z.array(PointSchema).max(64).nullable(),
   locationCode: z.string(),
   damageCode: damageCode.nullable(),
   componentCode: componentCode.nullable(),
@@ -147,6 +149,7 @@ export const MarkSchema = z.object({
 export const CreateMarkSchema = z.object({
   face: FaceSchema,
   rect: FaceRectSchema,
+  outline: z.array(PointSchema).max(64).nullable().default(null),
   damageCode: damageCode.nullable().default(null),
   componentCode: componentCode.nullable().default(null),
   status: MarkStatusSchema.default('new'),
@@ -166,6 +169,9 @@ export const UpdateMarkSchema = z
     note: z.string().max(2000).nullable(),
   })
   .partial();
+
+/** Damage the models proposed on one photo, stored as marks with source `proposed`. */
+export const ProposalsSchema = z.array(MarkSchema);
 
 export const HandoverDetailSchema = z.object({
   handover: HandoverSchema,

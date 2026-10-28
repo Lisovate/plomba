@@ -1,13 +1,27 @@
 /**
- * Muse Spark as the markings reader: structured output (JSON schema) over a
- * photo of the container doors.
+ * Muse Spark as the markings reader and the damage detector: structured output
+ * (JSON schema) over a photo of the container.
  */
 
 import { type MarkingsRead, MarkingsReadSchema } from '@plomba/contracts';
+import { COMPONENT_CODES, DAMAGE_CODES } from '@plomba/core';
 import { z } from 'zod';
-import { UpstreamError } from '../../errors.ts';
-import type { ImageInput, MarkingsReader } from '../../ports.ts';
-import { type MetaClient, outputText, type ResponsesRequest, toDataUrl } from './client.ts';
+import type {
+  DamageDetector,
+  DamageFinding,
+  ImageInput,
+  MarkingsReader,
+  SizedImage,
+} from '../../ports.ts';
+import type { MetaClient } from './client.ts';
+import { askStructured } from './structured.ts';
+
+export interface MuseSparkOptions {
+  readonly model: string;
+  readonly reasoningEffort: 'minimal' | 'low' | 'medium' | 'high';
+}
+
+// Markings ------------------------------------------------------------------
 
 const READ_INSTRUCTIONS = `You read the identification markings on intermodal shipping containers during a handover inspection.
 
@@ -48,11 +62,6 @@ const CHOOSE_SCHEMA = {
 
 const ChoiceSchema = z.object({ choice: z.number().int().nullable(), reason: z.string() });
 
-export interface MuseSparkOptions {
-  readonly model: string;
-  readonly reasoningEffort: 'minimal' | 'low' | 'medium' | 'high';
-}
-
 export class MuseSparkMarkingsReader implements MarkingsReader {
   readonly #client: MetaClient;
   readonly #options: MuseSparkOptions;
@@ -63,8 +72,10 @@ export class MuseSparkMarkingsReader implements MarkingsReader {
   }
 
   async read(image: ImageInput): Promise<MarkingsRead> {
-    return this.#structured(
+    return askStructured(
+      this.#client,
       {
+        ...this.#options,
         instructions: READ_INSTRUCTIONS,
         prompt: 'Read the container markings in this photo.',
         image,
@@ -80,8 +91,10 @@ export class MuseSparkMarkingsReader implements MarkingsReader {
     candidates: readonly string[],
   ): Promise<{ choice: string | null; reason: string }> {
     const list = candidates.map((c, i) => `${i + 1}. ${c}`).join('\n');
-    const answer = await this.#structured(
+    const answer = await askStructured(
+      this.#client,
       {
+        ...this.#options,
         instructions: READ_INSTRUCTIONS,
         prompt: `The container number read from this photo failed its ISO 6346 check digit. Each candidate below passes the check digit and differs from the read only in look-alike characters:\n${list}\n\nCompare every character of each candidate with the painted number. Choose the candidate that matches the photo, or null if the photo doesn't clearly show which one it is.`,
         image,
@@ -96,49 +109,98 @@ export class MuseSparkMarkingsReader implements MarkingsReader {
         : null;
     return { choice, reason: answer.reason };
   }
+}
 
-  async #structured<T>(
-    call: {
-      instructions: string;
-      prompt: string;
-      image: ImageInput;
-      schemaName: string;
-      schema: Record<string, unknown>;
-    },
-    parser: z.ZodType<T>,
-  ): Promise<T> {
-    const request: ResponsesRequest = {
-      model: this.#options.model,
-      instructions: call.instructions,
-      reasoning: { effort: this.#options.reasoningEffort },
-      input: [
-        {
-          type: 'message',
-          role: 'user',
-          content: [
-            { type: 'input_text', text: call.prompt },
-            { type: 'input_image', image_url: toDataUrl(call.image) },
-          ],
+// Damage --------------------------------------------------------------------
+
+const DAMAGE_INSTRUCTIONS = `You inspect the exterior of an intermodal shipping container at a handover, for an equipment interchange receipt.
+
+Find every visible damage on the container: dents, holes, cuts, cracks, bent, bowed, broken or missing parts, heavy corrosion. Ignore dirt, stains, shadows, labels, stencilled markings, normal wear, and anything that is not part of the container.
+
+For each damage give:
+- box: a tight box [x0, y0, x1, y1] around it, on a 0–1000 scale of the image width and height;
+- damageCode and componentCode: ISO 9897 (CEDEX) codes;
+- description: a few words a checker would write;
+- confidence: 0–1 that this is real damage, not a stain, shadow or marking.
+
+Return an empty list if there is no damage.`;
+
+const DAMAGE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['findings'],
+  properties: {
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['box', 'damageCode', 'componentCode', 'description', 'confidence'],
+        properties: {
+          box: { type: 'array', items: { type: 'integer' } },
+          damageCode: { type: 'string', enum: Object.keys(DAMAGE_CODES) },
+          componentCode: {
+            type: ['string', 'null'],
+            enum: [...Object.keys(COMPONENT_CODES), null],
+          },
+          description: { type: 'string' },
+          confidence: { type: 'number' },
         },
-      ],
-      text: {
-        format: { type: 'json_schema', name: call.schemaName, schema: call.schema, strict: true },
       },
-    };
-    const response = await this.#client.createResponse(request);
-    const text = outputText(response);
-    let json: unknown;
-    try {
-      json = JSON.parse(text);
-    } catch (cause) {
-      throw new UpstreamError('Muse Spark returned text that is not JSON', { cause });
-    }
-    const parsed = parser.safeParse(json);
-    if (!parsed.success) {
-      throw new UpstreamError('Muse Spark returned JSON that does not match the schema', {
-        cause: parsed.error,
-      });
-    }
-    return parsed.data;
+    },
+  },
+} as const;
+
+const FindingsSchema = z.object({
+  findings: z.array(
+    z.object({
+      box: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+      damageCode: z.enum(Object.keys(DAMAGE_CODES) as [keyof typeof DAMAGE_CODES]),
+      componentCode: z
+        .enum(Object.keys(COMPONENT_CODES) as [keyof typeof COMPONENT_CODES])
+        .nullable(),
+      description: z.string(),
+      confidence: z.number().min(0).max(1),
+    }),
+  ),
+});
+
+export class MuseSparkDamageDetector implements DamageDetector {
+  readonly #client: MetaClient;
+  readonly #options: MuseSparkOptions;
+
+  constructor(client: MetaClient, options: MuseSparkOptions) {
+    this.#client = client;
+    this.#options = options;
+  }
+
+  async detect(image: SizedImage): Promise<DamageFinding[]> {
+    const { findings } = await askStructured(
+      this.#client,
+      {
+        ...this.#options,
+        instructions: DAMAGE_INSTRUCTIONS,
+        prompt: 'List the damage visible on this container.',
+        image,
+        schemaName: 'container_damage',
+        schema: DAMAGE_SCHEMA,
+      },
+      FindingsSchema,
+    );
+    const toX = (v: number) => clamp((v * image.width) / 1000, 0, image.width);
+    const toY = (v: number) => clamp((v * image.height) / 1000, 0, image.height);
+    return findings
+      .map(({ box: [x0, y0, x1, y1], ...finding }) => ({
+        ...finding,
+        box: {
+          left: toX(Math.min(x0, x1)),
+          top: toY(Math.min(y0, y1)),
+          right: toX(Math.max(x0, x1)),
+          bottom: toY(Math.max(y0, y1)),
+        },
+      }))
+      .filter((f) => f.box.right - f.box.left >= 2 && f.box.bottom - f.box.top >= 2);
   }
 }
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);

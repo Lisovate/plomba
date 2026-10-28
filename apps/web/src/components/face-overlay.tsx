@@ -50,7 +50,7 @@ export function defaultCorners(photo: Photo): Quad {
   ];
 }
 
-const points = (quad: Quad) => quad.map((p) => `${p.x},${p.y}`).join(' ');
+const points = (shape: readonly Point[]) => shape.map((p) => `${p.x},${p.y}`).join(' ');
 
 function tryHomography(face: Face, dimensions: ContainerDimensions, corners: Quad | null) {
   if (!corners) return null;
@@ -183,7 +183,11 @@ export function FaceOverlay(props: FaceOverlayProps) {
                 mark={mark}
                 h={h}
                 px={px}
-                className={mark.id === props.selectedMarkId ? 'mark selected' : 'mark'}
+                className={[
+                  'mark',
+                  mark.source === 'proposed' ? 'proposed' : '',
+                  mark.id === props.selectedMarkId ? 'selected' : '',
+                ].join(' ')}
                 onSelect={props.onSelectMark}
               />
             ))}
@@ -230,13 +234,15 @@ function MarkShape({
   className: string;
   onSelect?: ((mark: Mark) => void) | undefined;
 }) {
-  const quad = projectFaceRect(h, mark.rect);
+  const shape = mark.outline
+    ? mark.outline.map((p) => applyHomography(h, p))
+    : projectFaceRect(h, mark.rect);
   const anchor = applyHomography(h, { x: mark.rect.u0, y: mark.rect.v1 });
   const label = [mark.locationCode, mark.damageCode].filter(Boolean).join(' ');
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: marks are also listed as buttons below the photo
     <g className={className} onClick={onSelect ? () => onSelect(mark) : undefined}>
-      <polygon points={points(quad)} strokeWidth={3 * px} />
+      <polygon points={points(shape)} strokeWidth={3 * px} />
       <text x={anchor.x} y={anchor.y - 6 * px} fontSize={18 * px}>
         {label}
       </text>
