@@ -1,0 +1,7 @@
+Plomba
+Copyright 2026 Paweł Lisowski
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party components used at run time keep their own licences:
+- @meta-sam/parser: SAM License (https://github.com/meta-models/meta-sam)
