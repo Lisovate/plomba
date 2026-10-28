@@ -23,3 +23,6 @@ media/raw/
 
 # OS
 .DS_Store
+
+# Server runtime data (database and media) when DATA_DIR is left at its default
+apps/server/data/

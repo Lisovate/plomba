@@ -140,14 +140,17 @@ const LETTER_LOOKALIKES: Readonly<Record<string, string>> = {
   Y: 'V',
   K: 'X',
   X: 'K',
-  '0': 'O',
-  '1': 'I',
+  // Digits read where the owner code and category must be letters.
+  '0': 'OCDQU',
+  '1': 'IJLT',
   '2': 'Z',
+  '3': 'B',
   '4': 'A',
   '5': 'S',
-  '6': 'G',
+  '6': 'GC',
   '7': 'T',
   '8': 'B',
+  '9': 'SGQ',
 };
 
 const DIGIT_LOOKALIKES: Readonly<Record<string, string>> = {
@@ -160,12 +163,18 @@ const DIGIT_LOOKALIKES: Readonly<Record<string, string>> = {
   '7': '12',
   '8': '3069',
   '9': '08',
+  // Letters read where the serial and check digit must be digits.
   O: '0',
   D: '0',
   Q: '0',
+  C: '0',
+  U: '0',
   I: '1',
   L: '1',
+  J: '1',
   Z: '2',
+  E: '3',
+  A: '4',
   S: '5',
   G: '6',
   T: '7',
@@ -179,7 +188,11 @@ export interface ContainerNumberCandidate {
 }
 
 export interface SuggestOptions {
-  /** Maximum number of characters to change. Defaults to 2. */
+  /**
+   * Maximum number of valid characters to change. Characters that can't stand
+   * where they are (a digit in the owner code, a letter in the serial) are
+   * always replaced and don't count. Defaults to 2.
+   */
   readonly maxChanges?: number;
 }
 
@@ -205,7 +218,7 @@ export function suggestContainerNumbers(
   const alternatives = [...read].map((char, position) => positionAlternatives(char, position));
   const results = new Map<string, ContainerNumberCandidate>();
 
-  const search = (position: number, prefix: string, changed: number[]): void => {
+  const search = (position: number, prefix: string, changed: number[], optional: number): void => {
     if (position === 11) {
       const parsed = parseContainerNumber(prefix);
       if (parsed.ok && !results.has(parsed.value.value)) {
@@ -214,16 +227,17 @@ export function suggestContainerNumbers(
       return;
     }
     const readChar = read.charAt(position);
-    const options = alternatives[position] ?? [];
+    const { options, forced } = alternatives[position] ?? { options: [], forced: false };
     for (const char of options) {
       const isChange = char !== readChar;
-      if (isChange && changed.length >= maxChanges) continue;
+      const isOptional = isChange && !forced;
+      if (isOptional && optional >= maxChanges) continue;
       if (isChange) changed.push(position);
-      search(position + 1, prefix + char, changed);
+      search(position + 1, prefix + char, changed, optional + (isOptional ? 1 : 0));
       if (isChange) changed.pop();
     }
   };
-  search(0, '', []);
+  search(0, '', [], 0);
 
   return [...results.values()].sort(
     (a, b) =>
@@ -232,13 +246,16 @@ export function suggestContainerNumbers(
   );
 }
 
-function positionAlternatives(char: string, position: number): string[] {
+function positionAlternatives(
+  char: string,
+  position: number,
+): { options: string[]; forced: boolean } {
   const fitsPosition = (candidate: string): boolean => {
     if (position < 3) return candidate >= 'A' && candidate <= 'Z';
     if (position === 3) return isEquipmentCategory(candidate);
     return candidate >= '0' && candidate <= '9';
   };
   const lookalikes = position < 4 ? LETTER_LOOKALIKES[char] : DIGIT_LOOKALIKES[char];
-  const options = [char, ...(lookalikes ?? '')].filter(fitsPosition);
-  return [...new Set(options)];
+  const options = [...new Set([char, ...(lookalikes ?? '')])].filter(fitsPosition);
+  return { options, forced: !fitsPosition(char) };
 }

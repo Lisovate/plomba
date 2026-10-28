@@ -1,0 +1,173 @@
+import { describe, expect, it } from 'vitest';
+import { ConflictError, NotFoundError, ValidationError } from '../src/errors.ts';
+import { createTestHandoverService, makePhoto, rectangleObject } from './fakes.ts';
+
+const NUMBER = 'CSQU3054383';
+
+async function startedHandover() {
+  const context = createTestHandoverService();
+  context.service.registerContainer({ number: NUMBER, sizeTypeCode: '22G1' });
+  const handover = context.service.start({
+    containerNumber: NUMBER,
+    direction: 'in',
+    place: 'Gdynia rail terminal',
+    checker: 'P. Lisowski',
+    sealNumbers: ['ML123456'],
+  });
+  return { ...context, handover };
+}
+
+describe('registerContainer', () => {
+  it('rejects a number that fails the check digit', () => {
+    const { service } = createTestHandoverService();
+    expect(() => service.registerContainer({ number: 'CSQU3054384' })).toThrow(ValidationError);
+  });
+
+  it('takes dimensions from the size and type code, and is idempotent', () => {
+    const { service } = createTestHandoverService();
+    const first = service.registerContainer({ number: 'csqu 305438 3', sizeTypeCode: '22G1' });
+    expect(first.number).toBe(NUMBER);
+    expect(first.dimensions.length).toBeCloseTo(6.058);
+    expect(service.registerContainer({ number: NUMBER })).toEqual(first);
+  });
+});
+
+describe('a handover', () => {
+  it('allows only one open handover per container', async () => {
+    const { service } = await startedHandover();
+    expect(() =>
+      service.start({
+        containerNumber: NUMBER,
+        direction: 'out',
+        place: 'x',
+        checker: 'y',
+        sealNumbers: [],
+      }),
+    ).toThrow(ConflictError);
+  });
+
+  it('blurs privacy regions and detects the face corners of a photo', async () => {
+    const { service, segmenter, media, handover } = await startedHandover();
+    segmenter.responses.set('shipping container', [rectangleObject(40, 30, 360, 270)]);
+    segmenter.responses.set('license plate', [rectangleObject(10, 10, 60, 30)]);
+
+    const photo = await service.addPhoto(handover.id, { face: 'R', data: await makePhoto() });
+
+    expect(segmenter.calls.sort()).toEqual(['human face', 'license plate', 'shipping container']);
+    expect(photo.redactedRegions).toBe(1);
+    expect(photo.cornersSource).toBe('detected');
+    expect(photo.corners?.[0]).toEqual({ x: 40.5, y: 30.5 });
+    expect(media.files.has(photo.sha256)).toBe(true);
+    expect(photo.url).toBe(`/media/${photo.sha256}`);
+  });
+
+  it('leaves corners for the checker when no container is found', async () => {
+    const { service, handover } = await startedHandover();
+    const photo = await service.addPhoto(handover.id, { face: 'D', data: await makePhoto() });
+    expect(photo.corners).toBeNull();
+    const adjusted = service.updateCorners(handover.id, photo.id, [
+      { x: 1, y: 1 },
+      { x: 399, y: 1 },
+      { x: 399, y: 299 },
+      { x: 1, y: 299 },
+    ]);
+    expect(adjusted.cornersSource).toBe('adjusted');
+  });
+
+  it('codes a mark from its position on the face', async () => {
+    const { service, handover } = await startedHandover();
+    const mark = service.addMark(handover.id, {
+      face: 'R',
+      rect: { u0: 0.2, v0: 0.2, u1: 0.5, v1: 0.6 },
+      damageCode: 'DT',
+      componentCode: 'PAA',
+      status: 'new',
+      source: 'confirmed',
+      previousMarkId: null,
+      photoId: null,
+      note: null,
+    });
+    expect(mark.locationCode).toBe('RB1N');
+
+    const moved = service.updateMark(handover.id, mark.id, {
+      rect: { u0: 5.5, v0: 1.6, u1: 5.9, v1: 2.0 },
+    });
+    expect(moved.locationCode).toBe('RT5N');
+  });
+
+  it('seals handovers into a verifiable chain and carries marks forward', async () => {
+    const { service, db, handover } = await startedHandover();
+    const dent = service.addMark(handover.id, {
+      face: 'L',
+      rect: { u0: 1, v0: 1, u1: 1.3, v1: 1.2 },
+      damageCode: 'DT',
+      componentCode: null,
+      status: 'new',
+      source: 'confirmed',
+      previousMarkId: null,
+      photoId: null,
+      note: null,
+    });
+    const first = await service.close(handover.id);
+    expect(first.status).toBe('closed');
+    expect(first.seal?.sequence).toBe(0);
+    await expect(service.close(handover.id)).rejects.toThrow(ConflictError);
+
+    const second = service.start({
+      containerNumber: NUMBER,
+      direction: 'out',
+      place: 'Łódź inland terminal',
+      checker: 'A. Nowak',
+      sealNumbers: [],
+    });
+    const detail = service.detail(second.id);
+    expect(second.previousHandoverId).toBe(handover.id);
+    expect(detail.previousMarks.map((m) => m.id)).toEqual([dent.id]);
+
+    service.addMark(second.id, {
+      face: 'L',
+      rect: dent.rect,
+      damageCode: 'DT',
+      componentCode: null,
+      status: 'still-there',
+      source: 'confirmed',
+      previousMarkId: dent.id,
+      photoId: null,
+      note: null,
+    });
+    const sealed = await service.close(second.id);
+    expect(sealed.seal?.previousHash).toBe(first.seal?.hash);
+
+    const history = await service.history(NUMBER);
+    expect(history.chain).toEqual({ ok: true, length: 2, brokenAt: null });
+
+    // Quietly editing a sealed record breaks the chain at that record.
+    db.prepare(`UPDATE handovers SET record = replace(record, '"DT"', '"CO"') WHERE id = ?`).run(
+      handover.id,
+    );
+    expect((await service.history(NUMBER)).chain).toEqual({ ok: false, length: 2, brokenAt: 0 });
+  });
+
+  it('rejects marks that point at the wrong previous handover', async () => {
+    const { service, handover } = await startedHandover();
+    expect(() =>
+      service.addMark(handover.id, {
+        face: 'R',
+        rect: { u0: 0, v0: 0, u1: 1, v1: 1 },
+        damageCode: null,
+        componentCode: null,
+        status: 'still-there',
+        source: 'confirmed',
+        previousMarkId: '00000000-0000-4000-8000-0000000000ff',
+        photoId: null,
+        note: null,
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('reports unknown handovers and containers', async () => {
+    const { service } = createTestHandoverService();
+    expect(() => service.detail('00000000-0000-4000-8000-0000000000ff')).toThrow(NotFoundError);
+    await expect(service.history('CSQU3054383')).rejects.toThrow(NotFoundError);
+  });
+});

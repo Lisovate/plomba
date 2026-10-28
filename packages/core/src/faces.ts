@@ -13,11 +13,13 @@
 
 import type { ContainerDimensions } from './size-type.ts';
 
-/** Faces by their ISO 9897 (CEDEX) location letter. */
-export type Face = 'D' | 'R' | 'F' | 'L' | 'T';
+/**
+ * Faces by their ISO 9897 (CEDEX) location letter, in walk-around order: the
+ * doors first, then the right side, the front, the left side and the roof.
+ */
+export const FACES = ['D', 'R', 'F', 'L', 'T'] as const;
 
-/** The walk-around order: doors first, then counter-clockwise seen from above. */
-export const FACES: readonly Face[] = ['D', 'R', 'F', 'L', 'T'];
+export type Face = (typeof FACES)[number];
 
 export const FACE_NAMES: Readonly<Record<Face, string>> = {
   D: 'Door end',
