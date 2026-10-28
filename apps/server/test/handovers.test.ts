@@ -301,3 +301,15 @@ describe('coverage', () => {
     expect(record.notInspected.D).toHaveLength(8);
   });
 });
+
+describe('live frames', () => {
+  it('finds the face in a frame without storing anything', async () => {
+    const { service, segmenter, media, handover } = await startedHandover();
+    segmenter.responses.set('shipping container', [rectangleObject(40, 30, 360, 270)]);
+    const frame = await service.registerFrame(handover.id, await makePhoto());
+    expect(frame).toMatchObject({ width: 400, height: 300 });
+    expect(frame.corners?.[0]).toEqual({ x: 40, y: 30.5 });
+    expect(media.files.size).toBe(0);
+    expect(service.detail(handover.id).photos).toEqual([]);
+  });
+});

@@ -1,4 +1,4 @@
-import { type ChangeEvent, useEffect, useRef, useState } from 'react';
+import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n/index.tsx';
 
 interface CameraCaptureProps {
@@ -6,6 +6,8 @@ interface CameraCaptureProps {
   readonly guide: string;
   readonly onCapture: (photo: Blob) => void;
   readonly busy?: boolean;
+  /** Drawn over the live preview, e.g. the previous handover's marks. */
+  readonly renderOverlay?: (video: HTMLVideoElement) => ReactNode;
 }
 
 type CameraState = 'starting' | 'live' | 'unavailable';
@@ -15,7 +17,12 @@ type CameraState = 'starting' | 'live' | 'unavailable';
  * camera (permission denied, insecure origin, old browser) it falls back to the
  * phone's own camera app and the photo library.
  */
-export function CameraCapture({ guide, onCapture, busy = false }: CameraCaptureProps) {
+export function CameraCapture({
+  guide,
+  onCapture,
+  busy = false,
+  renderOverlay,
+}: CameraCaptureProps) {
   const { t } = useI18n();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<CameraState>('starting');
@@ -81,6 +88,7 @@ export function CameraCapture({ guide, onCapture, busy = false }: CameraCaptureP
     <div className="camera">
       <div className="camera-view">
         <video ref={videoRef} playsInline muted hidden={state !== 'live'} />
+        {state === 'live' && videoRef.current && renderOverlay?.(videoRef.current)}
         {state === 'starting' && <p className="camera-status">{t('camera.starting')}</p>}
         {state === 'unavailable' && <p className="camera-status">{t('camera.denied')}</p>}
         <p className="camera-guide">{guide}</p>

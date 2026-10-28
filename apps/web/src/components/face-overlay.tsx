@@ -223,6 +223,13 @@ export function FaceOverlay(props: FaceOverlayProps) {
   );
 }
 
+/** A mark's outline in the photo: its traced outline if it has one, else its rectangle. */
+export function markShapeInImage(h: Homography, mark: Mark): Point[] {
+  return mark.outline
+    ? mark.outline.map((p) => applyHomography(h, p))
+    : [...projectFaceRect(h, mark.rect)];
+}
+
 function MarkShape({
   mark,
   h,
@@ -236,9 +243,7 @@ function MarkShape({
   className: string;
   onSelect?: ((mark: Mark) => void) | undefined;
 }) {
-  const shape = mark.outline
-    ? mark.outline.map((p) => applyHomography(h, p))
-    : projectFaceRect(h, mark.rect);
+  const shape = markShapeInImage(h, mark);
   const anchor = applyHomography(h, { x: mark.rect.u0, y: mark.rect.v1 });
   const label = [mark.locationCode, mark.damageCode].filter(Boolean).join(' ');
   return (

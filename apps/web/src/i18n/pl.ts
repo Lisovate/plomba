@@ -173,6 +173,8 @@ export const pl: Messages = {
     'Twoja organizacja ustawiła kod dla tej instalacji Plomby. Podajesz go raz na tym urządzeniu.',
   'access.code': 'Kod dostępu',
   'access.submit': 'Dalej',
+  'live.searching': 'Szukam kontenera…',
+  'live.ghosts': 'Na żywo: uszkodzenia z poprzedniego przekazania',
   'face.D': 'ściana drzwiowa',
   'face.R': 'prawa ściana',
   'face.F': 'ściana czołowa',

@@ -7,6 +7,7 @@ import { useI18n } from '../i18n/index.tsx';
 import { prepareUpload } from '../lib/image.ts';
 import { CameraCapture } from './camera-capture.tsx';
 import { defaultCorners, FaceOverlay, type OverlayMode } from './face-overlay.tsx';
+import { LiveGhost } from './live-ghost.tsx';
 import { MarkForm } from './mark-form.tsx';
 import { ErrorNotice, Spinner } from './ui.tsx';
 
@@ -83,6 +84,19 @@ export function FacePanel(props: FacePanelProps) {
           <CameraCapture
             guide={t('handover.photograph', { face: t(`face.${face}`) })}
             onCapture={(file) => upload.mutate(file)}
+            renderOverlay={
+              props.previousMarks.length > 0
+                ? (video) => (
+                    <LiveGhost
+                      video={video}
+                      handoverId={handoverId}
+                      face={face}
+                      dimensions={container.dimensions}
+                      marks={props.previousMarks}
+                    />
+                  )
+                : undefined
+            }
           />
         )}
         {upload.isError && <ErrorNotice error={upload.error} onRetry={() => upload.reset()} />}

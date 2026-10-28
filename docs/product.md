@@ -53,7 +53,6 @@ A container's handover is recorded on an **equipment interchange receipt (EIR)**
 - Synthetic rare-damage test cases with Muse Image (excluded from reported accuracy)
 - Draft claims from the comparison agent
 - Hands-free capture from Meta AI glasses: a walk-around recorded on the glasses, uploaded into the same pipeline (live streaming through the Wearables Device Access Toolkit needs a native app)
-- Overlays on the live camera preview, re-registered once or twice a second
 - Rail wagon number capture at rail handovers
 - A mixed-reality "claims room" on Quest 3 showing a container's history at full size
 

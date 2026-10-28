@@ -166,6 +166,11 @@ function api(deps: AppDeps): Hono {
     return c.json(photo, 201);
   });
 
+  api.post('/handovers/:id/frames', uploadLimit, async (c) => {
+    const { image } = await readUpload(c);
+    return c.json(await handovers.registerFrame(c.req.param('id'), image));
+  });
+
   api.put('/handovers/:id/photos/:photoId/corners', async (c) => {
     const { corners } = await readJson(c, UpdateCornersSchema);
     return c.json(handovers.updateCorners(c.req.param('id'), c.req.param('photoId'), corners));

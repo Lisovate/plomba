@@ -71,6 +71,9 @@ type Coverage = Record<Face, FaceCoverage>;
 /** Attempts at sealing when another handover of the same container wins the race. */
 const SEAL_ATTEMPTS = 3;
 
+/** Live frames only need the container's outline. */
+const LIVE_FRAME_MAX_SIDE = 768;
+
 /** A proposal overlapping an existing mark this much is the same damage. */
 const DUPLICATE_OVERLAP = 0.5;
 
@@ -211,6 +214,20 @@ export class HandoverService {
       });
     });
     return this.#photo(handoverId, id);
+  }
+
+  /**
+   * Finds the face in a live camera frame so the app can draw the previous
+   * handover's marks over the preview. Nothing is stored.
+   */
+  async registerFrame(
+    handoverId: string,
+    frame: Uint8Array,
+  ): Promise<{ width: number; height: number; corners: Quad | null }> {
+    this.#openHandover(handoverId);
+    const image = await normaliseImage(frame, LIVE_FRAME_MAX_SIDE);
+    const corners = await detectFaceCorners(this.#d.segmenter, image);
+    return { width: image.width, height: image.height, corners };
   }
 
   updateCorners(handoverId: string, photoId: string, corners: Quad): Photo {

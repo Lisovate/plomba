@@ -12,6 +12,7 @@ import {
   ContainerSchema,
   type CreateMarkInput,
   type Face,
+  FrameRegistrationSchema,
   HandoverDetailSchema,
   HandoverListSchema,
   HandoverSchema,
@@ -117,6 +118,9 @@ export const api = {
       upload({ face, image, capturedAt: new Date().toISOString() }),
       PhotoSchema,
     ),
+
+  registerFrame: (id: string, frame: Blob) =>
+    request(path`/api/handovers/${id}/frames`, upload({ image: frame }), FrameRegistrationSchema),
 
   updateCorners: (id: string, photoId: string, corners: Quad) =>
     request(

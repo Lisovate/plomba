@@ -171,6 +171,8 @@ export const en = {
     'Your organisation set a code for this Plomba installation. You enter it once on this device.',
   'access.code': 'Access code',
   'access.submit': 'Continue',
+  'live.searching': 'Looking for the container…',
+  'live.ghosts': "Live: the last handover's damage",
   'face.D': 'door end',
   'face.R': 'right side',
   'face.F': 'front end',

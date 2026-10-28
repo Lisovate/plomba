@@ -127,6 +127,13 @@ export const PhotoSchema = z.object({
 
 export const UpdateCornersSchema = z.object({ corners: QuadSchema });
 
+/** Where the face is in a live camera frame. Frames are never stored. */
+export const FrameRegistrationSchema = z.object({
+  width: z.number().int(),
+  height: z.number().int(),
+  corners: QuadSchema.nullable(),
+});
+
 export const MarkStatusSchema = z.enum(['new', 'still-there', 'changed', 'repaired']);
 
 export const MarkSourceSchema = z.enum(['proposed', 'confirmed', 'rejected']);
@@ -309,6 +316,7 @@ export type Claim = z.infer<typeof ClaimSchema>;
 export type ClaimResult = z.infer<typeof ClaimResultSchema>;
 export type ClaimCheck = z.infer<typeof ClaimCheckSchema>;
 export type Session = z.infer<typeof SessionSchema>;
+export type FrameRegistration = z.infer<typeof FrameRegistrationSchema>;
 
 /** Request bodies as clients write them, before defaults are applied. */
 export type StartHandoverInput = z.input<typeof StartHandoverSchema>;
