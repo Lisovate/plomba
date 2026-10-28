@@ -26,3 +26,7 @@ media/raw/
 
 # Server runtime data (database and media) when DATA_DIR is left at its default
 apps/server/data/
+
+# Playwright output
+test-results/
+playwright-report/

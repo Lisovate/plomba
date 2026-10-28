@@ -19,9 +19,10 @@
     "start": "npm run start --workspace @plomba/server",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p e2e",
     "test": "vitest run",
-    "check": "npm run lint && npm run typecheck && npm test"
+    "check": "npm run lint && npm run typecheck && npm test",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.3",
