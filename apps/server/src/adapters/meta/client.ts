@@ -198,6 +198,22 @@ export class MetaClient {
     return body;
   }
 
+  /**
+   * Edits an image from a text instruction (Muse Image). Used only to make
+   * labelled synthetic test cases, never in the inspection workflow.
+   */
+  async editImage(request: {
+    readonly model: string;
+    readonly prompt: string;
+    readonly images: readonly { readonly image_url: string }[];
+    readonly output_format?: 'jpeg' | 'png' | 'webp';
+  }): Promise<{ readonly data: readonly { readonly b64_json?: string }[] }> {
+    return (await this.#post(request.model, '/images/edits', () => ({
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(request),
+    }))) as { data: { b64_json?: string }[] };
+  }
+
   /** Transcribes a WAV file (mono PCM16, 16 or 24 kHz) with Muse Voice Transcribe. */
   async transcribe(
     audio: Uint8Array,

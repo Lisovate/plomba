@@ -80,3 +80,7 @@ A dated record of what was built and when. The newest entry is at the bottom.
 - **End-to-end test in CI**: Playwright drives the built app in a phone-sized browser against the real server, with a fake Meta Model API replaying SAM 3.1's recorded outline of a synthetic photo.
 - **Vision on your own hardware**: reading and damage detection can use any OpenAI-compatible Chat Completions server (e.g. Ollama serving Muse Glimmer) via `META_VISION_BASE_URL`. Tested against Meta's own Chat Completions endpoint; Glimmer itself is still to be tried on a Mac with enough memory.
 - **Live ghosts on the camera preview.** On a face with previous marks, a frame goes to SAM 3.1 every 1.5 s (not stored) and the marks are drawn over the live video. Tested with a fake camera feed in Chromium.
+- **Synthetic robustness tests with Muse Image.**
+  - Muse Image added a dent, a hole, corrosion and a bent rail to a drawn container, plus a mud-only control. Muse Spark found every damage and nothing on the control.
+  - Images are labelled SYNTHETIC in their pixels and kept out of the repository and out of accuracy figures.
+- **Privacy prompts measured** on five openly licensed truck photos: every readable plate found; `face` found 6 of 7 faces, `human face` 5.

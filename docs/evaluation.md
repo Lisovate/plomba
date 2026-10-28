@@ -61,6 +61,29 @@ A small check: five photos of trucks and people, from Wikimedia Commons (CC BY 4
 
 An earlier observation: a plate of 22 × 8 px (far away, unreadable) was found in a lossless PNG at confidence 0.52 but not after JPEG re-encoding. Plates too small to read carry no privacy risk, but small faces deserve more measurement. Tiling large photos is the next step if recall on real yard photos is low.
 
+## Synthetic robustness tests (not counted in accuracy)
+
+**Method:**
+1. Muse Image (`muse-image-1.0`, image edits) adds one known damage to a clean container photo.
+2. The production damage detector (Muse Spark) must find it.
+3. A negative control adds only mud and dirt, and must produce no damage.
+
+**Labelling:** every generated image carries a "SYNTHETIC · Muse Image · not a real photo" label in its pixels and a `synthetic-` file name. The images stay out of the repository.
+
+Run with: `node --env-file=.env apps/server/scripts/synthetic-damage.ts <clean photo> <output dir>`.
+
+2026-10-28, on the flat drawn container in `e2e/fixtures/container-side.jpg`:
+
+| Synthetic case | Expected | Found by Muse Spark | Pass |
+|---|---|---|---|
+| dent | DT, BW, BT | DT 95%, BT 90% | yes |
+| hole | HO, CU, BR | HO 99% | yes |
+| corrosion | CO, PH | CO 96% | yes |
+| bent-rail | BT, DT, BW, BR | BW 95% | yes |
+| dirt-only | none | none | yes |
+
+These are easy cases: damage drawn by a model on a drawing. They show that the pipeline reads each damage type and leaves dirt alone; they say nothing about accuracy on real containers. The next run uses the author's own clean photos as the base.
+
 ## Not measured yet
 
 - Whole door photos taken the way the app is used (the author's own photos, planned).

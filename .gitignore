@@ -30,3 +30,4 @@ apps/server/data/
 # Playwright output
 test-results/
 playwright-report/
+data/synthetic/
