@@ -23,6 +23,7 @@ import type { ClaimService } from '../services/claims.ts';
 import type { HandoverService } from '../services/handovers.ts';
 import type { IdentifyService } from '../services/identify.ts';
 import type { SpeechService } from '../services/speech.ts';
+import { installAccessControl } from './access.ts';
 
 export interface AppDeps {
   readonly identify: IdentifyService;
@@ -33,6 +34,8 @@ export interface AppDeps {
   readonly logger: Logger;
   /** The built web app, served with a single-page-app fallback. */
   readonly webDistDir?: string | undefined;
+  /** When set, API and media requests need a session obtained with this code. */
+  readonly accessCode?: string | undefined;
 }
 
 /** Phones produce 3–12 MB photos; leave room for multipart overhead. */
@@ -88,6 +91,7 @@ export function createApp(deps: AppDeps): Hono {
     return problem(c, 500, 'internal', 'Something went wrong on the server');
   });
 
+  installAccessControl(app, deps.accessCode);
   app.route('/api', api(deps));
 
   app.get('/media/:sha256', async (c) => {

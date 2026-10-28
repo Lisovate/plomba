@@ -1,6 +1,8 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createBrowserRouter, Link, Outlet, useRouteError } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
+import { ApiError, queryKeys } from './api/client.ts';
+import { AccessGate } from './components/access-gate.tsx';
 import { ErrorNotice, useOnline } from './components/ui.tsx';
 import { I18nProvider, useI18n } from './i18n/index.tsx';
 import { ContainerScreen } from './routes/container.tsx';
@@ -9,9 +11,22 @@ import { HomeScreen } from './routes/home.tsx';
 import { IdentifyScreen } from './routes/identify.tsx';
 import { ReportScreen } from './routes/report.tsx';
 
-const queryClient = new QueryClient({
+/** A 401 means the session ended: ask the server again, which brings back the access-code form. */
+function onError(error: unknown) {
+  if (error instanceof ApiError && error.status === 401) {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.session });
+  }
+}
+
+const queryClient: QueryClient = new QueryClient({
+  queryCache: new QueryCache({ onError }),
+  mutationCache: new MutationCache({ onError }),
   defaultOptions: {
-    queries: { retry: 1, staleTime: 5_000 },
+    queries: {
+      staleTime: 5_000,
+      retry: (failures, error) =>
+        !(error instanceof ApiError && error.status < 500) && failures < 1,
+    },
     mutations: { retry: 0 },
   },
 });
@@ -36,7 +51,9 @@ function Shell() {
       </header>
       {!online && <p className="offline-banner no-print">{t('common.offline')}</p>}
       <main>
-        <Outlet />
+        <AccessGate>
+          <Outlet />
+        </AccessGate>
       </main>
     </>
   );

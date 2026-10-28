@@ -77,6 +77,7 @@ function main(): void {
     media,
     logger,
     webDistDir: config.webDistDir,
+    accessCode: config.accessCode,
   });
 
   const server = serve({ fetch: app.fetch, hostname: config.host, port: config.port }, (info) => {

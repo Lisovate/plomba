@@ -43,7 +43,7 @@ plomba.example.com {
 ```
 
 - The server allows uploads up to 20 MB; phones send about 0.5 MB, because the app downscales photos first.
-- Put your company's single sign-on in front of the proxy if Plomba must not be reachable by everyone who knows the address. Plomba has no user accounts of its own yet.
+- Plomba has no user accounts of its own yet. Either put your company's single sign-on in front of the proxy, or set `PLOMBA_ACCESS_CODE` so that each device must enter a shared code once. Without one of the two, anyone who knows the address can use the installation and its Meta Model API credit.
 
 ## Configuration
 
@@ -55,7 +55,10 @@ All settings are environment variables.
 | `META_API_KEY` | — | The key itself, for platforms without secret files |
 | `META_API_BASE_URL` | `https://api.meta.ai/v1` | Any endpoint serving Meta models through the Responses API |
 | `META_VISION_MODEL` | `muse-spark-1.3` | Reads markings |
-| `META_SEGMENTATION_MODEL` | `sam-3.1` | Finds the container, faces and number plates |
+| `META_SEGMENTATION_MODEL` | `sam-3.1` | Finds the container, faces and number plates; outlines damage |
+| `META_SPEECH_MODEL` | `muse-voice-transcribe-1.0` | Transcribes spoken notes |
+| `PLOMBA_ACCESS_CODE` | — | If set (8+ characters), each device enters this code once and gets a 30-day session cookie; without it the API and photos answer 401. Leave unset behind single sign-on |
+| `EDI_SENDER_ID` | `PLOMBA` | This installation's ID in EDIFACT messages (UNB sender, NAD+MS) |
 | `META_REASONING_EFFORT` | `low` | `minimal`, `low`, `medium` or `high` |
 | `META_TIMEOUT_MS` | `90000` | Per model request |
 | `DATA_DIR` | `/data` in the image | Database and photos |

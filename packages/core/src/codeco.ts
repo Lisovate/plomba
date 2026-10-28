@@ -57,7 +57,7 @@ export function toEdifactText(value: string): string {
   return value
     .replace(/[łŁ]/g, 'L')
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '') // combining accents left by NFD
     .replace(/[^\x20-\x7e]/g, '')
     .toUpperCase()
     .trim();

@@ -22,6 +22,7 @@ import {
   ProblemSchema,
   ProposalsSchema,
   type RegisterContainer,
+  SessionSchema,
   type StartHandoverInput,
   TranscriptionSchema,
   type UpdateMark,
@@ -75,6 +76,20 @@ const path = (strings: TemplateStringsArray, ...params: string[]) =>
   );
 
 export const api = {
+  session: () => request('/api/session', {}, SessionSchema),
+
+  login: async (code: string) => {
+    const response = await fetch('/api/session', json('POST', { code }));
+    if (!response.ok) {
+      const problem = ProblemSchema.safeParse(await response.json().catch(() => undefined));
+      throw new ApiError(
+        problem.success ? problem.data.title : response.statusText,
+        response.status,
+        problem.success ? problem.data : undefined,
+      );
+    }
+  },
+
   identify: (image: Blob) => request('/api/identify', upload({ image }), IdentifyResultSchema),
 
   transcribe: (audio: Blob) => {
@@ -131,6 +146,7 @@ export const api = {
 };
 
 export const queryKeys = {
+  session: ['session'] as const,
   recent: ['handovers'] as const,
   handover: (id: string) => ['handovers', id] as const,
   container: (number: string) => ['containers', number] as const,

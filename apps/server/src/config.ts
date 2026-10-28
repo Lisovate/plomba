@@ -23,6 +23,12 @@ const EnvSchema = z
     META_SPEECH_MODEL: z.string().default('muse-voice-transcribe-1.0'),
     META_REASONING_EFFORT: z.enum(['minimal', 'low', 'medium', 'high']).default('low'),
     META_TIMEOUT_MS: z.coerce.number().int().positive().default(90_000),
+    /**
+     * When set, the app asks for this code once per device and every API and
+     * media request needs the resulting session cookie. Leave unset behind a
+     * single-sign-on proxy.
+     */
+    PLOMBA_ACCESS_CODE: z.string().min(8).optional(),
     /** This installation's ID in EDIFACT messages (UNB sender, NAD+MS), as agreed with partners. */
     EDI_SENDER_ID: z.string().min(1).max(35).default('PLOMBA'),
   })
@@ -38,6 +44,7 @@ export interface Config {
   readonly dataDir: string;
   readonly webDistDir: string | undefined;
   readonly ediSenderId: string;
+  readonly accessCode: string | undefined;
   readonly meta: {
     readonly baseUrl: string;
     readonly apiKey: string;
@@ -59,7 +66,9 @@ function expandHome(path: string): string {
 
 /** Reads and validates configuration from environment variables. Throws `ConfigError` with every problem listed. */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const parsed = EnvSchema.safeParse(env);
+  // Compose and many platforms pass unset variables as empty strings.
+  const present = Object.fromEntries(Object.entries(env).filter(([, value]) => value !== ''));
+  const parsed = EnvSchema.safeParse(present);
   if (!parsed.success) {
     const problems = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
     throw new ConfigError(`Invalid configuration:\n  ${problems.join('\n  ')}`);
@@ -84,6 +93,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     dataDir: resolve(expandHome(e.DATA_DIR)),
     webDistDir: e.WEB_DIST_DIR ? resolve(expandHome(e.WEB_DIST_DIR)) : undefined,
     ediSenderId: e.EDI_SENDER_ID,
+    accessCode: e.PLOMBA_ACCESS_CODE,
     meta: {
       baseUrl: e.META_API_BASE_URL.replace(/\/+$/, ''),
       apiKey,

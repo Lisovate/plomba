@@ -262,6 +262,16 @@ export const TranscriptionSchema = z.object({
   durationMs: z.number().int(),
 });
 
+// Access ---------------------------------------------------------------------
+
+export const SessionSchema = z.object({
+  /** Whether this installation asks for an access code. */
+  required: z.boolean(),
+  authenticated: z.boolean(),
+});
+
+export const LoginSchema = z.object({ code: z.string().min(1).max(200) });
+
 // Errors -------------------------------------------------------------------
 
 /** RFC 9457 problem details. */
@@ -298,6 +308,7 @@ export type Transcription = z.infer<typeof TranscriptionSchema>;
 export type Claim = z.infer<typeof ClaimSchema>;
 export type ClaimResult = z.infer<typeof ClaimResultSchema>;
 export type ClaimCheck = z.infer<typeof ClaimCheckSchema>;
+export type Session = z.infer<typeof SessionSchema>;
 
 /** Request bodies as clients write them, before defaults are applied. */
 export type StartHandoverInput = z.input<typeof StartHandoverSchema>;

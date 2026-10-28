@@ -25,6 +25,12 @@ export class ValidationError extends AppError {
   readonly type = 'validation';
 }
 
+export class UnauthorizedError extends AppError {
+  override name = 'UnauthorizedError';
+  readonly status = 401;
+  readonly type = 'unauthorized';
+}
+
 export class NotFoundError extends AppError {
   override name = 'NotFoundError';
   readonly status = 404;

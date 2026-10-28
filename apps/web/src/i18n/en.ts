@@ -166,6 +166,11 @@ export const en = {
     'Locations, damage codes and photo SHA-256 hashes match the records',
   'claim.check.letter-cites-records':
     'The letter cites the container number and both sealed record hashes',
+  'access.title': 'Enter the access code',
+  'access.hint':
+    'Your organisation set a code for this Plomba installation. You enter it once on this device.',
+  'access.code': 'Access code',
+  'access.submit': 'Continue',
   'face.D': 'door end',
   'face.R': 'right side',
   'face.F': 'front end',

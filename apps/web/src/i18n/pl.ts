@@ -168,6 +168,11 @@ export const pl: Messages = {
     'Miejsca, kody uszkodzeń i skróty SHA-256 zdjęć zgadzają się z rekordami',
   'claim.check.letter-cites-records':
     'Pismo podaje numer kontenera i skróty obu zaplombowanych rekordów',
+  'access.title': 'Podaj kod dostępu',
+  'access.hint':
+    'Twoja organizacja ustawiła kod dla tej instalacji Plomby. Podajesz go raz na tym urządzeniu.',
+  'access.code': 'Kod dostępu',
+  'access.submit': 'Dalej',
   'face.D': 'ściana drzwiowa',
   'face.R': 'prawa ściana',
   'face.F': 'ściana czołowa',
