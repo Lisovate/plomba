@@ -1,0 +1,14 @@
+{
+  "name": "@plomba/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Domain logic for Plomba: ISO 6346, ISO 9897 (CEDEX), container geometry and the evidence hash chain. No runtime dependencies.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

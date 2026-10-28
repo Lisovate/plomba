@@ -1,0 +1,185 @@
+/**
+ * ISO 9897 (CEDEX) damage coding, following IICL TB 002 "Preferred EDIS for
+ * the Container Industry".
+ *
+ * A location code has four characters: the face, the part of the face, and the
+ * first and last section. One section puts `N` in fourth place; the whole
+ * length (or width) is `XX`. Example: `LT5N` is the left side, top half,
+ * section 5.
+ *
+ * The same letters mean different things in different code lists (`DT` is a
+ * dent as a damage code but "door end, top half" as a location), so each list
+ * has its own branded type.
+ */
+
+import { type Face, type FaceRect, faceSize, isLongFace, sectionAxisSpan } from './faces.ts';
+import type { ContainerDimensions } from './size-type.ts';
+
+declare const brand: unique symbol;
+type Brand<T, B extends string> = T & { readonly [brand]: B };
+
+export type LocationCode = Brand<string, 'LocationCode'>;
+export type DamageCode = keyof typeof DAMAGE_CODES;
+export type ComponentCode = keyof typeof COMPONENT_CODES;
+
+/** Damage codes (ISO 9897 Annex D, IICL preferred subset). */
+export const DAMAGE_CODES = {
+  BT: 'Bent',
+  BR: 'Broken',
+  BW: 'Bowed',
+  CU: 'Cut',
+  CK: 'Cracked',
+  CW: 'Cracked weld',
+  CO: 'Corroded',
+  CT: 'Contaminated',
+  DT: 'Dent',
+  DL: 'Delaminated',
+  DY: 'Dirty',
+  GD: 'Gouged',
+  HO: 'Holed',
+  IR: 'Improper repair',
+  LK: 'Leak',
+  LO: 'Loose',
+  MS: 'Missing',
+  PH: 'Pin holes',
+  OR: 'Odour',
+} as const;
+
+/** Component codes for dry freight containers (IICL TB 002, a subset). */
+export const COMPONENT_CODES = {
+  PAA: 'Panel',
+  RLA: 'Rail, top or bottom',
+  CPS: 'Corner post',
+  CPA: 'Corner post assembly',
+  CFG: 'Corner fitting',
+  HEP: 'Header plate',
+  LBA: 'Locking bar assembly',
+  DHL: 'Locking handle assembly',
+  HGH: 'Hinge assembly',
+  DPL: 'Security (TIR) plate',
+  FTP: 'Threshold plate',
+  FPP: 'Floor, plywood',
+  MOC: "Marking, owner's code",
+  MSN: 'Marking, serial number and check digit',
+  MST: 'Marking, size and type',
+  MCE: 'Marking, ACEP',
+} as const;
+
+export function isDamageCode(code: string): code is DamageCode {
+  return Object.hasOwn(DAMAGE_CODES, code);
+}
+
+export function isComponentCode(code: string): code is ComponentCode {
+  return Object.hasOwn(COMPONENT_CODES, code);
+}
+
+/**
+ * Sections along the sides, roof and floor: 5 on a 20 ft container and 10
+ * (numbered 1–9, then 0) on a 40 ft one. Longer containers keep 10.
+ */
+export function longSectionCount(dimensions: ContainerDimensions): 5 | 10 {
+  return dimensions.length < 7 ? 5 : 10;
+}
+
+/**
+ * Ends are divided across the width into four sections: 1 the left corner
+ * post, 2 the left half, 3 the right half, 4 the right corner post, seen from
+ * the door end. The corner post width follows the ISO 1161 corner fitting.
+ */
+export const CORNER_POST_WIDTH = 0.162;
+
+/** The section boundaries along the counting axis of a face, in metres. */
+export function sectionBoundaries(face: Face, dimensions: ContainerDimensions): number[] {
+  if (isLongFace(face)) {
+    const count = longSectionCount(dimensions);
+    const size = dimensions.length / count;
+    return Array.from({ length: count + 1 }, (_, i) => i * size);
+  }
+  const width = dimensions.width;
+  return [0, CORNER_POST_WIDTH, width / 2, width - CORNER_POST_WIDTH, width];
+}
+
+function sectionIndexAt(boundaries: readonly number[], position: number): number {
+  const last = boundaries.length - 2;
+  for (let i = 0; i <= last; i++) {
+    if (position < (boundaries[i + 1] ?? Number.POSITIVE_INFINITY)) return i;
+  }
+  return last;
+}
+
+function sectionDigit(index: number): string {
+  return String((index + 1) % 10);
+}
+
+/** The 2nd character: which part of the face the rectangle sits in. */
+function partCode(face: Face, rect: FaceRect, dimensions: ContainerDimensions): string {
+  const { height } = faceSize(face, dimensions);
+  const middle = height / 2;
+  if (face === 'T') {
+    // On the roof v runs from the right side (0) to the left side.
+    if (rect.v0 >= middle) return 'L';
+    if (rect.v1 <= middle) return 'R';
+    return 'X';
+  }
+  if (rect.v0 >= middle) return 'T';
+  if (rect.v1 <= middle) return 'B';
+  return 'X';
+}
+
+/**
+ * The CEDEX location code for a rectangle on a face.
+ *
+ * Assumption to verify against ISO 9897 Annex C: sections on the sides and roof
+ * are counted from the door end, as IICL TB 002 numbers side posts, roof bows
+ * and cross-members.
+ */
+export function locationCode(
+  face: Face,
+  rect: FaceRect,
+  dimensions: ContainerDimensions,
+): LocationCode {
+  const boundaries = sectionBoundaries(face, dimensions);
+  const [start, end] = sectionAxisSpan(face, rect, dimensions);
+  // A rectangle ending exactly on a boundary doesn't reach into the next section.
+  const epsilon = 1e-6;
+  const first = sectionIndexAt(boundaries, start);
+  const last = Math.max(first, sectionIndexAt(boundaries, end - epsilon));
+  const sectionCount = boundaries.length - 1;
+
+  let sections: string;
+  if (first === last) sections = `${sectionDigit(first)}N`;
+  else if (first === 0 && last === sectionCount - 1) sections = 'XX';
+  else sections = `${sectionDigit(first)}${sectionDigit(last)}`;
+
+  return `${face}${partCode(face, rect, dimensions)}${sections}` as LocationCode;
+}
+
+export interface FaceCell {
+  readonly code: LocationCode;
+  readonly rect: FaceRect;
+}
+
+/**
+ * Splits a face into the cells the CEDEX code distinguishes (sections × halves),
+ * in face coordinates. Used to track which parts of the container have
+ * photographic evidence.
+ */
+export function faceCells(face: Face, dimensions: ContainerDimensions): FaceCell[] {
+  const { width, height } = faceSize(face, dimensions);
+  const boundaries = sectionBoundaries(face, dimensions);
+  const reversed = face === 'L' || face === 'F';
+  const cells: FaceCell[] = [];
+  for (let i = 0; i < boundaries.length - 1; i++) {
+    const a = boundaries[i] ?? 0;
+    const b = boundaries[i + 1] ?? width;
+    const [u0, u1] = reversed ? [width - b, width - a] : [a, b];
+    for (const [v0, v1] of [
+      [height / 2, height],
+      [0, height / 2],
+    ] as const) {
+      const rect = { u0, v0, u1, v1 };
+      cells.push({ code: locationCode(face, rect, dimensions), rect });
+    }
+  }
+  return cells;
+}
