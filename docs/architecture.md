@@ -55,9 +55,11 @@ Node 24 runs the TypeScript sources directly (type stripping), so the server has
 | Choose between valid repairs of a misread number | Muse Spark 1.3, structured output | Same photo and 2+ candidate numbers | The matching candidate, or none | Built |
 | Find the face's corners | SAM 3.1, prompt `shipping container` | Photo of one face | Mask; its extreme points give the four corners | Built |
 | Privacy | SAM 3.1, prompts `human face`, `license plate` | Every face photo | Boxes, blurred before the photo is stored | Built |
-| Propose damage | SAM 3.1 (`dent`, `hole`, `rust`, …), then Muse Spark | Face photo | Candidate outlines with suggested CEDEX codes | Planned |
+| Find and code damage | Muse Spark 1.3, structured output | Registered face photo | Rough boxes with CEDEX damage and component codes, a description and a confidence | Built |
+| Outline damage | SAM 3.1, one box prompt per finding | Same photo and Spark's boxes | Precise masks, mapped onto the face in metres as proposed marks | Built |
 | Notes and commands | Muse Voice Transcribe | Streaming audio, Polish and English | Commands and note text | Planned |
-| Compare and close | Muse Spark, tools | Previous and current handover | EIR content, CODECO message, draft claim | Planned |
+| Compare and close | Deterministic code | Previous and current handover | EIR report, CODECO message | Built |
+| Draft a claim | Muse Spark, tools | The comparison, photos and codes | Draft claim for new damage | Planned |
 | Offline mode | Muse Glimmer | As above, reduced | Number reading and damage labelling without internet | Planned |
 | Test cases | Muse Image | Real photo plus an instruction edit | Labelled synthetic damage, never counted in accuracy | Planned |
 
@@ -70,9 +72,11 @@ A vision model can read a worn number wrongly and still sound sure. So the model
    - a character that can't stand where it is (a digit in the owner code) is always replaced;
    - up to two others may change.
 3. **Every repair that passes the check digit is a candidate.**
-   - Exactly one: it's proposed as a correction.
-   - Several: Muse Spark compares them with the photo and may pick one.
-4. **The checker confirms.** The model's pick between valid numbers is only advice, so the app shows every candidate with the changed characters highlighted.
+   - Exactly one: it's suggested.
+   - Several: Muse Spark compares them with the photo and may suggest one.
+4. **Only a read that passes as read is accepted** (`verified`). A suggestion or a choice between candidates is shown with the changed characters highlighted, and the checker taps the right one or types the number.
+   - Measured on 96 real crops ([evaluation.md](evaluation.md)): no verified read was wrong, but most unique repairs were. The check digit detects misreads reliably and corrects them poorly.
+   - Small photos are enlarged before reading, which doubled accuracy.
 
 A real example from 2026-10-28, on a worn `LSCU 107737 9`:
 - Spark read `L90U1077379`. Three repairs pass the check digit: `LGDU…`, `LQDU…` and `LSCU…`.
@@ -106,6 +110,16 @@ The server computes the ISO 9897 (CEDEX) location code from a mark's position (`
   - One section is written `<n>N`, the whole length `XX`.
 
 **Assumption to verify:** that side sections are counted from the door end. IICL numbers side posts, roof bows and cross-members that way, but the section rule isn't stated in the free sources.
+
+## Damage proposals
+
+SAM 3.1 doesn't find container damage from concept prompts: `dent`, `damage` and `crushed metal` return nothing even on a crushed container, and `hole` finds bolt holes. So the two models split the work:
+
+1. **Muse Spark finds and codes the damage** on a registered face photo: a rough box per damage, CEDEX damage and component codes, a description and a confidence.
+2. **SAM 3.1 outlines each finding** from a box prompt, all boxes in one request. On a torn panel it tightened Spark's box from x = 957 to the tear's real edge at x = 832.
+3. **The outline is mapped onto the face** through the inverse homography. It becomes a rectangle and outline in metres with a computed CEDEX location code, stored as a mark with source `proposed`.
+   - Findings below 30% confidence, mostly off the face, or overlapping an existing mark are dropped.
+4. **The checker confirms or rejects every proposal.** A handover can't be sealed while proposals are pending.
 
 ## Evidence and the hash chain
 
@@ -148,7 +162,11 @@ Migrations live in `apps/server/src/adapters/sqlite/migrations.ts` and are appli
   - A/K/U, B/L/V, C/M/W, … collide in the check digit, so a repair can be ambiguous.
 - **ISO 6346 size/type codes:** e.g. 22G1, 42G1, 45G1, L5G1 → length, width and height.
 - **ISO 9897 (CEDEX):** location, damage (DT dent, HO holed, BT bent, CU cut, CO corroded, …) and component codes (PAA panel, RLA rail, CPS corner post, …), each in its own type, since the same letters mean different things in different lists.
-- **EDIFACT CODECO (planned):** gate-in / gate-out report. BGM 34 = gate-in, 36 = gate-out; EQD, DTM, LOC, SEL and DAM segments.
+- **EDIFACT CODECO D.95B** in the SMDG 1.6 profile (`packages/core/src/codeco.ts`):
+  - the gate-in / gate-out report: BGM 34 = gate-in, 36 = gate-out; then EQD, DTM, LOC, SEL, and DAM/COD for up to 9 damages;
+  - Plomba adds the sealed record's SHA-256 in an FTX segment, so the message points to the tamper-evident record;
+  - generated only for sealed handovers.
+- **EIR (equipment interchange receipt):** a printable page in the web app; Print → Save as PDF gives the document the parties keep.
 
 ## Meta AI glasses (planned)
 

@@ -71,6 +71,7 @@ npm run dev:web         # app on http://localhost:5173
 
 - [docs/product.md](docs/product.md): users, the handover flow, scope for the hackathon, principles
 - [docs/architecture.md](docs/architecture.md): components, how each model is used, marks in container coordinates, the hash chain, data model, standards
+- [docs/evaluation.md](docs/evaluation.md): measured accuracy on openly licensed data
 - [docs/self-hosting.md](docs/self-hosting.md): running Plomba on your own machine
 - [docs/build-log.md](docs/build-log.md): dated log of what was built and when
 

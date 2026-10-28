@@ -55,3 +55,15 @@ A dated record of what was built and when. The newest entry is at the bottom.
 - EIR report and EDIFACT CODECO message;
 - coverage per CEDEX section;
 - test on a real phone over HTTPS.
+
+**Later on day 2:**
+- **Damage proposals.** SAM 3.1 finds nothing for `dent`, `damage`, `crushed metal` or `torn metal`, even on a crushed container; `hole` finds bolt holes. So Muse Spark finds and codes the damage, and SAM 3.1 outlines each finding from a box prompt.
+  - On a crushed 20 ft side, the result was `RXXX BT PAA` (Spark 98%, SAM 88%), in 6.7 s.
+  - The checker confirms or rejects each proposal; sealing waits until all are reviewed.
+- **EIR report** (printable; Save as PDF) with the seal, a comparison with the previous handover, the damage table, annotated photos and signature lines.
+- **EDIFACT CODECO D.95B** (SMDG 1.6 layout) for sealed handovers, carrying the record's SHA-256.
+- **First measured evaluation** ([evaluation.md](evaluation.md)): container identification on 96 TRUDI crops (CC BY-SA 4.0).
+  - Enlarging small photos took verified-and-right from 32% to 62%.
+  - The look-alike "corrections" were mostly wrong (3 right, 12 wrong across runs), so a read is now accepted only if it passes the check digit as read; repairs are suggestions the checker taps.
+  - Result: 0 silent errors in 59 verified reads.
+- **Privacy:** SAM 3.1 found a 22 × 8 px truck plate in a lossless PNG (confidence 0.52) but not after JPEG re-encoding. A plate that small is unreadable, but recall on small plates must be measured on photos with readable plates and faces before blurring is claimed to work.
