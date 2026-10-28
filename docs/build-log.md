@@ -94,3 +94,6 @@ A dated record of what was built and when. The newest entry is at the bottom.
   - The browser plays it with the container's CEDEX sections and the previous handover's damage drawn on it, frame by frame, following SAM's stable object ID.
   - Tracking results are cached by the clip's hash; clips aren't stored.
 - **Test footage:** "StraddleCarrierLiftsContainerFromDoubleStackTrain" by 4300streetcar, Wikimedia Commons, CC BY 4.0 (2021). Converted to 30 s of 15 fps MP4 for testing; not stored in the repository. Openly licensed walk-around inspection footage hardly exists, so the next clips will be the author's own.
+- **Video tracking on a real inspection clip** (a YouTube video, used locally for testing only; not stored or published).
+  - A 40 ft container sliding off a tilt trailer, side-on: SAM 3.1 tracked all 302 frames, and the CEDEX grid and the earlier damage stayed on the side as it tilted and levelled.
+  - **Finding:** a close-up of the door end failed. The face didn't fit in the frame, and registering from the container's outline needs all four corners of the face in view. Close-ups will need another anchor (corner castings, locking bars, markings).
