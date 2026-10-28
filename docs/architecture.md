@@ -8,8 +8,8 @@ First written 2026-10-26 as a plan; rewritten 2026-10-28 when development moved 
 Phone (iPhone or Android): Plomba PWA in the browser or installed to the home screen
   ├─ camera photos of each face, container number entry, marks, confirmation
   └─ HTTPS (same origin) ─▶ Plomba server (Node 24, TypeScript)
-                              ├─ Meta Model API: Muse Spark, SAM 3.1 (built);
-                              │   Muse Voice Transcribe, Muse Image (planned)
+                              ├─ Meta Model API: Muse Spark, SAM 3.1, Muse Voice
+                              │   Transcribe (built); Muse Image (planned)
                               ├─ SQLite database + content-addressed photo store
                               ├─ hash-chained handover history
                               └─ serves the built web app
@@ -57,7 +57,8 @@ Node 24 runs the TypeScript sources directly (type stripping), so the server has
 | Privacy | SAM 3.1, prompts `human face`, `license plate` | Every face photo | Boxes, blurred before the photo is stored | Built |
 | Find and code damage | Muse Spark 1.3, structured output | Registered face photo | Rough boxes with CEDEX damage and component codes, a description and a confidence | Built |
 | Outline damage | SAM 3.1, one box prompt per finding | Same photo and Spark's boxes | Precise masks, mapped onto the face in metres as proposed marks | Built |
-| Notes and commands | Muse Voice Transcribe | Streaming audio, Polish and English | Commands and note text | Planned |
+| Spoken notes | Muse Voice Transcribe 1.0, push-to-talk | A note recorded in the browser, converted there to 24 kHz mono WAV | Note text in Polish or English, biased to container vocabulary | Built |
+| Voice commands, disputes by speaker | Muse Voice Transcribe, streaming and diarisation | Live audio | Commands; statements labelled by speaker | Planned |
 | Compare and close | Deterministic code | Previous and current handover | EIR report, CODECO message | Built |
 | Draft a claim | Muse Spark, tools | The comparison, photos and codes | Draft claim for new damage | Planned |
 | Offline mode | Muse Glimmer | As above, reduced | Number reading and damage labelling without internet | Planned |

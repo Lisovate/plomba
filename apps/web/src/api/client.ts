@@ -22,6 +22,7 @@ import {
   ProposalsSchema,
   type RegisterContainer,
   type StartHandoverInput,
+  TranscriptionSchema,
   type UpdateMark,
 } from '@plomba/contracts';
 import type { Quad } from '@plomba/core';
@@ -74,6 +75,12 @@ const path = (strings: TemplateStringsArray, ...params: string[]) =>
 
 export const api = {
   identify: (image: Blob) => request('/api/identify', upload({ image }), IdentifyResultSchema),
+
+  transcribe: (audio: Blob) => {
+    const form = new FormData();
+    form.set('audio', audio, 'note.wav');
+    return request('/api/transcribe', { method: 'POST', body: form }, TranscriptionSchema);
+  },
 
   registerContainer: (body: RegisterContainer) =>
     request('/api/containers', json('POST', body), ContainerSchema),

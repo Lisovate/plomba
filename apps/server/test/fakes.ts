@@ -19,6 +19,7 @@ import type {
   SegmentedObject,
   Segmenter,
   SizedImage,
+  SpeechTranscriber,
   StoredMedia,
 } from '../src/ports.ts';
 import { HandoverService } from '../src/services/handovers.ts';
@@ -186,4 +187,40 @@ export function createTestHandoverService() {
     ediSenderId: 'PLOMBA-TEST',
   });
   return { db, segmenter, detector, media, service };
+}
+
+/** A WAV file of silence: mono, 16-bit PCM. */
+export function makeWav(
+  options: { sampleRate?: number; channels?: number; bits?: number; ms?: number } = {},
+): Uint8Array {
+  const { sampleRate = 16_000, channels = 1, bits = 16, ms = 1000 } = options;
+  const dataBytes = Math.round((sampleRate * channels * (bits / 8) * ms) / 1000);
+  const buffer = new ArrayBuffer(44 + dataBytes);
+  const view = new DataView(buffer);
+  const text = (offset: number, value: string) => {
+    for (let i = 0; i < 4; i++) view.setUint8(offset + i, value.charCodeAt(i));
+  };
+  text(0, 'RIFF');
+  view.setUint32(4, 36 + dataBytes, true);
+  text(8, 'WAVE');
+  text(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * channels * (bits / 8), true);
+  view.setUint16(32, channels * (bits / 8), true);
+  view.setUint16(34, bits, true);
+  text(36, 'data');
+  view.setUint32(40, dataBytes, true);
+  return new Uint8Array(buffer);
+}
+
+export class FakeTranscriber implements SpeechTranscriber {
+  calls = 0;
+
+  async transcribe(audio: Uint8Array) {
+    this.calls++;
+    return { text: 'wgniecenie przy drzwiach', durationMs: audio.byteLength > 44 ? 1000 : 0 };
+  }
 }

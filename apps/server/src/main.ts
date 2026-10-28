@@ -11,6 +11,7 @@ import { serve } from '@hono/node-server';
 import { pino } from 'pino';
 import { MetaClient } from './adapters/meta/client.ts';
 import { MuseSparkDamageDetector, MuseSparkMarkingsReader } from './adapters/meta/muse-spark.ts';
+import { MuseVoiceTranscriber } from './adapters/meta/muse-voice.ts';
 import { Sam3Segmenter } from './adapters/meta/sam.ts';
 import { createTransactionRunner, openDatabase } from './adapters/sqlite/database.ts';
 import {
@@ -24,6 +25,7 @@ import { createApp } from './http/app.ts';
 import { FileMediaStore } from './media/file-media-store.ts';
 import { HandoverService } from './services/handovers.ts';
 import { IdentifyService } from './services/identify.ts';
+import { SpeechService } from './services/speech.ts';
 
 function main(): void {
   const config = loadConfig();
@@ -48,6 +50,7 @@ function main(): void {
   const reader = new MuseSparkMarkingsReader(meta, spark);
   const detector = new MuseSparkDamageDetector(meta, spark);
   const segmenter = new Sam3Segmenter(meta, { model: config.meta.segmentationModel });
+  const transcriber = new MuseVoiceTranscriber(meta, { model: config.meta.speechModel });
 
   const app = createApp({
     identify: new IdentifyService(reader),
@@ -64,6 +67,7 @@ function main(): void {
       newId: randomUUID,
       ediSenderId: config.ediSenderId,
     }),
+    speech: new SpeechService(transcriber),
     media,
     logger,
     webDistDir: config.webDistDir,

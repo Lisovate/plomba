@@ -88,6 +88,12 @@ export interface DamageDetector {
   detect(image: SizedImage): Promise<DamageFinding[]>;
 }
 
+/** Turns a spoken note into text (Muse Voice Transcribe). */
+export interface SpeechTranscriber {
+  /** `audio` is a WAV file: mono, 16-bit PCM, 16 or 24 kHz. */
+  transcribe(audio: Uint8Array): Promise<{ readonly text: string; readonly durationMs: number }>;
+}
+
 // Storage ------------------------------------------------------------------
 
 export interface StoredMedia {

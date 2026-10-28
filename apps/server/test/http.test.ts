@@ -2,7 +2,15 @@ import { IdentifyResultSchema, ProblemSchema } from '@plomba/contracts';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../src/http/app.ts';
 import { IdentifyService } from '../src/services/identify.ts';
-import { createTestHandoverService, FakeReader, makePhoto, silentLogger } from './fakes.ts';
+import { SpeechService } from '../src/services/speech.ts';
+import {
+  createTestHandoverService,
+  FakeReader,
+  FakeTranscriber,
+  makePhoto,
+  makeWav,
+  silentLogger,
+} from './fakes.ts';
 
 function testApp() {
   const { service, media } = createTestHandoverService();
@@ -11,6 +19,7 @@ function testApp() {
   return createApp({
     identify: new IdentifyService(reader),
     handovers: service,
+    speech: new SpeechService(new FakeTranscriber()),
     media,
     logger: silentLogger,
   });
@@ -93,6 +102,14 @@ describe('HTTP API', () => {
       length: 1,
       brokenAt: null,
     });
+  });
+
+  it('transcribes a spoken note', async () => {
+    const form = new FormData();
+    form.set('audio', new File([makeWav() as Uint8Array<ArrayBuffer>], 'note.wav'));
+    const response = await testApp().request('/api/transcribe', { method: 'POST', body: form });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ text: 'wgniecenie przy drzwiach', durationMs: 1000 });
   });
 
   it('answers unknown API routes with 404 problem details', async () => {

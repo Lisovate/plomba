@@ -67,3 +67,8 @@ A dated record of what was built and when. The newest entry is at the bottom.
   - The look-alike "corrections" were mostly wrong (3 right, 12 wrong across runs), so a read is now accepted only if it passes the check digit as read; repairs are suggestions the checker taps.
   - Result: 0 silent errors in 59 verified reads.
 - **Privacy:** SAM 3.1 found a 22 × 8 px truck plate in a lossless PNG (confidence 0.52) but not after JPEG re-encoding. A plate that small is unreadable, but recall on small plates must be measured on photos with readable plates and faces before blurring is claimed to work.
+- **Coverage per CEDEX section.** A section counts as covered when its whole outline, mapped through a photo's homography, lies inside that photo. Sealing with gaps needs the checker's consent, and the sealed record lists the sections that were not inspected.
+- **Spoken notes with Muse Voice Transcribe.**
+  - The browser records in its own codec (WebM/Opus or MP4/AAC) and converts the note to 24 kHz mono WAV, so the server needs no ffmpeg.
+  - Recognition is biased to Polish and English and to container vocabulary.
+  - A synthetic Polish note (espeak-ng) came back word for word in 3.7 s for 9.4 s of audio, apart from "wgniecenie" → "wgniecenia"; tested end to end through Chromium's fake microphone.

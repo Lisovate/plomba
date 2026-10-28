@@ -20,6 +20,7 @@ const EnvSchema = z
     META_API_KEY_FILE: z.string().min(1).optional(),
     META_VISION_MODEL: z.string().default('muse-spark-1.3'),
     META_SEGMENTATION_MODEL: z.string().default('sam-3.1'),
+    META_SPEECH_MODEL: z.string().default('muse-voice-transcribe-1.0'),
     META_REASONING_EFFORT: z.enum(['minimal', 'low', 'medium', 'high']).default('low'),
     META_TIMEOUT_MS: z.coerce.number().int().positive().default(90_000),
     /** This installation's ID in EDIFACT messages (UNB sender, NAD+MS), as agreed with partners. */
@@ -42,6 +43,7 @@ export interface Config {
     readonly apiKey: string;
     readonly visionModel: string;
     readonly segmentationModel: string;
+    readonly speechModel: string;
     readonly reasoningEffort: 'minimal' | 'low' | 'medium' | 'high';
     readonly timeoutMs: number;
   };
@@ -87,6 +89,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       apiKey,
       visionModel: e.META_VISION_MODEL,
       segmentationModel: e.META_SEGMENTATION_MODEL,
+      speechModel: e.META_SPEECH_MODEL,
       reasoningEffort: e.META_REASONING_EFFORT,
       timeoutMs: e.META_TIMEOUT_MS,
     },

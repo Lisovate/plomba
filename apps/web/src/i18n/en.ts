@@ -147,6 +147,10 @@ export const en = {
   'report.recipient': "Recipient ID (e.g. the shipping line's EDI code)",
   'report.downloadCodeco': 'Download CODECO',
 
+  'dictate.start': 'Dictate a note',
+  'dictate.stop': 'Stop and transcribe',
+  'dictate.working': 'Muse Voice is transcribing…',
+  'dictate.denied': 'The microphone is not available.',
   'face.D': 'door end',
   'face.R': 'right side',
   'face.F': 'front end',

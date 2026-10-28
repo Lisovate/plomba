@@ -103,3 +103,33 @@ describe('MetaClient', () => {
     expect(calls).toBe(1);
   });
 });
+
+describe('MetaClient.transcribe', () => {
+  it('sends the settings and the WAV as multipart form data', async () => {
+    let form: FormData | undefined;
+    let url = '';
+    const client = new MetaClient({
+      baseUrl: 'https://api.example.test/v1',
+      apiKey: 'k',
+      timeoutMs: 1000,
+      logger: silentLogger,
+      fetch: async (input, init) => {
+        url = String(input);
+        form = init?.body as FormData;
+        return jsonResponse(200, { transcript: ' wgniecenie ', audioDurationMs: 900, turns: [] });
+      },
+    });
+    const result = await client.transcribe(new Uint8Array([1, 2, 3]), {
+      model: 'muse-voice-transcribe-1.0',
+      mode: 'PUSH_TO_TALK',
+    });
+    expect(url).toBe('https://api.example.test/v1/asr/transcribe');
+    if (!form) throw new Error('No form data was sent');
+    expect(JSON.parse(await (form.get('request') as Blob).text())).toEqual({
+      model: 'muse-voice-transcribe-1.0',
+      mode: 'PUSH_TO_TALK',
+    });
+    expect((form.get('audio') as Blob).size).toBe(3);
+    expect(result.audioDurationMs).toBe(900);
+  });
+});

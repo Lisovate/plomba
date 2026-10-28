@@ -212,6 +212,13 @@ export const ContainerHistorySchema = z.object({
   chain: ChainStatusSchema,
 });
 
+// Speech -------------------------------------------------------------------
+
+export const TranscriptionSchema = z.object({
+  text: z.string(),
+  durationMs: z.number().int(),
+});
+
 // Errors -------------------------------------------------------------------
 
 /** RFC 9457 problem details. */
@@ -244,6 +251,7 @@ export type HandoverSummary = z.infer<typeof HandoverSummarySchema>;
 export type ChainStatus = z.infer<typeof ChainStatusSchema>;
 export type ContainerHistory = z.infer<typeof ContainerHistorySchema>;
 export type Problem = z.infer<typeof ProblemSchema>;
+export type Transcription = z.infer<typeof TranscriptionSchema>;
 
 /** Request bodies as clients write them, before defaults are applied. */
 export type StartHandoverInput = z.input<typeof StartHandoverSchema>;

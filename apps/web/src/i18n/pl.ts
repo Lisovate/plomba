@@ -148,6 +148,10 @@ export const pl: Messages = {
   'report.recipient': 'Identyfikator odbiorcy (np. kod EDI armatora)',
   'report.downloadCodeco': 'Pobierz CODECO',
 
+  'dictate.start': 'Podyktuj uwagę',
+  'dictate.stop': 'Zakończ i przepisz',
+  'dictate.working': 'Muse Voice przepisuje…',
+  'dictate.denied': 'Mikrofon jest niedostępny.',
   'face.D': 'ściana drzwiowa',
   'face.R': 'prawa ściana',
   'face.F': 'ściana czołowa',

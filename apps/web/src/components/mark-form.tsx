@@ -2,6 +2,7 @@ import type { ComponentCode, DamageCode } from '@plomba/core';
 import { COMPONENT_CODES, DAMAGE_CODES } from '@plomba/core';
 import { type FormEvent, useState } from 'react';
 import { useI18n } from '../i18n/index.tsx';
+import { DictateButton } from './dictate-button.tsx';
 
 /** The damage types a checker reaches for most; the rest are in the full list. */
 const QUICK_DAMAGE: readonly DamageCode[] = ['DT', 'HO', 'BT', 'CU', 'CO', 'BR', 'MS', 'CK'];
@@ -84,6 +85,9 @@ export function MarkForm({
         {t('mark.note')}
         <input value={note} onChange={(e) => setNote(e.target.value)} />
       </label>
+      <DictateButton
+        onText={(text) => setNote((current) => (current ? `${current} ${text}` : text))}
+      />
       <div className="row">
         <button type="button" className="secondary" onClick={onCancel}>
           {t('common.cancel')}

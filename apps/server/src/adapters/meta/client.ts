@@ -46,6 +46,18 @@ export interface ResponsesResponse {
   readonly usage?: Readonly<Record<string, unknown>>;
 }
 
+export interface TranscriptionResponse {
+  readonly sessionId?: string;
+  readonly transcript: string;
+  readonly audioDurationMs: number;
+  readonly turns?: readonly {
+    readonly startMs: number;
+    readonly endMs: number;
+    readonly transcript: string;
+    readonly speaker?: string;
+  }[];
+}
+
 export class MetaApiError extends Error {
   override name = 'MetaApiError';
   readonly status: number | undefined;
@@ -91,57 +103,11 @@ export class MetaClient {
    * inspection photos can show people and vehicles.
    */
   async createResponse(request: ResponsesRequest): Promise<ResponsesResponse> {
-    const maxRetries = this.#options.maxRetries ?? 2;
-    const backoff = this.#options.backoffMs ?? defaultBackoff;
-    for (let attempt = 0; ; attempt++) {
-      try {
-        return await this.#send(request);
-      } catch (error) {
-        if (!(error instanceof MetaApiError) || !error.retryable || attempt >= maxRetries) {
-          throw error;
-        }
-        const delay = backoff(attempt + 1);
-        this.#options.logger.warn(
-          { model: request.model, status: error.status, attempt: attempt + 1, delay },
-          'Retrying Meta Model API request',
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-  }
-
-  async #send(request: ResponsesRequest): Promise<ResponsesResponse> {
     const started = performance.now();
-    let response: Response;
-    try {
-      response = await this.#fetch(`${this.#options.baseUrl}/responses`, {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${this.#options.apiKey}`,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({ ...request, store: false }),
-        signal: AbortSignal.timeout(this.#options.timeoutMs),
-      });
-    } catch (cause) {
-      throw new MetaApiError(`Meta Model API request failed: ${(cause as Error).message}`, {
-        retryable: true,
-        cause,
-      });
-    }
-
-    if (!response.ok) {
-      const detail = await response.text().catch(() => '');
-      throw new MetaApiError(
-        `Meta Model API returned ${response.status}: ${detail.slice(0, 500)}`,
-        {
-          status: response.status,
-          retryable: response.status === 429 || response.status >= 500,
-        },
-      );
-    }
-
-    const body = (await response.json()) as ResponsesResponse;
+    const body = (await this.#post(request.model, '/responses', () => ({
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...request, store: false }),
+    }))) as ResponsesResponse;
     const ms = Math.round(performance.now() - started);
     this.#options.logger.info(
       { model: request.model, responseId: body.id, status: body.status, ms, usage: body.usage },
@@ -154,6 +120,87 @@ export class MetaClient {
       });
     }
     return body;
+  }
+
+  /** Transcribes a WAV file (mono PCM16, 16 or 24 kHz) with Muse Voice Transcribe. */
+  async transcribe(
+    audio: Uint8Array,
+    settings: Readonly<Record<string, unknown>> & { readonly model: string },
+  ): Promise<TranscriptionResponse> {
+    const started = performance.now();
+    const body = (await this.#post(settings.model, '/asr/transcribe', () => {
+      const form = new FormData();
+      form.set('request', new Blob([JSON.stringify(settings)], { type: 'application/json' }));
+      form.set(
+        'audio',
+        new Blob([audio as Uint8Array<ArrayBuffer>], { type: 'audio/wav' }),
+        'audio.wav',
+      );
+      return { body: form };
+    })) as TranscriptionResponse;
+    const ms = Math.round(performance.now() - started);
+    this.#options.logger.info(
+      { model: settings.model, audioMs: body.audioDurationMs, ms },
+      'Meta Model API transcription',
+    );
+    this.#options.onResponse?.({ model: settings.model, ms, usage: undefined });
+    return body;
+  }
+
+  /** POSTs with authentication, a timeout and retries; returns the parsed JSON body. */
+  async #post(
+    model: string,
+    path: string,
+    build: () => { headers?: Record<string, string>; body: NonNullable<RequestInit['body']> },
+  ): Promise<unknown> {
+    const maxRetries = this.#options.maxRetries ?? 2;
+    const backoff = this.#options.backoffMs ?? defaultBackoff;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.#send(path, build());
+      } catch (error) {
+        if (!(error instanceof MetaApiError) || !error.retryable || attempt >= maxRetries) {
+          throw error;
+        }
+        const delay = backoff(attempt + 1);
+        this.#options.logger.warn(
+          { model, status: error.status, attempt: attempt + 1, delay },
+          'Retrying Meta Model API request',
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  async #send(
+    path: string,
+    { headers, body }: { headers?: Record<string, string>; body: NonNullable<RequestInit['body']> },
+  ): Promise<unknown> {
+    let response: Response;
+    try {
+      response = await this.#fetch(`${this.#options.baseUrl}${path}`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${this.#options.apiKey}`, ...headers },
+        body,
+        signal: AbortSignal.timeout(this.#options.timeoutMs),
+      });
+    } catch (cause) {
+      throw new MetaApiError(`Meta Model API request failed: ${(cause as Error).message}`, {
+        retryable: true,
+        cause,
+      });
+    }
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      throw new MetaApiError(
+        `Meta Model API returned ${response.status}: ${detail.slice(0, 500)}`,
+        {
+          status: response.status,
+          retryable: response.status === 429 || response.status >= 500,
+        },
+      );
+    }
+    return response.json();
   }
 }
 

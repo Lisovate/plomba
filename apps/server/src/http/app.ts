@@ -20,10 +20,12 @@ import { AppError, ValidationError } from '../errors.ts';
 import type { MediaStore } from '../ports.ts';
 import type { HandoverService } from '../services/handovers.ts';
 import type { IdentifyService } from '../services/identify.ts';
+import type { SpeechService } from '../services/speech.ts';
 
 export interface AppDeps {
   readonly identify: IdentifyService;
   readonly handovers: HandoverService;
+  readonly speech: SpeechService;
   readonly media: MediaStore;
   readonly logger: Logger;
   /** The built web app, served with a single-page-app fallback. */
@@ -101,7 +103,7 @@ export function createApp(deps: AppDeps): Hono {
 
 function api(deps: AppDeps): Hono {
   const api = new Hono();
-  const { identify, handovers } = deps;
+  const { identify, handovers, speech } = deps;
   const uploadLimit = bodyLimit({
     maxSize: MAX_UPLOAD_BYTES,
     onError: () => {
@@ -114,6 +116,17 @@ function api(deps: AppDeps): Hono {
   api.post('/identify', uploadLimit, async (c) => {
     const { image } = await readUpload(c);
     return c.json(await identify.identify(image));
+  });
+
+  api.post('/transcribe', uploadLimit, async (c) => {
+    const form = await c.req.parseBody().catch(() => {
+      throw new ValidationError('Expected multipart/form-data');
+    });
+    const audio = form.audio;
+    if (!(audio instanceof File) || audio.size === 0) {
+      throw new ValidationError('Attach the recording as the "audio" field');
+    }
+    return c.json(await speech.transcribeNote(new Uint8Array(await audio.arrayBuffer())));
   });
 
   api.post('/containers', async (c) => {
