@@ -1,6 +1,6 @@
 # Product
 
-Written 2026-10-26, before development started. This is the target, not a description of finished work. What's actually built is tracked in [build-log.md](build-log.md).
+Written 2026-10-26, before development started; updated 2026-10-28 when the phone app became an installable web app for iPhone and Android. This is the target, not a description of finished work. What's actually built is tracked in [build-log.md](build-log.md).
 
 ## The problem
 
@@ -22,7 +22,7 @@ A container's handover is recorded on an **equipment interchange receipt (EIR)**
 ## The handover flow
 
 1. **Identify:** read the container number and check digit, size/type code, seal number and hazard placards. Load the container's history.
-2. **Locate:** register the container in AR from its faces and corner castings.
+2. **Locate:** photograph each face; the app finds the face's corners and maps the photo onto the container's own coordinates.
 3. **Last handover:** show previously recorded damage on the container. The checker marks each item "still there" or "changed".
 4. **Coverage:** each face and section is highlighted once there's evidence for it. The handover can't be closed with gaps.
 5. **New damage:**
@@ -37,7 +37,7 @@ A container's handover is recorded on an **equipment interchange receipt (EIR)**
 **Must work in the demo**
 
 - Container number reading with ISO 6346 check-digit validation
-- AR registration to the container and marks stored in the container's own coordinates
+- Registration of each face photo to the container, and marks stored in the container's own coordinates
 - The previous handover's damage shown on the container in a new session
 - Coverage highlighting by face and section
 - Damage proposals from SAM 3.1 with checker confirmation
@@ -52,7 +52,8 @@ A container's handover is recorded on an **equipment interchange receipt (EIR)**
 - Offline mode with Muse Glimmer
 - Synthetic rare-damage test cases with Muse Image (excluded from reported accuracy)
 - Draft claims from the comparison agent
-- Hands-free capture from Meta AI glasses (Wearables Device Access Toolkit), developed and tested with its Mock Device Kit
+- Hands-free capture from Meta AI glasses: a walk-around recorded on the glasses, uploaded into the same pipeline (live streaming through the Wearables Device Access Toolkit needs a native app)
+- Overlays on the live camera preview, re-registered once or twice a second
 - Rail wagon number capture at rail handovers
 - A mixed-reality "claims room" on Quest 3 showing a container's history at full size
 
