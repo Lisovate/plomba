@@ -380,7 +380,7 @@ legend {
   border-top: 6px solid var(--ok);
 }
 
-.verdict-corrected,
+.verdict-suggested,
 .verdict-ambiguous {
   border-top: 6px solid var(--seal);
 }

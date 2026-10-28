@@ -35,7 +35,8 @@ describe('HTTP API', () => {
     const response = await testApp().request('/api/identify', { method: 'POST', body: form });
     expect(response.status).toBe(200);
     const result = IdentifyResultSchema.parse(await response.json());
-    expect(result.containerNumber).toBe('LSCU1077379');
+    expect(result.verdict).toBe('suggested');
+    expect(result.candidates[0]?.containerNumber).toBe('LSCU1077379');
   });
 
   it('returns problem details for invalid input', async () => {

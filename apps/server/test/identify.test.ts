@@ -12,12 +12,13 @@ describe('IdentifyService', () => {
     expect(reader.chooseCalls).toEqual([]);
   });
 
-  it('corrects the only valid look-alike repair without asking again', async () => {
+  it('suggests, but never accepts, the only valid look-alike repair', async () => {
     // "CSQU 3O5438 3": a zero read as the letter O in the serial.
     const reader = new FakeReader('CSQU3O54383');
     const result = await new IdentifyService(reader).identify(await makePhoto());
-    expect(result.verdict).toBe('corrected');
-    expect(result.containerNumber).toBe('CSQU3054383');
+    expect(result.verdict).toBe('suggested');
+    expect(result.containerNumber).toBeNull();
+    expect(result.candidates.map((c) => c.containerNumber)).toEqual(['CSQU3054383']);
     expect(result.explanation).toContain('O → 0 at position 6');
     expect(reader.chooseCalls).toEqual([]);
   });
@@ -30,8 +31,10 @@ describe('IdentifyService', () => {
     expect(reader.chooseCalls[0]).toEqual(
       expect.arrayContaining(['LSCU1077379', 'LSOJ1077379', 'LSOU1077329', 'LSOU1877379']),
     );
-    expect(result.verdict).toBe('corrected');
-    expect(result.containerNumber).toBe('LSCU1077379');
+    expect(result.verdict).toBe('suggested');
+    expect(result.containerNumber).toBeNull();
+    expect(result.candidates[0]?.containerNumber).toBe('LSCU1077379');
+    expect(result.candidates).toHaveLength(4);
   });
 
   it('asks the model to choose between equally close repairs', async () => {
@@ -47,8 +50,8 @@ describe('IdentifyService', () => {
     const choice = reader.chooseCalls[0]?.[0] ?? '';
     reader.choice = choice;
     const chosen = await service.identify(await makePhoto());
-    expect(chosen.verdict).toBe('corrected');
-    expect(chosen.containerNumber).toBe(choice);
+    expect(chosen.verdict).toBe('suggested');
+    expect(chosen.candidates[0]?.containerNumber).toBe(choice);
   });
 
   it('reports an unreadable photo', async () => {

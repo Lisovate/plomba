@@ -45,16 +45,19 @@ export const NumberCandidateSchema = z.object({
 });
 
 /**
- * - `verified`: the read passed the ISO 6346 check digit as it was;
- * - `corrected`: it failed, and exactly one look-alike repair passed (or the model chose one);
- * - `ambiguous`: several repairs pass, the checker must choose;
+ * - `verified`: the read passed the ISO 6346 check digit as it was. The only
+ *   verdict that comes with a `containerNumber`;
+ * - `suggested`: it failed; the first candidate is the only look-alike repair
+ *   that passes, or the one the model picked. The checker must confirm it;
+ * - `ambiguous`: several repairs pass equally; the checker must choose;
  * - `unreadable`: no number, or nothing close to a valid one.
  */
-export const NumberVerdictSchema = z.enum(['verified', 'corrected', 'ambiguous', 'unreadable']);
+export const NumberVerdictSchema = z.enum(['verified', 'suggested', 'ambiguous', 'unreadable']);
 
 export const IdentifyResultSchema = z.object({
   read: MarkingsReadSchema,
   verdict: NumberVerdictSchema,
+  /** Set only when `verdict` is `verified`. */
   containerNumber: z.string().nullable(),
   candidates: z.array(NumberCandidateSchema),
   explanation: z.string(),

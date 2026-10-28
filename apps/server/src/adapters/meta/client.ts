@@ -67,6 +67,12 @@ export interface MetaClientOptions {
   readonly fetch?: typeof fetch;
   /** Delay before retry `attempt` (1-based). Overridable so tests don't sleep. */
   readonly backoffMs?: (attempt: number) => number;
+  /** Called after every successful response, e.g. to total usage for a cost estimate. */
+  readonly onResponse?: (info: {
+    readonly model: string;
+    readonly ms: number;
+    readonly usage: ResponsesResponse['usage'];
+  }) => void;
 }
 
 const defaultBackoff = (attempt: number) => 2 ** (attempt - 1) * 500 + Math.random() * 250;
@@ -136,16 +142,12 @@ export class MetaClient {
     }
 
     const body = (await response.json()) as ResponsesResponse;
+    const ms = Math.round(performance.now() - started);
     this.#options.logger.info(
-      {
-        model: request.model,
-        responseId: body.id,
-        status: body.status,
-        ms: Math.round(performance.now() - started),
-        usage: body.usage,
-      },
+      { model: request.model, responseId: body.id, status: body.status, ms, usage: body.usage },
       'Meta Model API response',
     );
+    this.#options.onResponse?.({ model: request.model, ms, usage: body.usage });
     if (body.status === 'failed' || body.error) {
       throw new MetaApiError(`Model response failed: ${body.error?.message ?? 'unknown error'}`, {
         retryable: false,

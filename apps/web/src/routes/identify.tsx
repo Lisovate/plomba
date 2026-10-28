@@ -84,8 +84,8 @@ function verdictText(t: Translate, result: IdentifyResult): string {
   switch (result.verdict) {
     case 'verified':
       return t('identify.verified');
-    case 'corrected':
-      return t('identify.corrected');
+    case 'suggested':
+      return t('identify.suggested');
     case 'ambiguous':
       return t('identify.ambiguous');
     case 'unreadable':
@@ -103,9 +103,8 @@ function ConfirmContainer({
   onConfirmed: (number: string, seals: readonly string[]) => void;
 }) {
   const { t } = useI18n();
-  const [number, setNumber] = useState(
-    result?.containerNumber ?? result?.read.containerNumber ?? '',
-  );
+  // Only a verified read is filled in: anything else must be chosen or typed by the checker.
+  const [number, setNumber] = useState(result?.containerNumber ?? '');
   const [sizeType, setSizeType] = useState(result?.read.sizeTypeCode ?? '');
   const parsed = parseContainerNumber(number);
   const knownSizeType = parseSizeType(sizeType);
@@ -127,9 +126,15 @@ function ConfirmContainer({
       {result && (
         <>
           <h2>{verdictText(t, result)}</h2>
+          {result.read.containerNumber && result.verdict !== 'verified' && (
+            <p>{t('identify.readAs', { read: result.read.containerNumber })}</p>
+          )}
           <p className="muted">{result.explanation}</p>
-          {/* A model's pick between valid numbers is advice, so the alternatives stay visible. */}
-          {result.candidates.length > 1 && (
+          {/* Repairs and the model's pick are advice: the checker taps the right one. */}
+          {result.verdict !== 'verified' && result.candidates.length > 0 && (
+            <p>{t('identify.tapToChoose')}</p>
+          )}
+          {result.verdict !== 'verified' && result.candidates.length > 0 && (
             <div className="choices">
               {result.candidates.map((c) => (
                 <button
