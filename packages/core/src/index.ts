@@ -1,4 +1,5 @@
 export * from './cedex.ts';
+export * from './codeco.ts';
 export * from './faces.ts';
 export * from './geometry.ts';
 export * from './hash-chain.ts';

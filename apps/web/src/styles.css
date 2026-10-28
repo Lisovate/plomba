@@ -636,3 +636,107 @@ legend {
 .sealed {
   border-top: 6px solid var(--ok);
 }
+
+/* EIR report ---------------------------------------------------------------- */
+
+.report section {
+  overflow-x: auto;
+}
+
+.report table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  font-size: 0.9rem;
+}
+
+.report th,
+.report td {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.report .new-damage td {
+  background: #fff6db;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.3rem 1rem;
+  margin: 0;
+}
+
+.facts dt {
+  font-weight: 600;
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.report-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.report-photos figure {
+  margin: 0;
+  break-inside: avoid;
+}
+
+.report-photos figcaption {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 0.3rem;
+}
+
+.signatures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 2rem;
+  break-inside: avoid;
+}
+
+.signature {
+  border-top: 1px solid var(--ink);
+  padding-top: 0.3rem;
+  min-height: 4rem;
+  display: flex;
+  align-items: flex-end;
+  font-size: 0.85rem;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  :root {
+    font-size: 11pt;
+    background: #fff;
+  }
+
+  .no-print {
+    display: none;
+  }
+
+  main {
+    max-width: none;
+    padding: 0;
+  }
+
+  .report section,
+  .report table {
+    break-inside: avoid;
+  }
+
+  .overlay-frame {
+    border-radius: 0;
+  }
+}

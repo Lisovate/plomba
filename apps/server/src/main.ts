@@ -62,6 +62,7 @@ function main(): void {
       transaction: createTransactionRunner(db),
       clock: { now: () => new Date() },
       newId: randomUUID,
+      ediSenderId: config.ediSenderId,
     }),
     media,
     logger,

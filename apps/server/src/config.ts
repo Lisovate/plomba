@@ -22,6 +22,8 @@ const EnvSchema = z
     META_SEGMENTATION_MODEL: z.string().default('sam-3.1'),
     META_REASONING_EFFORT: z.enum(['minimal', 'low', 'medium', 'high']).default('low'),
     META_TIMEOUT_MS: z.coerce.number().int().positive().default(90_000),
+    /** This installation's ID in EDIFACT messages (UNB sender, NAD+MS), as agreed with partners. */
+    EDI_SENDER_ID: z.string().min(1).max(35).default('PLOMBA'),
   })
   .refine((env) => env.META_API_KEY || env.META_API_KEY_FILE, {
     message: 'Set META_API_KEY_FILE (preferred) or META_API_KEY',
@@ -34,6 +36,7 @@ export interface Config {
   readonly logLevel: string;
   readonly dataDir: string;
   readonly webDistDir: string | undefined;
+  readonly ediSenderId: string;
   readonly meta: {
     readonly baseUrl: string;
     readonly apiKey: string;
@@ -78,6 +81,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     logLevel: e.LOG_LEVEL,
     dataDir: resolve(expandHome(e.DATA_DIR)),
     webDistDir: e.WEB_DIST_DIR ? resolve(expandHome(e.WEB_DIST_DIR)) : undefined,
+    ediSenderId: e.EDI_SENDER_ID,
     meta: {
       baseUrl: e.META_API_BASE_URL.replace(/\/+$/, ''),
       apiKey,

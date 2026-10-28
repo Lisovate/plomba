@@ -246,3 +246,30 @@ describe('damage proposals', () => {
     await expect(service.proposeDamage(handover.id, photo.id)).rejects.toThrow(ConflictError);
   });
 });
+
+describe('gate report', () => {
+  it('is issued only for a sealed handover, with its damage and record hash', async () => {
+    const { service, handover } = await startedHandover();
+    service.addMark(
+      handover.id,
+      markInput({
+        rect: { u0: 0.2, v0: 0.2, u1: 0.5, v1: 0.6 },
+        damageCode: 'DT',
+        componentCode: 'PAA',
+      }),
+    );
+    service.addMark(handover.id, markInput({ damageCode: 'CO', source: 'rejected' }));
+    expect(() => service.codeco(handover.id, 'MSCU')).toThrow(ConflictError);
+
+    const sealed = await service.close(handover.id);
+    const { fileName, content } = service.codeco(handover.id, 'MSCU');
+
+    expect(fileName).toBe('CODECO-CSQU3054383-1.edi');
+    const lines = content.split('\n');
+    expect(lines).toContain("BGM+34+CSQU3054383-1+9'");
+    expect(lines).toContain("EQD+CN+CSQU3054383+22G1:102:5'");
+    expect(lines).toContain("SEL+ML123456'");
+    expect(lines.filter((l) => l.startsWith('DAM+'))).toEqual(["DAM+1+DT+RB1N'"]);
+    expect(content).toContain((sealed.seal?.hash ?? '').toUpperCase());
+  });
+});

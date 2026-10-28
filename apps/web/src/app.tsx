@@ -7,6 +7,7 @@ import { ContainerScreen } from './routes/container.tsx';
 import { HandoverScreen } from './routes/handover.tsx';
 import { HomeScreen } from './routes/home.tsx';
 import { IdentifyScreen } from './routes/identify.tsx';
+import { ReportScreen } from './routes/report.tsx';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,7 +21,7 @@ function Shell() {
   const online = useOnline();
   return (
     <>
-      <header className="app-header">
+      <header className="app-header no-print">
         <Link to="/" className="brand">
           <img src="/icons/favicon.svg" alt="" width={28} height={28} />
           Plomba
@@ -33,7 +34,7 @@ function Shell() {
           {t('app.language')}
         </button>
       </header>
-      {!online && <p className="offline-banner">{t('common.offline')}</p>}
+      {!online && <p className="offline-banner no-print">{t('common.offline')}</p>}
       <main>
         <Outlet />
       </main>
@@ -54,6 +55,7 @@ const router = createBrowserRouter([
       { path: 'identify', element: <IdentifyScreen /> },
       { path: 'containers/:number', element: <ContainerScreen /> },
       { path: 'handovers/:id', element: <HandoverScreen /> },
+      { path: 'handovers/:id/report', element: <ReportScreen /> },
     ],
   },
 ]);

@@ -340,6 +340,9 @@ function SealInfo({ detail }: { detail: HandoverDetail }) {
       <p>
         {t('handover.hash')}: <code className="hash">{seal.hash}</code>
       </p>
+      <Link to={`/handovers/${detail.handover.id}/report`} className="button primary">
+        {t('report.open')}
+      </Link>
     </Card>
   );
 }

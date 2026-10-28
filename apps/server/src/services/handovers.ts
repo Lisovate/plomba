@@ -18,6 +18,7 @@ import type {
   UpdateMark,
 } from '@plomba/contracts';
 import {
+  buildCodeco,
   chainHash,
   clampToFace,
   DEFAULT_DIMENSIONS,
@@ -58,6 +59,8 @@ export interface HandoverServiceDeps {
   readonly transaction: TransactionRunner;
   readonly clock: Clock;
   readonly newId: IdGenerator;
+  /** This installation's ID in EDIFACT messages. */
+  readonly ediSenderId: string;
 }
 
 /** Attempts at sealing when another handover of the same container wins the race. */
@@ -359,6 +362,41 @@ export class HandoverService {
         if (!(error instanceof ConflictError) || attempt >= SEAL_ATTEMPTS) throw error;
       }
     }
+  }
+
+  /**
+   * The EDIFACT CODECO gate report for a sealed handover. It lists the damage
+   * still present on the container and carries the sealed record's hash.
+   */
+  codeco(handoverId: string, recipientId: string): { fileName: string; content: string } {
+    const handover = this.#handover(handoverId);
+    if (!handover.seal) throw new ConflictError('Seal the handover before sending a gate report');
+    const container = this.#container(handover.containerNumber);
+    const damages = this.#d.marks
+      .listForHandover(handoverId)
+      .filter((m) => m.source === 'confirmed' && m.status !== 'repaired' && m.damageCode)
+      .map((m) => ({
+        locationCode: m.locationCode,
+        damageCode: m.damageCode ?? '',
+        componentCode: m.componentCode,
+      }));
+    const documentNumber = `${container.number}-${handover.seal.sequence + 1}`;
+    const content = buildCodeco({
+      senderId: this.#d.ediSenderId,
+      recipientId,
+      interchangeRef: handover.seal.hash.slice(0, 14).toUpperCase(),
+      documentNumber,
+      preparedAt: this.#d.clock.now(),
+      direction: handover.direction,
+      containerNumber: container.number,
+      sizeTypeCode: container.sizeTypeCode,
+      movedAt: new Date(handover.startedAt),
+      place: { name: handover.place },
+      sealNumbers: handover.sealNumbers,
+      damages,
+      recordHash: handover.seal.hash,
+    });
+    return { fileName: `CODECO-${documentNumber}.edi`, content };
   }
 
   #sealedRecord(handover: Handover, closedAt: string) {

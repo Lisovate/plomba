@@ -166,6 +166,14 @@ function api(deps: AppDeps): Hono {
 
   api.post('/handovers/:id/close', async (c) => c.json(await handovers.close(c.req.param('id'))));
 
+  api.get('/handovers/:id/codeco', (c) => {
+    const recipient = c.req.query('recipient')?.trim() || 'RECIPIENT';
+    const { fileName, content } = handovers.codeco(c.req.param('id'), recipient);
+    return c.text(content, 200, {
+      'content-disposition': `attachment; filename="${fileName}"`,
+    });
+  });
+
   api.all('*', (c) => problem(c, 404, 'not-found', `No route for ${c.req.method} ${c.req.path}`));
   return api;
 }

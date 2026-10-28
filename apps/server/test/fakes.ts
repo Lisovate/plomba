@@ -183,6 +183,7 @@ export function createTestHandoverService() {
     transaction: createTransactionRunner(db),
     clock: fixedClock(),
     newId: sequentialIds(),
+    ediSenderId: 'PLOMBA-TEST',
   });
   return { db, segmenter, detector, media, service };
 }
