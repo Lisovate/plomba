@@ -20,7 +20,14 @@ test('a checker identifies a container, records damage, seals the handover and s
 
   // Start the handover; the seal read from the doors is carried over.
   await expect(page.getByLabel('Seal numbers, comma-separated')).toHaveValue('PL123456');
+  // It came by rail: the wagon number is checked with the UIC check digit as it's typed.
+  await page.getByRole('radio', { name: 'Rail wagon' }).check({ force: true });
+  await page.getByLabel('Wagon number (UIC, 12 digits)').fill('21 81 2471 217-4');
+  await expect(page.getByText('The check digit should be 3')).toBeVisible();
+  await page.getByLabel('Wagon number (UIC, 12 digits)').fill('21 81 2471 217-3');
+  await expect(page.getByText('21 81 2471 217-3 · valid UIC number')).toBeVisible();
   await page.getByRole('button', { name: 'Start handover' }).click();
+  await expect(page.getByText('Wagon 21 81 2471 217-3')).toBeVisible();
 
   // Photograph the right side: SAM's recorded outline registers the face.
   await page.getByRole('button', { name: 'Right' }).click();
@@ -64,6 +71,7 @@ test('a checker identifies a container, records damage, seals the handover and s
   expect(codeco).toContain("BGM+34+CSQU3054383-1+9'");
   expect(codeco).toContain("DAM+1+DT+RB1N'");
   expect(codeco).toContain("SEL+PL123456'");
+  expect(codeco).toContain("TDT+1+218124712173+2'");
 
   // The container's history verifies.
   await page.goto('/containers/CSQU3054383');

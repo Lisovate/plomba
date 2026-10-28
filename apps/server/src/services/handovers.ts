@@ -30,6 +30,7 @@ import {
   locationCode,
   parseContainerNumber,
   parseSizeType,
+  parseWagonNumber,
   type Quad,
   rectOverlap,
   verifyChain,
@@ -141,6 +142,7 @@ export class HandoverService {
 
   start(input: StartHandover): Handover {
     const container = this.#container(input.containerNumber);
+    const vehicleId = vehicleIdentifier(input);
     const id = this.#d.newId();
     this.#d.transaction(() => {
       this.#d.handovers.insert({
@@ -152,6 +154,8 @@ export class HandoverService {
         handedOverBy: input.handedOverBy ?? null,
         receivedBy: input.receivedBy ?? null,
         sealNumbers: input.sealNumbers,
+        transportMode: input.transportMode ?? null,
+        vehicleId,
         startedAt: this.#now(),
         previousHandoverId: this.#d.handovers.findLastClosed(container.number)?.id ?? null,
       });
@@ -427,6 +431,14 @@ export class HandoverService {
       sealNumbers: handover.sealNumbers,
       damages,
       recordHash: handover.seal.hash,
+      ...(handover.transportMode
+        ? {
+            inlandTransport: {
+              mode: handover.transportMode,
+              ...(handover.vehicleId ? { reference: handover.vehicleId } : {}),
+            },
+          }
+        : {}),
     });
     return { fileName: `CODECO-${documentNumber}.edi`, content };
   }
@@ -467,6 +479,8 @@ export class HandoverService {
         handedOverBy: handover.handedOverBy,
         receivedBy: handover.receivedBy,
         sealNumbers: handover.sealNumbers,
+        transportMode: handover.transportMode,
+        vehicleId: handover.vehicleId,
         startedAt: handover.startedAt,
         closedAt,
         previousHandoverId: handover.previousHandoverId,
@@ -535,4 +549,26 @@ export class HandoverService {
     }
     return mark;
   }
+}
+
+/** A truck registration in capitals, or a wagon number that passes the UIC check digit. */
+function vehicleIdentifier(input: StartHandover): string | null {
+  const raw = input.vehicleId?.trim();
+  if (!raw) return null;
+  if (input.transportMode !== 'rail') return raw.toUpperCase();
+  const wagon = parseWagonNumber(raw);
+  if (!wagon.ok) {
+    throw new ValidationError(`${raw} is not a valid UIC wagon number`, {
+      issues: [
+        {
+          path: 'vehicleId',
+          message:
+            wagon.expected === undefined
+              ? 'expected 12 digits'
+              : `the check digit should be ${wagon.expected}`,
+        },
+      ],
+    });
+  }
+  return wagon.value;
 }

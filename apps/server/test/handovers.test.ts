@@ -313,3 +313,44 @@ describe('live frames', () => {
     expect(service.detail(handover.id).photos).toEqual([]);
   });
 });
+
+describe('transport', () => {
+  async function registered() {
+    const context = createTestHandoverService();
+    context.service.registerContainer({ number: NUMBER, sizeTypeCode: '22G1' });
+    return context;
+  }
+  const base = {
+    containerNumber: NUMBER,
+    direction: 'in' as const,
+    place: 'Gdynia',
+    checker: 'PL',
+    sealNumbers: [] as string[],
+  };
+
+  it('checks a wagon number with the UIC check digit', async () => {
+    const { service } = await registered();
+    expect(() =>
+      service.start({ ...base, transportMode: 'rail', vehicleId: '21 81 2471 217-4' }),
+    ).toThrow(ValidationError);
+    const handover = service.start({
+      ...base,
+      transportMode: 'rail',
+      vehicleId: '21 81 2471 217-3',
+    });
+    expect(handover).toMatchObject({ transportMode: 'rail', vehicleId: '218124712173' });
+  });
+
+  it('reports the rail leg in the gate message', async () => {
+    const { service } = await registered();
+    const handover = service.start({ ...base, transportMode: 'rail', vehicleId: '218124712173' });
+    await service.close(handover.id, { acceptGaps: true });
+    expect(service.codeco(handover.id, 'MSCU').content).toContain("TDT+1+218124712173+2'");
+  });
+
+  it('keeps a truck registration as written, in capitals', async () => {
+    const { service } = await registered();
+    const handover = service.start({ ...base, transportMode: 'road', vehicleId: 'gd 4t812' });
+    expect(handover.vehicleId).toBe('GD 4T812');
+  });
+});

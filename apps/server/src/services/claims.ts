@@ -167,6 +167,7 @@ export class ClaimService {
       handedOverBy: h.handedOverBy,
       receivedBy: h.receivedBy,
       sealNumbers: h.sealNumbers,
+      transport: h.transportMode ? { mode: h.transportMode, vehicle: h.vehicleId } : null,
       recordHash: h.seal?.hash ?? null,
     });
     const mark = (m: Mark) => ({

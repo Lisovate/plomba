@@ -159,6 +159,8 @@ export interface NewHandover {
   readonly handedOverBy: string | null;
   readonly receivedBy: string | null;
   readonly sealNumbers: readonly string[];
+  readonly transportMode: Handover['transportMode'];
+  readonly vehicleId: string | null;
   readonly startedAt: string;
   readonly previousHandoverId: string | null;
 }

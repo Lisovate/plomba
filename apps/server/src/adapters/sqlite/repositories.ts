@@ -90,6 +90,8 @@ function toHandover(row: Row): Handover {
     handedOverBy: strOrNull(row, 'handed_over_by'),
     receivedBy: strOrNull(row, 'received_by'),
     sealNumbers: JSON.parse(str(row, 'seal_numbers')) as string[],
+    transportMode: strOrNull(row, 'transport_mode') as Handover['transportMode'],
+    vehicleId: strOrNull(row, 'vehicle_id'),
     status: str(row, 'status') as Handover['status'],
     startedAt: str(row, 'started_at'),
     closedAt: strOrNull(row, 'closed_at'),
@@ -118,8 +120,9 @@ export class SqliteHandoverRepository implements HandoverRepository {
       this.#db
         .prepare(
           `INSERT INTO handovers (id, container_number, direction, place, checker, handed_over_by,
-             received_by, seal_numbers, status, started_at, previous_handover_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)`,
+             received_by, seal_numbers, transport_mode, vehicle_id, status, started_at,
+             previous_handover_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)`,
         )
         .run(
           h.id,
@@ -130,6 +133,8 @@ export class SqliteHandoverRepository implements HandoverRepository {
           h.handedOverBy,
           h.receivedBy,
           JSON.stringify(h.sealNumbers),
+          h.transportMode,
+          h.vehicleId,
           h.startedAt,
           h.previousHandoverId,
         );

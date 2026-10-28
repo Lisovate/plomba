@@ -84,3 +84,5 @@ A dated record of what was built and when. The newest entry is at the bottom.
   - Muse Image added a dent, a hole, corrosion and a bent rail to a drawn container, plus a mud-only control. Muse Spark found every damage and nothing on the control.
   - Images are labelled SYNTHETIC in their pixels and kept out of the repository and out of accuracy figures.
 - **Privacy prompts measured** on five openly licensed truck photos: every readable plate found; `face` found 6 of 7 faces, `human face` 5.
+- **Rail and road transport.** A handover records whether the container came by truck (registration) or rail wagon. Wagon numbers are checked with the UIC check digit as they're typed (e.g. `21 81 2471 217-3`). The CODECO message carries the leg as TDT (rail 2, road 3).
+- **The app explains identification and errors in Polish or English**, with Muse Spark's own note shown separately.

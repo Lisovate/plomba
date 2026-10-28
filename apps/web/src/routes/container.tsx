@@ -1,4 +1,5 @@
-import type { ContainerHistory, Direction } from '@plomba/contracts';
+import type { ContainerHistory, Direction, TransportMode } from '@plomba/contracts';
+import { formatWagonNumber, parseWagonNumber } from '@plomba/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -108,6 +109,9 @@ function StartHandoverForm({ containerNumber }: { containerNumber: string }) {
   const [handedOverBy, setHandedOverBy] = useState('');
   const [receivedBy, setReceivedBy] = useState('');
   const [seals, setSeals] = useState(handoff?.sealNumbers.join(', ') ?? '');
+  const [transportMode, setTransportMode] = useState<TransportMode | null>(null);
+  const [vehicleId, setVehicleId] = useState('');
+  const wagon = transportMode === 'rail' && vehicleId.trim() ? parseWagonNumber(vehicleId) : null;
 
   const start = useMutation({
     mutationFn: () =>
@@ -118,6 +122,8 @@ function StartHandoverForm({ containerNumber }: { containerNumber: string }) {
         checker,
         ...(handedOverBy.trim() ? { handedOverBy } : {}),
         ...(receivedBy.trim() ? { receivedBy } : {}),
+        ...(transportMode ? { transportMode } : {}),
+        ...(transportMode && vehicleId.trim() ? { vehicleId } : {}),
         sealNumbers: seals
           .split(',')
           .map((s) => s.trim())
@@ -174,8 +180,47 @@ function StartHandoverForm({ containerNumber }: { containerNumber: string }) {
           {t('start.seals')}
           <input value={seals} onChange={(e) => setSeals(e.target.value)} />
         </label>
+        <fieldset className="segmented">
+          <legend>{t('start.transport')}</legend>
+          {(['road', 'rail'] as const).map((mode) => (
+            <label key={mode} className={transportMode === mode ? 'selected' : ''}>
+              <input
+                type="radio"
+                name="transport"
+                value={mode}
+                checked={transportMode === mode}
+                onChange={() => setTransportMode(mode)}
+              />
+              {t(mode === 'road' ? 'start.road' : 'start.rail')}
+            </label>
+          ))}
+        </fieldset>
+        {transportMode && (
+          <label className="field">
+            {t(transportMode === 'road' ? 'start.truck' : 'start.wagon')}
+            <input
+              value={vehicleId}
+              inputMode={transportMode === 'rail' ? 'numeric' : 'text'}
+              autoCapitalize="characters"
+              onChange={(e) => setVehicleId(e.target.value)}
+            />
+            {wagon && (
+              <span className={wagon.ok ? 'hint ok' : 'hint'}>
+                {wagon.ok
+                  ? `${formatWagonNumber(wagon.value)} · ${t('start.wagonValid')}`
+                  : wagon.expected === undefined
+                    ? t('start.wagonDigits')
+                    : t('start.wagonExpected', { digit: wagon.expected })}
+              </span>
+            )}
+          </label>
+        )}
         {start.isError && <ErrorNotice error={start.error} />}
-        <button type="submit" className="primary large" disabled={start.isPending}>
+        <button
+          type="submit"
+          className="primary large"
+          disabled={start.isPending || (wagon !== null && !wagon.ok)}
+        >
           {t('start.submit')}
         </button>
       </form>

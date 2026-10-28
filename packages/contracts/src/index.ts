@@ -84,6 +84,9 @@ export const DirectionSchema = z.enum(['in', 'out']);
 
 export const HandoverStatusSchema = z.enum(['open', 'closed']);
 
+/** How the container arrived or left: by truck or by rail wagon. */
+export const TransportModeSchema = z.enum(['road', 'rail']);
+
 export const StartHandoverSchema = z.object({
   containerNumber: z.string(),
   direction: DirectionSchema,
@@ -92,6 +95,9 @@ export const StartHandoverSchema = z.object({
   handedOverBy: z.string().trim().max(200).optional(),
   receivedBy: z.string().trim().max(200).optional(),
   sealNumbers: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
+  transportMode: TransportModeSchema.optional(),
+  /** The truck's registration, or the wagon's UIC number (checked) for rail. */
+  vehicleId: z.string().trim().min(1).max(40).optional(),
 });
 
 export const HandoverSchema = z.object({
@@ -103,6 +109,8 @@ export const HandoverSchema = z.object({
   handedOverBy: z.string().nullable(),
   receivedBy: z.string().nullable(),
   sealNumbers: z.array(z.string()),
+  transportMode: TransportModeSchema.nullable(),
+  vehicleId: z.string().nullable(),
   status: HandoverStatusSchema,
   startedAt: isoDateTime,
   closedAt: isoDateTime.nullable(),
@@ -301,6 +309,7 @@ export type IdentifyResult = z.infer<typeof IdentifyResultSchema>;
 export type Container = z.infer<typeof ContainerSchema>;
 export type RegisterContainer = z.infer<typeof RegisterContainerSchema>;
 export type Direction = z.infer<typeof DirectionSchema>;
+export type TransportMode = z.infer<typeof TransportModeSchema>;
 export type StartHandover = z.infer<typeof StartHandoverSchema>;
 export type Handover = z.infer<typeof HandoverSchema>;
 export type Photo = z.infer<typeof PhotoSchema>;

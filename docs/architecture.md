@@ -153,7 +153,7 @@ Live, on a container with one old hole and one new dent, Muse Spark called both 
 | Table | Holds |
 |---|---|
 | `containers` | ISO 6346 number, size/type code, external dimensions |
-| `handovers` | container, direction (in/out), place, checker, parties, seal numbers, status, previous handover; once sealed: sequence, previous hash, hash, the sealed record |
+| `handovers` | container, direction (in/out), place, checker, parties, seal numbers, transport (road/rail) and vehicle (registration or UIC wagon number), status, previous handover; once sealed: sequence, previous hash, hash, the sealed record |
 | `photos` | handover, face, SHA-256, size, the face's corners and whether they were detected or adjusted, number of blurred regions, capture time |
 | `marks` | handover, face, rectangle in metres, CEDEX location code, damage and component codes, status (new, still there, changed, repaired), source (proposed, confirmed, rejected), the previous handover's mark it confirms, photo |
 
@@ -179,6 +179,7 @@ Migrations live in `apps/server/src/adapters/sqlite/migrations.ts` and are appli
   - Test case: `CSQU305438` → check digit 3.
   - A/K/U, B/L/V, C/M/W, … collide in the check digit, so a repair can be ambiguous.
 - **ISO 6346 size/type codes:** e.g. 22G1, 42G1, 45G1, L5G1 → length, width and height.
+- **UIC wagon numbers:** 12 digits with a Luhn self-check digit (e.g. `21 81 2471 217-3`), checked as the checker types them.
 - **ISO 9897 (CEDEX):** location, damage (DT dent, HO holed, BT bent, CU cut, CO corroded, …) and component codes (PAA panel, RLA rail, CPS corner post, …), each in its own type, since the same letters mean different things in different lists.
 - **EDIFACT CODECO D.95B** in the SMDG 1.6 profile (`packages/core/src/codeco.ts`):
   - the gate-in / gate-out report: BGM 34 = gate-in, 36 = gate-out; then EQD, DTM, LOC, SEL, and DAM/COD for up to 9 damages;

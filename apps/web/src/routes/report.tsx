@@ -8,6 +8,7 @@ import { ClaimPanel } from '../components/claim-panel.tsx';
 import { FaceOverlay } from '../components/face-overlay.tsx';
 import { ContainerNumberText, ErrorNotice, Spinner } from '../components/ui.tsx';
 import { type Translate, useI18n } from '../i18n/index.tsx';
+import { describeTransport } from '../lib/transport.ts';
 
 /**
  * The equipment interchange receipt (EIR) for a sealed handover, laid out
@@ -78,6 +79,8 @@ export function ReportScreen() {
         <dd>{handover.handedOverBy ?? '—'}</dd>
         <dt>{t('start.receivedBy')}</dt>
         <dd>{handover.receivedBy ?? '—'}</dd>
+        <dt>{t('start.transport')}</dt>
+        <dd>{describeTransport(t, handover) ?? '—'}</dd>
         <dt>{t('identify.seals')}</dt>
         <dd>{handover.sealNumbers.join(', ') || '—'}</dd>
       </dl>

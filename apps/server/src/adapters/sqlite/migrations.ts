@@ -80,4 +80,9 @@ export const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE marks ADD COLUMN outline TEXT;
   `,
+  // 2026-10-28: how the container came or went: by truck (registration) or rail (UIC wagon number).
+  `
+  ALTER TABLE handovers ADD COLUMN transport_mode TEXT CHECK (transport_mode IN ('road', 'rail'));
+  ALTER TABLE handovers ADD COLUMN vehicle_id TEXT;
+  `,
 ];

@@ -14,6 +14,7 @@ import { api, queryKeys } from '../api/client.ts';
 import { FacePanel } from '../components/face-panel.tsx';
 import { Card, ContainerNumberText, ErrorNotice, Spinner } from '../components/ui.tsx';
 import { useI18n } from '../i18n/index.tsx';
+import { describeTransport } from '../lib/transport.ts';
 
 export function HandoverScreen() {
   const { id = '' } = useParams();
@@ -40,6 +41,7 @@ export function HandoverScreen() {
         <p className="muted">
           {t(handover.direction === 'in' ? 'handover.in' : 'handover.out')} · {handover.place} ·{' '}
           {handover.checker}
+          {describeTransport(t, handover) && ` · ${describeTransport(t, handover)}`}
         </p>
         <p className={editable ? 'badge' : 'badge ok'}>
           {t(editable ? 'handover.open' : 'handover.closed')}
