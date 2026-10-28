@@ -62,6 +62,7 @@ export class IdentifyService {
         containerNumber: first.value.value,
         candidates: [toCandidate(first)],
         explanation: 'The check digit matches.',
+        modelNote: null,
       };
     }
 
@@ -76,6 +77,7 @@ export class IdentifyService {
         containerNumber: null,
         candidates: [toCandidate(first)],
         explanation: `Read "${raw}", which fails the check digit. ${describeChanges(raw, first)} would make it valid: check those characters on the container.`,
+        modelNote: null,
       };
     }
 
@@ -90,6 +92,7 @@ export class IdentifyService {
         containerNumber: null,
         candidates: [chosen, ...best.filter((c) => c !== chosen)].map(toCandidate),
         explanation: `Read "${raw}", which fails the check digit; ${best.length} repairs are valid. Muse Spark suggests the first after comparing them with the photo: ${reason}`,
+        modelNote: reason,
       };
     }
     return {
@@ -98,12 +101,20 @@ export class IdentifyService {
       containerNumber: null,
       candidates: best.map(toCandidate),
       explanation: `Read "${raw}", which fails the check digit, and ${best.length} repairs are equally likely. Compared with the photo: ${reason} Choose the one painted on the container.`,
+      modelNote: reason,
     };
   }
 }
 
 function unreadable(read: MarkingsRead, explanation: string): IdentifyResult {
-  return { read, verdict: 'unreadable', containerNumber: null, candidates: [], explanation };
+  return {
+    read,
+    verdict: 'unreadable',
+    containerNumber: null,
+    candidates: [],
+    explanation,
+    modelNote: null,
+  };
 }
 
 function toCandidate(candidate: ContainerNumberCandidate): NumberCandidate {

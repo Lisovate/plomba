@@ -173,6 +173,23 @@ export const en = {
   'access.submit': 'Continue',
   'live.searching': 'Looking for the container…',
   'live.ghosts': "Live: the last handover's damage",
+  'identify.why.verified': 'The check digit matches what was read.',
+  'identify.why.oneRepair':
+    '“{read}” fails the check digit. Changing {changes} would make it valid: check those characters on the container.',
+  'identify.why.modelChose':
+    '“{read}” fails the check digit, and {count} numbers close to it are valid. Muse Spark suggests the first after comparing them with the photo.',
+  'identify.why.ambiguous':
+    '“{read}” fails the check digit, and {count} numbers close to it are equally likely.',
+  'identify.why.noRepair':
+    '“{read}” fails the check digit and isn’t one or two look-alike characters away from a valid number.',
+  'identify.why.nothing': 'No container number is visible. Photograph the doors straight on.',
+  'identify.change': '{from} → {to} (character {position})',
+  'identify.modelNote': 'Muse Spark',
+  'error.validation': 'The request was not accepted',
+  'error.unauthorized': 'Access refused',
+  'error.not-found': 'Not found',
+  'error.conflict': 'This can’t be done now',
+  'error.upstream': 'A model didn’t answer properly. Try again.',
   'face.D': 'door end',
   'face.R': 'right side',
   'face.F': 'front end',

@@ -175,6 +175,23 @@ export const pl: Messages = {
   'access.submit': 'Dalej',
   'live.searching': 'Szukam kontenera…',
   'live.ghosts': 'Na żywo: uszkodzenia z poprzedniego przekazania',
+  'identify.why.verified': 'Cyfra kontrolna zgadza się z odczytem.',
+  'identify.why.oneRepair':
+    '„{read}” nie przechodzi kontroli cyfry kontrolnej. Zmiana {changes} dałaby poprawny numer: sprawdź te znaki na kontenerze.',
+  'identify.why.modelChose':
+    '„{read}” nie przechodzi kontroli cyfry kontrolnej, a poprawnych podobnych numerów jest {count}. Muse Spark po porównaniu ze zdjęciem proponuje pierwszy.',
+  'identify.why.ambiguous':
+    '„{read}” nie przechodzi kontroli cyfry kontrolnej, a {count} podobne numery są równie prawdopodobne.',
+  'identify.why.noRepair':
+    '„{read}” nie przechodzi kontroli cyfry kontrolnej i nie różni się od poprawnego numeru jednym ani dwoma podobnymi znakami.',
+  'identify.why.nothing': 'Nie widać numeru kontenera. Sfotografuj drzwi na wprost.',
+  'identify.change': '{from} → {to} (znak {position})',
+  'identify.modelNote': 'Muse Spark',
+  'error.validation': 'Żądanie nie zostało przyjęte',
+  'error.unauthorized': 'Odmowa dostępu',
+  'error.not-found': 'Nie znaleziono',
+  'error.conflict': 'Teraz nie można tego zrobić',
+  'error.upstream': 'Model nie odpowiedział poprawnie. Spróbuj ponownie.',
   'face.D': 'ściana drzwiowa',
   'face.R': 'prawa ściana',
   'face.F': 'ściana czołowa',

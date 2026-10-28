@@ -42,12 +42,20 @@ export function Spinner({ label }: { label: string }) {
 export function ErrorNotice({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   const { t } = useI18n();
   const online = useOnline();
+  // A heading in the checker's language; the server's own (English) words as detail.
   let message = t('common.error');
-  if (!online) message = t('common.offline');
-  else if (error instanceof ApiError) message = error.problem?.title ?? error.message;
+  let detail: string | undefined;
+  if (!online) {
+    message = t('common.offline');
+  } else if (error instanceof ApiError) {
+    const kind = error.problem?.type.split('/').pop();
+    message = isProblemKind(kind) ? t(`error.${kind}`) : t('common.error');
+    detail = error.problem?.title ?? error.message;
+  }
   return (
     <div className="notice error" role="alert">
       <p>{message}</p>
+      {detail && <p className="muted">{detail}</p>}
       {error instanceof ApiError &&
         error.problem?.issues?.map((issue) => (
           <p key={issue.path} className="muted">
@@ -61,6 +69,12 @@ export function ErrorNotice({ error, onRetry }: { error: unknown; onRetry?: () =
       )}
     </div>
   );
+}
+
+const PROBLEM_KINDS = ['validation', 'unauthorized', 'not-found', 'conflict', 'upstream'] as const;
+
+function isProblemKind(kind: string | undefined): kind is (typeof PROBLEM_KINDS)[number] {
+  return (PROBLEM_KINDS as readonly (string | undefined)[]).includes(kind);
 }
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {

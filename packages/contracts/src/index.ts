@@ -60,7 +60,10 @@ export const IdentifyResultSchema = z.object({
   /** Set only when `verdict` is `verified`. */
   containerNumber: z.string().nullable(),
   candidates: z.array(NumberCandidateSchema),
+  /** In English, for logs and API users; the app builds its own in the checker's language. */
   explanation: z.string(),
+  /** Muse Spark's reason when it picked between candidates (in English). */
+  modelNote: z.string().nullable(),
 });
 
 // Containers and handovers -----------------------------------------------

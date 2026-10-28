@@ -80,6 +80,34 @@ export function IdentifyScreen() {
   );
 }
 
+/** The verdict's reasoning in the checker's language, built from the structured result. */
+function explain(t: Translate, result: IdentifyResult): string {
+  const read = result.read.containerNumber?.trim() ?? '';
+  switch (result.verdict) {
+    case 'verified':
+      return t('identify.why.verified');
+    case 'suggested': {
+      if (result.modelNote) {
+        return t('identify.why.modelChose', { read, count: result.candidates.length });
+      }
+      const [candidate] = result.candidates;
+      const normalised = normaliseContainerNumber(read);
+      const changes = (candidate?.changedPositions ?? []).map((i) =>
+        t('identify.change', {
+          from: normalised.charAt(i),
+          to: candidate?.containerNumber.charAt(i) ?? '',
+          position: i + 1,
+        }),
+      );
+      return t('identify.why.oneRepair', { read, changes: changes.join(', ') });
+    }
+    case 'ambiguous':
+      return t('identify.why.ambiguous', { read, count: result.candidates.length });
+    case 'unreadable':
+      return read ? t('identify.why.noRepair', { read }) : t('identify.why.nothing');
+  }
+}
+
 function verdictText(t: Translate, result: IdentifyResult): string {
   switch (result.verdict) {
     case 'verified':
@@ -129,7 +157,12 @@ function ConfirmContainer({
           {result.read.containerNumber && result.verdict !== 'verified' && (
             <p>{t('identify.readAs', { read: result.read.containerNumber })}</p>
           )}
-          <p className="muted">{result.explanation}</p>
+          <p className="muted">{explain(t, result)}</p>
+          {result.modelNote && (
+            <p className="muted">
+              {t('identify.modelNote')}: “{result.modelNote}”
+            </p>
+          )}
           {/* Repairs and the model's pick are advice: the checker taps the right one. */}
           {result.verdict !== 'verified' && result.candidates.length > 0 && (
             <p>{t('identify.tapToChoose')}</p>
