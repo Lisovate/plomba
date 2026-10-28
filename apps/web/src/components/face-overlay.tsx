@@ -29,6 +29,8 @@ interface FaceOverlayProps {
   readonly previousMarks: readonly Mark[];
   /** Previous marks the checker has already confirmed in this handover. */
   readonly resolvedPrevious: ReadonlySet<string>;
+  /** CEDEX cells with photographic evidence in this handover. */
+  readonly coveredCells?: ReadonlySet<string> | undefined;
   readonly mode: OverlayMode;
   /** Accessible name, e.g. "Door end with 2 marks". */
   readonly label: string;
@@ -161,7 +163,7 @@ export function FaceOverlay(props: FaceOverlayProps) {
               <polygon
                 key={cell.code}
                 points={points(cell.quad)}
-                className="grid-cell"
+                className={props.coveredCells?.has(cell.code) ? 'grid-cell covered' : 'grid-cell'}
                 strokeWidth={1.5 * px}
               />
             ))}

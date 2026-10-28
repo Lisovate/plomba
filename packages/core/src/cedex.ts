@@ -13,6 +13,13 @@
  */
 
 import { type Face, type FaceRect, faceSize, isLongFace, sectionAxisSpan } from './faces.ts';
+import {
+  faceToImage,
+  type Homography,
+  type Point,
+  projectFaceRect,
+  type Quad,
+} from './geometry.ts';
 import type { ContainerDimensions } from './size-type.ts';
 
 declare const brand: unique symbol;
@@ -182,4 +189,57 @@ export function faceCells(face: Face, dimensions: ContainerDimensions): FaceCell
     }
   }
   return cells;
+}
+
+export interface PhotoFrame {
+  readonly width: number;
+  readonly height: number;
+  /** The face's corners in the photo; `null` until registered. */
+  readonly corners: Quad | null;
+}
+
+export interface FaceCoverage {
+  readonly total: number;
+  readonly covered: readonly LocationCode[];
+  readonly missing: readonly LocationCode[];
+}
+
+/**
+ * The CEDEX cells of a face that a photo shows completely: each cell's
+ * outline, mapped into the photo, must lie inside it (with a 2% margin for
+ * corners placed on the photo's edge).
+ */
+export function cellsInPhoto(
+  face: Face,
+  dimensions: ContainerDimensions,
+  photo: PhotoFrame,
+): LocationCode[] {
+  if (!photo.corners) return [];
+  let h: Homography;
+  try {
+    h = faceToImage(face, dimensions, photo.corners);
+  } catch {
+    return [];
+  }
+  const margin = 0.02 * Math.max(photo.width, photo.height);
+  const inside = (p: Point) =>
+    p.x >= -margin && p.x <= photo.width + margin && p.y >= -margin && p.y <= photo.height + margin;
+  return faceCells(face, dimensions)
+    .filter((cell) => projectFaceRect(h, cell.rect).every(inside))
+    .map((cell) => cell.code);
+}
+
+/** Which cells of a face have photographic evidence in any of its photos. */
+export function faceCoverage(
+  face: Face,
+  dimensions: ContainerDimensions,
+  photos: readonly PhotoFrame[],
+): FaceCoverage {
+  const covered = new Set(photos.flatMap((photo) => cellsInPhoto(face, dimensions, photo)));
+  const cells = faceCells(face, dimensions).map((cell) => cell.code);
+  return {
+    total: cells.length,
+    covered: cells.filter((code) => covered.has(code)),
+    missing: cells.filter((code) => !covered.has(code)),
+  };
 }

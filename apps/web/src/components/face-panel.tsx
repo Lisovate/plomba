@@ -20,6 +20,7 @@ interface FacePanelProps {
   readonly marks: readonly Mark[];
   readonly previousMarks: readonly Mark[];
   readonly resolvedPrevious: ReadonlySet<string>;
+  readonly coveredCells: ReadonlySet<string>;
   readonly selectedMarkId: string | undefined;
   readonly onSelectMark: (mark: Mark) => void;
 }
@@ -115,6 +116,7 @@ export function FacePanel(props: FacePanelProps) {
         marks={props.marks}
         previousMarks={props.previousMarks}
         resolvedPrevious={props.resolvedPrevious}
+        coveredCells={props.coveredCells}
         mode={editable ? mode : 'view'}
         label={t(`faceTitle.${face}`)}
         selectedMarkId={props.selectedMarkId}

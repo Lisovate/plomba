@@ -83,7 +83,9 @@ describe('HTTP API', () => {
     const media = await app.request(url);
     expect(media.headers.get('content-type')).toBe('image/jpeg');
 
-    const closed = await post(`/api/handovers/${id}/close`, {});
+    const refused = await post(`/api/handovers/${id}/close`, {});
+    expect(refused.status).toBe(409);
+    const closed = await post(`/api/handovers/${id}/close`, { acceptGaps: true });
     expect(closed.status).toBe(200);
     const history = await app.request('/api/containers/CSQU3054383');
     expect(((await history.json()) as { chain: unknown }).chain).toEqual({

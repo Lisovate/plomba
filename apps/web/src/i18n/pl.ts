@@ -78,6 +78,10 @@ export const pl: Messages = {
   'handover.open': 'Otwarte',
   'handover.closed': 'Zaplombowane',
   'handover.faces': 'Sfotografowane ściany: {done} z {total}',
+  'handover.coverage': 'Sekcje ze zdjęciem: {done} z {total}',
+  'handover.sealWithGaps':
+    'Bez zdjęcia: {gaps}. Zaplombować mimo to? Rekord odnotuje, że tych sekcji nie sprawdzono.',
+  'handover.sections': 'sekcje: {count}',
   'handover.previous': 'Z poprzedniego przekazania',
   'handover.previousNone': 'Brak wcześniejszego przekazania tego kontenera.',
   'handover.previousPending': 'Do potwierdzenia: {count}',

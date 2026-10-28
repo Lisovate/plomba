@@ -192,6 +192,14 @@ export const HandoverSummarySchema = HandoverSchema.extend({
 
 export const HandoverListSchema = z.array(HandoverSummarySchema);
 
+export const CloseHandoverSchema = z.object({
+  /**
+   * Seal even though some CEDEX sections have no photo. The sealed record then
+   * lists them as not inspected.
+   */
+  acceptGaps: z.boolean().default(false),
+});
+
 export const ChainStatusSchema = z.object({
   ok: z.boolean(),
   length: z.number().int(),
@@ -240,3 +248,4 @@ export type Problem = z.infer<typeof ProblemSchema>;
 /** Request bodies as clients write them, before defaults are applied. */
 export type StartHandoverInput = z.input<typeof StartHandoverSchema>;
 export type CreateMarkInput = z.input<typeof CreateMarkSchema>;
+export type CloseHandoverInput = z.input<typeof CloseHandoverSchema>;

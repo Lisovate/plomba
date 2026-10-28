@@ -5,6 +5,7 @@
  */
 
 import {
+  type CloseHandoverInput,
   type ContainerHistory,
   ContainerHistorySchema,
   ContainerSchema,
@@ -114,8 +115,8 @@ export const api = {
   updateMark: (id: string, markId: string, patch: UpdateMark) =>
     request(path`/api/handovers/${id}/marks/${markId}`, json('PATCH', patch), MarkSchema),
 
-  closeHandover: (id: string) =>
-    request(path`/api/handovers/${id}/close`, json('POST', {}), HandoverSchema),
+  closeHandover: (id: string, options: CloseHandoverInput = {}) =>
+    request(path`/api/handovers/${id}/close`, json('POST', options), HandoverSchema),
 };
 
 export const queryKeys = {

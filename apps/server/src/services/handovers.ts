@@ -22,7 +22,10 @@ import {
   chainHash,
   clampToFace,
   DEFAULT_DIMENSIONS,
+  FACES,
   type Face,
+  type FaceCoverage,
+  faceCoverage,
   GENESIS_HASH,
   locationCode,
   parseContainerNumber,
@@ -62,6 +65,8 @@ export interface HandoverServiceDeps {
   /** This installation's ID in EDIFACT messages. */
   readonly ediSenderId: string;
 }
+
+type Coverage = Record<Face, FaceCoverage>;
 
 /** Attempts at sealing when another handover of the same container wins the race. */
 const SEAL_ATTEMPTS = 3;
@@ -332,14 +337,24 @@ export class HandoverService {
    * sealed record lists every photo by its SHA-256, so the photos are covered
    * by the chain too.
    */
-  async close(handoverId: string): Promise<Handover> {
+  async close(handoverId: string, options: { acceptGaps?: boolean } = {}): Promise<Handover> {
     for (let attempt = 1; ; attempt++) {
       const handover = this.#openHandover(handoverId);
       if (this.#d.marks.listForHandover(handoverId).some((m) => m.source === 'proposed')) {
         throw new ConflictError('Confirm or reject the proposed damage before sealing');
       }
+      const coverage = this.#coverage(handover);
+      const gaps = Object.entries(coverage).filter(([, c]) => c.missing.length > 0);
+      if (gaps.length > 0 && !options.acceptGaps) {
+        throw new ConflictError('Some sections of the container have no photo', {
+          issues: gaps.map(([face, c]) => ({
+            path: `coverage.${face}`,
+            message: `${c.missing.length} of ${c.total} sections missing`,
+          })),
+        });
+      }
       const closedAt = this.#now();
-      const record = this.#sealedRecord(handover, closedAt);
+      const record = this.#sealedRecord(handover, closedAt, coverage);
       const links = this.#d.handovers.chain(handover.containerNumber);
       const previousHash = links.at(-1)?.hash ?? GENESIS_HASH;
       const hash = await chainHash(previousHash, record);
@@ -399,11 +414,33 @@ export class HandoverService {
     return { fileName: `CODECO-${documentNumber}.edi`, content };
   }
 
-  #sealedRecord(handover: Handover, closedAt: string) {
+  /** Which CEDEX sections of each face have photographic evidence. */
+  #coverage(handover: Handover): Coverage {
+    const { dimensions } = this.#container(handover.containerNumber);
+    const photos = this.#d.photos.listForHandover(handover.id);
+    return Object.fromEntries(
+      FACES.map((face) => [
+        face,
+        faceCoverage(
+          face,
+          dimensions,
+          photos.filter((p) => p.face === face),
+        ),
+      ]),
+    ) as Coverage;
+  }
+
+  #sealedRecord(handover: Handover, closedAt: string, coverage: Coverage) {
     const photos = this.#d.photos.listForHandover(handover.id);
     const marks = this.#d.marks.listForHandover(handover.id).filter((m) => m.source !== 'rejected');
     return {
-      version: 1,
+      version: 2,
+      // Sections without a photo were not inspected, and the record says so.
+      notInspected: Object.fromEntries(
+        Object.entries(coverage).flatMap(([face, c]) =>
+          c.missing.length > 0 ? [[face, c.missing]] : [],
+        ),
+      ),
       handover: {
         id: handover.id,
         containerNumber: handover.containerNumber,

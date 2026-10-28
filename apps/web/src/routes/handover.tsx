@@ -1,5 +1,12 @@
 import type { HandoverDetail, Mark, MarkStatus, Photo } from '@plomba/contracts';
-import { DAMAGE_CODES, FACES, type Face, isDamageCode } from '@plomba/core';
+import {
+  DAMAGE_CODES,
+  FACES,
+  type Face,
+  type FaceCoverage,
+  faceCoverage,
+  isDamageCode,
+} from '@plomba/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
@@ -38,7 +45,8 @@ export function HandoverScreen() {
           {t(editable ? 'handover.open' : 'handover.closed')}
         </p>
         <p className="muted">
-          {t('handover.faces', { done: view.registeredFaces, total: FACES.length })}
+          {t('handover.faces', { done: view.registeredFaces, total: FACES.length })} ·{' '}
+          {t('handover.coverage', view.sections)}
         </p>
       </Card>
 
@@ -46,16 +54,18 @@ export function HandoverScreen() {
         {FACES.map((f) => {
           const pending =
             view.previousByFace.get(f)?.filter((m) => !view.resolved.has(m.id)).length ?? 0;
-          const photo = view.photoByFace.get(f);
+          const coverage = view.coverage.get(f);
+          const state =
+            coverage && coverage.missing.length === 0
+              ? 'done'
+              : coverage && coverage.covered.length > 0
+                ? 'partial'
+                : '';
           return (
             <button
               type="button"
               key={f}
-              className={[
-                'face-tab',
-                f === face ? 'selected' : '',
-                photo?.corners ? 'done' : '',
-              ].join(' ')}
+              className={['face-tab', f === face ? 'selected' : '', state].join(' ')}
               onClick={() => setFace(f)}
               aria-pressed={f === face}
             >
@@ -76,6 +86,7 @@ export function HandoverScreen() {
         marks={view.marksByFace.get(face) ?? []}
         previousMarks={view.previousByFace.get(face) ?? []}
         resolvedPrevious={view.resolved}
+        coveredCells={view.coveredCells.get(face) ?? new Set()}
         selectedMarkId={selectedMarkId}
         onSelectMark={(mark) => setSelectedMarkId(mark.id)}
       />
@@ -104,6 +115,12 @@ export function HandoverScreen() {
         <SealButton
           handoverId={handover.id}
           pendingProposals={view.activeMarks.filter((m) => m.source === 'proposed').length}
+          gaps={FACES.flatMap((f) => {
+            const missing = view.coverage.get(f)?.missing.length ?? 0;
+            return missing > 0
+              ? [`${t(`faceTitle.${f}`)} (${t('handover.sections', { count: missing })})`]
+              : [];
+          })}
         />
       ) : (
         <SealInfo detail={detail.data} />
@@ -123,7 +140,34 @@ function deriveView(detail: HandoverDetail) {
     activeMarks.map((m) => m.previousMarkId).filter((id): id is string => id !== null),
   );
   const registeredFaces = FACES.filter((f) => photoByFace.get(f)?.corners).length;
-  return { photoByFace, activeMarks, marksByFace, previousByFace, resolved, registeredFaces };
+  const coverage = new Map<Face, FaceCoverage>(
+    FACES.map((face) => [
+      face,
+      faceCoverage(
+        face,
+        detail.container.dimensions,
+        detail.photos.filter((p) => p.face === face),
+      ),
+    ]),
+  );
+  const coveredCells = new Map(
+    [...coverage].map(([face, c]) => [face, new Set<string>(c.covered)] as const),
+  );
+  const sections = [...coverage.values()].reduce(
+    (sum, c) => ({ done: sum.done + c.covered.length, total: sum.total + c.total }),
+    { done: 0, total: 0 },
+  );
+  return {
+    photoByFace,
+    activeMarks,
+    marksByFace,
+    previousByFace,
+    resolved,
+    registeredFaces,
+    coverage,
+    coveredCells,
+    sections,
+  };
 }
 
 function groupByFace(marks: readonly Mark[]): Map<Face, Mark[]> {
@@ -294,14 +338,17 @@ function MarksList({
 function SealButton({
   handoverId,
   pendingProposals,
+  gaps,
 }: {
   handoverId: string;
   pendingProposals: number;
+  /** Faces with sections that have no photo, already described for the checker. */
+  gaps: readonly string[];
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const seal = useMutation({
-    mutationFn: () => api.closeHandover(handoverId),
+    mutationFn: (acceptGaps: boolean) => api.closeHandover(handoverId, { acceptGaps }),
     onSuccess: (handover) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.recent }),
@@ -317,7 +364,11 @@ function SealButton({
         className="primary large"
         disabled={seal.isPending || pendingProposals > 0}
         onClick={() => {
-          if (window.confirm(t('handover.sealConfirm'))) seal.mutate();
+          const question =
+            gaps.length > 0
+              ? t('handover.sealWithGaps', { gaps: gaps.join(', ') })
+              : t('handover.sealConfirm');
+          if (window.confirm(question)) seal.mutate(gaps.length > 0);
         }}
       >
         {t('handover.seal')}

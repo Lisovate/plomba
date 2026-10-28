@@ -77,6 +77,10 @@ export const en = {
   'handover.open': 'Open',
   'handover.closed': 'Sealed',
   'handover.faces': 'Faces photographed: {done} of {total}',
+  'handover.coverage': 'Sections with a photo: {done} of {total}',
+  'handover.sealWithGaps':
+    'Not photographed: {gaps}. Seal anyway? The record will say these sections were not inspected.',
+  'handover.sections': '{count} sections',
   'handover.previous': 'From the last handover',
   'handover.previousNone': 'No earlier handover of this container.',
   'handover.previousPending': 'to confirm: {count}',

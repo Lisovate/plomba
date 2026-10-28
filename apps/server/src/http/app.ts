@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { serveStatic } from '@hono/node-server/serve-static';
 import {
+  CloseHandoverSchema,
   CreateMarkSchema,
   FaceSchema,
   RegisterContainerSchema,
@@ -164,7 +165,10 @@ function api(deps: AppDeps): Hono {
     return c.json(handovers.updateMark(c.req.param('id'), c.req.param('markId'), patch));
   });
 
-  api.post('/handovers/:id/close', async (c) => c.json(await handovers.close(c.req.param('id'))));
+  api.post('/handovers/:id/close', async (c) => {
+    const options = await readJson(c, CloseHandoverSchema);
+    return c.json(await handovers.close(c.req.param('id'), options));
+  });
 
   api.get('/handovers/:id/codeco', (c) => {
     const recipient = c.req.query('recipient')?.trim() || 'RECIPIENT';

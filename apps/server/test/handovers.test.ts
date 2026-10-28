@@ -99,10 +99,10 @@ describe('a handover', () => {
       handover.id,
       markInput({ face: 'L', rect: { u0: 1, v0: 1, u1: 1.3, v1: 1.2 }, damageCode: 'DT' }),
     );
-    const first = await service.close(handover.id);
+    const first = await service.close(handover.id, { acceptGaps: true });
     expect(first.status).toBe('closed');
     expect(first.seal?.sequence).toBe(0);
-    await expect(service.close(handover.id)).rejects.toThrow(ConflictError);
+    await expect(service.close(handover.id, { acceptGaps: true })).rejects.toThrow(ConflictError);
 
     const second = service.start({
       containerNumber: NUMBER,
@@ -125,7 +125,7 @@ describe('a handover', () => {
         previousMarkId: dent.id,
       }),
     );
-    const sealed = await service.close(second.id);
+    const sealed = await service.close(second.id, { acceptGaps: true });
     expect(sealed.seal?.previousHash).toBe(first.seal?.hash);
 
     const history = await service.history(NUMBER);
@@ -235,9 +235,11 @@ describe('damage proposals', () => {
     const { service, detector, handover, photo } = await registeredPhoto();
     detector.findings = [dentNearDoors];
     const [dent] = await service.proposeDamage(handover.id, photo.id);
-    await expect(service.close(handover.id)).rejects.toThrow(ConflictError);
+    await expect(service.close(handover.id, { acceptGaps: true })).rejects.toThrow(ConflictError);
     service.updateMark(handover.id, dent?.id ?? '', { source: 'confirmed' });
-    await expect(service.close(handover.id)).resolves.toMatchObject({ status: 'closed' });
+    await expect(service.close(handover.id, { acceptGaps: true })).resolves.toMatchObject({
+      status: 'closed',
+    });
   });
 
   it('needs the face corners first', async () => {
@@ -261,7 +263,7 @@ describe('gate report', () => {
     service.addMark(handover.id, markInput({ damageCode: 'CO', source: 'rejected' }));
     expect(() => service.codeco(handover.id, 'MSCU')).toThrow(ConflictError);
 
-    const sealed = await service.close(handover.id);
+    const sealed = await service.close(handover.id, { acceptGaps: true });
     const { fileName, content } = service.codeco(handover.id, 'MSCU');
 
     expect(fileName).toBe('CODECO-CSQU3054383-1.edi');
@@ -271,5 +273,31 @@ describe('gate report', () => {
     expect(lines).toContain("SEL+ML123456'");
     expect(lines.filter((l) => l.startsWith('DAM+'))).toEqual(["DAM+1+DT+RB1N'"]);
     expect(content).toContain((sealed.seal?.hash ?? '').toUpperCase());
+  });
+});
+
+describe('coverage', () => {
+  it('refuses to seal with unphotographed sections unless the gaps are accepted', async () => {
+    const { service, segmenter, db, handover } = await startedHandover();
+    // The right side fills the photo: all of its 10 sections are covered, no other face is.
+    segmenter.responses.set('shipping container', [rectangleObject(0, 0, 400, 300)]);
+    await service.addPhoto(handover.id, { face: 'R', data: await makePhoto() });
+
+    const refused = await service.close(handover.id).catch((error: unknown) => error);
+    expect(refused).toBeInstanceOf(ConflictError);
+    expect((refused as ConflictError).issues?.map((i) => i.path)).toEqual([
+      'coverage.D',
+      'coverage.F',
+      'coverage.L',
+      'coverage.T',
+    ]);
+
+    await service.close(handover.id, { acceptGaps: true });
+    const row = db.prepare('SELECT record FROM handovers WHERE id = ?').get(handover.id) as {
+      record: string;
+    };
+    const record = JSON.parse(row.record) as { notInspected: Record<string, string[]> };
+    expect(Object.keys(record.notInspected)).toEqual(['D', 'F', 'L', 'T']);
+    expect(record.notInspected.D).toHaveLength(8);
   });
 });

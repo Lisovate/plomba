@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { faceCells, isDamageCode, locationCode, longSectionCount } from '../src/cedex.ts';
+import {
+  faceCells,
+  faceCoverage,
+  isDamageCode,
+  locationCode,
+  longSectionCount,
+} from '../src/cedex.ts';
 import { faceSize, rectOverlap } from '../src/faces.ts';
 import { parseSizeType } from '../src/size-type.ts';
 
@@ -104,5 +110,51 @@ describe('rectOverlap', () => {
     expect(rectOverlap(a, a)).toBe(1);
     expect(rectOverlap(a, { u0: 3, v0: 0, u1: 4, v1: 1 })).toBe(0);
     expect(rectOverlap(a, { u0: 1, v0: 0, u1: 3, v1: 1 })).toBeCloseTo(1 / 3);
+  });
+});
+
+describe('coverage', () => {
+  // A 40 ft right side photographed head-on, filling a 1000 × 250 photo.
+  const fullFrame = {
+    width: 1000,
+    height: 250,
+    corners: [
+      { x: 0, y: 0 },
+      { x: 1000, y: 0 },
+      { x: 1000, y: 250 },
+      { x: 0, y: 250 },
+    ] as const,
+  };
+
+  it('covers every cell when the whole face is in the photo', () => {
+    const coverage = faceCoverage('R', forty, [fullFrame]);
+    expect(coverage.total).toBe(20);
+    expect(coverage.missing).toEqual([]);
+  });
+
+  it('covers only the sections that are fully in the photo', () => {
+    // The face runs off the right edge: only the door-end half is visible.
+    const half = {
+      width: 1000,
+      height: 250,
+      corners: [
+        { x: 0, y: 0 },
+        { x: 2000, y: 0 },
+        { x: 2000, y: 250 },
+        { x: 0, y: 250 },
+      ] as const,
+    };
+    const coverage = faceCoverage('R', forty, [half]);
+    expect(coverage.covered).toHaveLength(10);
+    expect(coverage.covered).toContain('RT1N');
+    expect(coverage.missing).toContain('RT0N');
+  });
+
+  it('adds up several photos and ignores unregistered ones', () => {
+    const coverage = faceCoverage('R', forty, [{ ...fullFrame, corners: null }]);
+    expect(coverage.covered).toEqual([]);
+    expect(faceCoverage('R', forty, [{ ...fullFrame, corners: null }, fullFrame]).missing).toEqual(
+      [],
+    );
   });
 });
