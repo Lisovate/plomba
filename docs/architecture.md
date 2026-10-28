@@ -9,7 +9,7 @@ Phone (iPhone or Android): Plomba PWA in the browser or installed to the home sc
   ├─ camera photos of each face, container number entry, marks, confirmation
   └─ HTTPS (same origin) ─▶ Plomba server (Node 24, TypeScript)
                               ├─ Meta Model API: Muse Spark, SAM 3.1, Muse Voice
-                              │   Transcribe (built); Muse Image (planned)
+                              │   Transcribe (built); Muse Image for synthetic tests only
                               ├─ SQLite database + content-addressed photo store
                               ├─ hash-chained handover history
                               └─ serves the built web app
@@ -63,7 +63,7 @@ Node 24 runs the TypeScript sources directly (type stripping), so the server has
 | Compare and close | Deterministic code | Previous and current handover | EIR report, CODECO message | Built |
 | Draft a claim | Muse Spark 1.3, tool calling + structured output | Photos of the new damage; tools for the comparison and the container's history | A claim letter whose items and evidence are verified against the sealed records | Built |
 | On-premises vision | Muse Glimmer through Chat Completions (Ollama, llama.cpp, vLLM) | As the two Muse Spark vision rows | The same JSON, from a model on the company's own hardware | Path built and tested against the Meta API; not yet run on Glimmer |
-| Test cases | Muse Image | Real photo plus an instruction edit | Labelled synthetic damage, never counted in accuracy | Planned |
+| Test cases | Muse Image 1.0, image edits | A clean container photo and an instruction ("add a dent…") | Labelled synthetic damage for robustness tests, never counted in accuracy (`scripts/synthetic-damage.ts`) | Built |
 
 ### Identification is a verifiable loop
 
