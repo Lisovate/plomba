@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import { type MetaApiError, MetaClient } from '../src/adapters/meta/client.ts';
 import { parseSegmentation } from '../src/adapters/meta/sam.ts';
+import { askStructured } from '../src/adapters/meta/structured.ts';
 import { silentLogger } from './fakes.ts';
 
 // One frame of SAM 3.1 output for the prompt "button", from the @meta-sam/parser README.
@@ -131,5 +133,58 @@ describe('MetaClient.transcribe', () => {
     });
     expect((form.get('audio') as Blob).size).toBe(3);
     expect(result.audioDurationMs).toBe(900);
+  });
+});
+
+describe('structured output over Chat Completions', () => {
+  it('sends the image and JSON schema the way OpenAI-compatible servers expect, without a key it was not given', async () => {
+    const seen: { url: string; headers: Headers; body: Record<string, unknown> }[] = [];
+    const client = new MetaClient({
+      baseUrl: 'http://glimmer.local:11434/v1',
+      apiKey: '',
+      timeoutMs: 1000,
+      logger: silentLogger,
+      fetch: async (url, init) => {
+        seen.push({
+          url: String(url),
+          headers: new Headers(init?.headers),
+          body: JSON.parse(String(init?.body)) as Record<string, unknown>,
+        });
+        return jsonResponse(200, { choices: [{ message: { content: '{"colour":"red"}' } }] });
+      },
+    });
+    const answer = await askStructured(
+      client,
+      {
+        api: 'chat-completions',
+        model: 'muse-glimmer:30b',
+        reasoningEffort: 'low',
+        instructions: 'Describe containers.',
+        prompt: 'What colour is it?',
+        image: { data: new Uint8Array([1, 2, 3]), mimeType: 'image/jpeg' },
+        schemaName: 'colour',
+        schema: { type: 'object' },
+      },
+      z.object({ colour: z.string() }),
+    );
+
+    expect(answer).toEqual({ colour: 'red' });
+    const [request] = seen;
+    expect(request?.url).toBe('http://glimmer.local:11434/v1/chat/completions');
+    expect(request?.headers.has('authorization')).toBe(false);
+    expect(request?.body).toMatchObject({
+      model: 'muse-glimmer:30b',
+      messages: [
+        { role: 'system', content: 'Describe containers.' },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'What colour is it?' },
+            { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AQID' } },
+          ],
+        },
+      ],
+      response_format: { type: 'json_schema', json_schema: { name: 'colour', strict: true } },
+    });
   });
 });

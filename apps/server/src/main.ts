@@ -48,9 +48,19 @@ function main(): void {
     timeoutMs: config.meta.timeoutMs,
     logger,
   });
+  // Reading markings and finding damage can run elsewhere, e.g. Muse Glimmer on-premises.
+  const { vision } = config.meta;
+  const visionClient = vision.baseUrl
+    ? new MetaClient({
+        baseUrl: vision.baseUrl,
+        apiKey: vision.apiKey ?? '',
+        timeoutMs: config.meta.timeoutMs,
+        logger,
+      })
+    : meta;
   const spark = { model: config.meta.visionModel, reasoningEffort: config.meta.reasoningEffort };
-  const reader = new MuseSparkMarkingsReader(meta, spark);
-  const detector = new MuseSparkDamageDetector(meta, spark);
+  const reader = new MuseSparkMarkingsReader(visionClient, { ...spark, api: vision.apiStyle });
+  const detector = new MuseSparkDamageDetector(visionClient, { ...spark, api: vision.apiStyle });
   const segmenter = new Sam3Segmenter(meta, { model: config.meta.segmentationModel });
   const transcriber = new MuseVoiceTranscriber(meta, { model: config.meta.speechModel });
 

@@ -79,6 +79,33 @@ export interface ResponsesResponse {
   readonly usage?: Readonly<Record<string, unknown>>;
 }
 
+export interface ChatCompletionRequest {
+  readonly model: string;
+  readonly messages: readonly {
+    readonly role: 'system' | 'user';
+    readonly content:
+      | string
+      | readonly (
+          | { readonly type: 'text'; readonly text: string }
+          | { readonly type: 'image_url'; readonly image_url: { readonly url: string } }
+        )[];
+  }[];
+  readonly response_format?: {
+    readonly type: 'json_schema';
+    readonly json_schema: {
+      readonly name: string;
+      readonly schema: Record<string, unknown>;
+      readonly strict: boolean;
+    };
+  };
+  readonly reasoning_effort?: string;
+}
+
+export interface ChatCompletionResponse {
+  readonly choices: readonly { readonly message: { readonly content: string | null } }[];
+  readonly usage?: Readonly<Record<string, unknown>>;
+}
+
 export interface TranscriptionResponse {
   readonly sessionId?: string;
   readonly transcript: string;
@@ -155,6 +182,22 @@ export class MetaClient {
     return body;
   }
 
+  /**
+   * Chat Completions, the API that self-hosted open-weights servers (Ollama,
+   * llama.cpp, vLLM) also speak, e.g. for Muse Glimmer on-premises.
+   */
+  async createChatCompletion(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
+    const started = performance.now();
+    const body = (await this.#post(request.model, '/chat/completions', () => ({
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...request, store: false }),
+    }))) as ChatCompletionResponse;
+    const ms = Math.round(performance.now() - started);
+    this.#options.logger.info({ model: request.model, ms, usage: body.usage }, 'Chat completion');
+    this.#options.onResponse?.({ model: request.model, ms, usage: body.usage });
+    return body;
+  }
+
   /** Transcribes a WAV file (mono PCM16, 16 or 24 kHz) with Muse Voice Transcribe. */
   async transcribe(
     audio: Uint8Array,
@@ -213,7 +256,11 @@ export class MetaClient {
     try {
       response = await this.#fetch(`${this.#options.baseUrl}${path}`, {
         method: 'POST',
-        headers: { authorization: `Bearer ${this.#options.apiKey}`, ...headers },
+        // A self-hosted endpoint may take no key; never send one it wasn't given.
+        headers: {
+          ...(this.#options.apiKey ? { authorization: `Bearer ${this.#options.apiKey}` } : {}),
+          ...headers,
+        },
         body,
         signal: AbortSignal.timeout(this.#options.timeoutMs),
       });

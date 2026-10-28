@@ -14,11 +14,13 @@ import type {
   SizedImage,
 } from '../../ports.ts';
 import type { MetaClient } from './client.ts';
-import { askStructured } from './structured.ts';
+import { type ApiStyle, askStructured } from './structured.ts';
 
 export interface MuseSparkOptions {
   readonly model: string;
   readonly reasoningEffort: 'minimal' | 'low' | 'medium' | 'high';
+  /** Defaults to the Responses API. */
+  readonly api?: ApiStyle;
 }
 
 // Markings ------------------------------------------------------------------

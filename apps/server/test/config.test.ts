@@ -34,4 +34,17 @@ describe('loadConfig', () => {
   it('reports a key file it cannot read', () => {
     expect(() => loadConfig({ META_API_KEY_FILE: '/nonexistent/meta.key' })).toThrow(ConfigError);
   });
+
+  it('keeps the Meta key away from a separate vision endpoint', () => {
+    const config = loadConfig({
+      META_API_KEY: 'meta-secret',
+      META_VISION_BASE_URL: 'http://glimmer.local:11434/v1/',
+      META_VISION_API_STYLE: 'chat-completions',
+    });
+    expect(config.meta.vision).toEqual({
+      baseUrl: 'http://glimmer.local:11434/v1',
+      apiKey: undefined,
+      apiStyle: 'chat-completions',
+    });
+  });
 });

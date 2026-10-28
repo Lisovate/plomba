@@ -76,3 +76,6 @@ A dated record of what was built and when. The newest entry is at the bottom.
   - Muse Spark calls tools (the handover comparison, the container history) and drafts a claim for new damage.
   - The server checks every cited item, code and photo hash, and the record hashes in the letter, against the sealed records, and sends failing drafts back as feedback.
   - Live: 7 s, first draft passed, only the new dent claimed, in English and Polish.
+- **Access code** (`PLOMBA_ACCESS_CODE`) for installations without single sign-on: a signed, HttpOnly session cookie gates the API and photos, so a public demo URL can't spend the Meta credit.
+- **End-to-end test in CI**: Playwright drives the built app in a phone-sized browser against the real server, with a fake Meta Model API replaying SAM 3.1's recorded outline of a synthetic photo.
+- **Vision on your own hardware**: reading and damage detection can use any OpenAI-compatible Chat Completions server (e.g. Ollama serving Muse Glimmer) via `META_VISION_BASE_URL`. Tested against Meta's own Chat Completions endpoint; Glimmer itself is still to be tried on a Mac with enough memory.

@@ -21,6 +21,15 @@ const EnvSchema = z
     META_VISION_MODEL: z.string().default('muse-spark-1.3'),
     META_SEGMENTATION_MODEL: z.string().default('sam-3.1'),
     META_SPEECH_MODEL: z.string().default('muse-voice-transcribe-1.0'),
+    /**
+     * A separate endpoint for reading markings and finding damage, e.g. Muse
+     * Glimmer on your own hardware. SAM 3.1 and speech stay on META_API_BASE_URL.
+     */
+    META_VISION_BASE_URL: z.url().optional(),
+    META_VISION_API_STYLE: z.enum(['responses', 'chat-completions']).default('responses'),
+    /** The vision endpoint's own key, if it needs one. The Meta key is never sent there. */
+    META_VISION_API_KEY_FILE: z.string().min(1).optional(),
+    META_VISION_API_KEY: z.string().min(1).optional(),
     META_REASONING_EFFORT: z.enum(['minimal', 'low', 'medium', 'high']).default('low'),
     META_TIMEOUT_MS: z.coerce.number().int().positive().default(90_000),
     /**
@@ -51,6 +60,12 @@ export interface Config {
     readonly visionModel: string;
     readonly segmentationModel: string;
     readonly speechModel: string;
+    readonly vision: {
+      /** Unset: the vision model runs on `baseUrl` with `apiKey`. */
+      readonly baseUrl: string | undefined;
+      readonly apiKey: string | undefined;
+      readonly apiStyle: 'responses' | 'chat-completions';
+    };
     readonly reasoningEffort: 'minimal' | 'low' | 'medium' | 'high';
     readonly timeoutMs: number;
   };
@@ -58,6 +73,16 @@ export interface Config {
 
 export class ConfigError extends Error {
   override name = 'ConfigError';
+}
+
+function readKey(file: string | undefined, variable: string): string | undefined {
+  if (!file) return undefined;
+  const path = resolve(expandHome(file));
+  try {
+    return readFileSync(path, 'utf8').trim();
+  } catch (cause) {
+    throw new ConfigError(`Cannot read ${variable} at ${path}`, { cause });
+  }
 }
 
 function expandHome(path: string): string {
@@ -75,16 +100,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
   const e = parsed.data;
 
-  let apiKey = e.META_API_KEY;
-  if (e.META_API_KEY_FILE) {
-    const path = resolve(expandHome(e.META_API_KEY_FILE));
-    try {
-      apiKey = readFileSync(path, 'utf8').trim();
-    } catch (cause) {
-      throw new ConfigError(`Cannot read META_API_KEY_FILE at ${path}`, { cause });
-    }
-  }
+  const apiKey = readKey(e.META_API_KEY_FILE, 'META_API_KEY_FILE') ?? e.META_API_KEY;
   if (!apiKey) throw new ConfigError('The Meta Model API key is empty');
+  const visionKey =
+    readKey(e.META_VISION_API_KEY_FILE, 'META_VISION_API_KEY_FILE') ?? e.META_VISION_API_KEY;
 
   return {
     host: e.HOST,
@@ -100,6 +119,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       visionModel: e.META_VISION_MODEL,
       segmentationModel: e.META_SEGMENTATION_MODEL,
       speechModel: e.META_SPEECH_MODEL,
+      vision: {
+        baseUrl: e.META_VISION_BASE_URL?.replace(/\/+$/, ''),
+        apiKey: visionKey,
+        apiStyle: e.META_VISION_API_STYLE,
+      },
       reasoningEffort: e.META_REASONING_EFFORT,
       timeoutMs: e.META_TIMEOUT_MS,
     },

@@ -13,7 +13,8 @@ Phone (iPhone or Android): Plomba PWA in the browser or installed to the home sc
                               ├─ SQLite database + content-addressed photo store
                               ├─ hash-chained handover history
                               └─ serves the built web app
-Offline / on-premise mode (planned): Muse Glimmer (open weights) behind the same Responses API
+On-premises option: reading and damage detection on Muse Glimmer (open weights) through any
+OpenAI-compatible Chat Completions server (e.g. Ollama), configured as a separate vision endpoint
 ```
 
 One process serves the API and the web app, so a company can run Plomba as one container on its own machine ([self-hosting.md](self-hosting.md)).
@@ -61,7 +62,7 @@ Node 24 runs the TypeScript sources directly (type stripping), so the server has
 | Voice commands, disputes by speaker | Muse Voice Transcribe, streaming and diarisation | Live audio | Commands; statements labelled by speaker | Planned |
 | Compare and close | Deterministic code | Previous and current handover | EIR report, CODECO message | Built |
 | Draft a claim | Muse Spark 1.3, tool calling + structured output | Photos of the new damage; tools for the comparison and the container's history | A claim letter whose items and evidence are verified against the sealed records | Built |
-| Offline mode | Muse Glimmer | As above, reduced | Number reading and damage labelling without internet | Planned |
+| On-premises vision | Muse Glimmer through Chat Completions (Ollama, llama.cpp, vLLM) | As the two Muse Spark vision rows | The same JSON, from a model on the company's own hardware | Path built and tested against the Meta API; not yet run on Glimmer |
 | Test cases | Muse Image | Real photo plus an instruction edit | Labelled synthetic damage, never counted in accuracy | Planned |
 
 ### Identification is a verifiable loop

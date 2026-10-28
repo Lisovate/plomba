@@ -59,6 +59,9 @@ All settings are environment variables.
 | `META_SPEECH_MODEL` | `muse-voice-transcribe-1.0` | Transcribes spoken notes |
 | `PLOMBA_ACCESS_CODE` | — | If set (8+ characters), each device enters this code once and gets a 30-day session cookie; without it the API and photos answer 401. Leave unset behind single sign-on |
 | `EDI_SENDER_ID` | `PLOMBA` | This installation's ID in EDIFACT messages (UNB sender, NAD+MS) |
+| `META_VISION_BASE_URL` | — | A separate endpoint for reading markings and finding damage (see below) |
+| `META_VISION_API_STYLE` | `responses` | `responses`, or `chat-completions` for OpenAI-compatible servers |
+| `META_VISION_API_KEY_FILE` / `META_VISION_API_KEY` | — | That endpoint's own key, if it needs one |
 | `META_REASONING_EFFORT` | `low` | `minimal`, `low`, `medium` or `high` |
 | `META_TIMEOUT_MS` | `90000` | Per model request |
 | `DATA_DIR` | `/data` in the image | Database and photos |
@@ -66,6 +69,31 @@ All settings are environment variables.
 | `LOG_LEVEL` | `info` | Logs are JSON lines on stdout |
 
 The server checks the configuration at startup and exits with a list of every problem.
+
+## Running the vision model on your own hardware
+
+Reading markings and finding damage can run on Meta's open-weights **Muse Glimmer** on your own machine, so photos of the doors and damage don't leave the site. SAM 3.1 (outlines, privacy blurring) and Muse Voice Transcribe stay on the Meta Model API.
+
+Any server that speaks the OpenAI-compatible Chat Completions API with image input and JSON-schema output works, for example Ollama:
+
+```sh
+# On a Mac with 24–32 GB of memory or more
+ollama pull muse-glimmer:30b-mlx
+OLLAMA_HOST=0.0.0.0 ollama serve
+```
+
+Then point Plomba at it:
+
+```sh
+META_VISION_BASE_URL=http://<that machine>:11434/v1
+META_VISION_API_STYLE=chat-completions
+META_VISION_MODEL=muse-glimmer:30b-mlx
+# META_VISION_API_KEY_FILE=…   only if the server needs a key
+```
+
+- The Meta key is never sent to `META_VISION_BASE_URL`; that endpoint gets `META_VISION_API_KEY(_FILE)` or no key at all.
+- The claim agent stays on the Meta Model API.
+- **Status:** the Chat Completions path is tested against the Meta Model API (`META_VISION_BASE_URL=https://api.meta.ai/v1`). It hasn't yet been run against Glimmer itself; measure it with `apps/server/scripts/eval-identify.ts` before relying on it.
 
 ## Backups
 

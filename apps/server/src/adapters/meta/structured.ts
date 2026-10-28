@@ -3,7 +3,11 @@ import { UpstreamError } from '../../errors.ts';
 import type { ImageInput } from '../../ports.ts';
 import { type MetaClient, outputText, toDataUrl } from './client.ts';
 
+/** `responses` for the Meta Model API; `chat-completions` for it or any OpenAI-compatible server. */
+export type ApiStyle = 'responses' | 'chat-completions';
+
 export interface StructuredCall {
+  readonly api?: ApiStyle;
   readonly model: string;
   readonly reasoningEffort: 'minimal' | 'low' | 'medium' | 'high';
   readonly instructions: string;
@@ -23,6 +27,48 @@ export async function askStructured<T>(
   call: StructuredCall,
   parser: z.ZodType<T>,
 ): Promise<T> {
+  const text =
+    call.api === 'chat-completions'
+      ? await viaChat(client, call)
+      : await viaResponses(client, call);
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch (cause) {
+    throw new UpstreamError(`${call.model} returned text that is not JSON`, { cause });
+  }
+  const parsed = parser.safeParse(json);
+  if (!parsed.success) {
+    throw new UpstreamError(`${call.model} returned JSON that does not match the schema`, {
+      cause: parsed.error,
+    });
+  }
+  return parsed.data;
+}
+
+async function viaChat(client: MetaClient, call: StructuredCall): Promise<string> {
+  const completion = await client.createChatCompletion({
+    model: call.model,
+    reasoning_effort: call.reasoningEffort,
+    messages: [
+      { role: 'system', content: call.instructions },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: call.prompt },
+          { type: 'image_url', image_url: { url: toDataUrl(call.image) } },
+        ],
+      },
+    ],
+    response_format: {
+      type: 'json_schema',
+      json_schema: { name: call.schemaName, schema: call.schema, strict: true },
+    },
+  });
+  return completion.choices[0]?.message.content ?? '';
+}
+
+async function viaResponses(client: MetaClient, call: StructuredCall): Promise<string> {
   const response = await client.createResponse({
     model: call.model,
     instructions: call.instructions,
@@ -41,17 +87,5 @@ export async function askStructured<T>(
       format: { type: 'json_schema', name: call.schemaName, schema: call.schema, strict: true },
     },
   });
-  let json: unknown;
-  try {
-    json = JSON.parse(outputText(response));
-  } catch (cause) {
-    throw new UpstreamError(`${call.model} returned text that is not JSON`, { cause });
-  }
-  const parsed = parser.safeParse(json);
-  if (!parsed.success) {
-    throw new UpstreamError(`${call.model} returned JSON that does not match the schema`, {
-      cause: parsed.error,
-    });
-  }
-  return parsed.data;
+  return outputText(response);
 }
