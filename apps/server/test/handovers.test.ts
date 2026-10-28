@@ -53,7 +53,7 @@ describe('a handover', () => {
 
     const photo = await service.addPhoto(handover.id, { face: 'R', data: await makePhoto() });
 
-    expect(segmenter.calls.sort()).toEqual(['human face', 'license plate', 'shipping container']);
+    expect(segmenter.calls.sort()).toEqual(['face', 'license plate', 'shipping container']);
     expect(photo.redactedRegions).toBe(1);
     expect(photo.cornersSource).toBe('detected');
     expect(photo.corners?.[0]).toEqual({ x: 40, y: 30.5 });

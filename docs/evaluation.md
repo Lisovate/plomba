@@ -48,8 +48,22 @@ Run with: `node --env-file=.env apps/server/scripts/eval-identify.ts <TRUDI text
    - In the final run its suggestion was right in 3 of 10 suggested cases.
    - The app shows every valid candidate.
 
-### Not measured yet
+## Privacy: finding faces and number plates (2026-10-28)
+
+A small check: five photos of trucks and people, from Wikimedia Commons (CC BY 4.0, CC BY-SA 4.0 and public domain), used for testing only and not stored in the repository. Ground truth was counted by eye. SAM 3.1 ran on each photo with each prompt.
+
+| | Visible | Found |
+|---|---|---|
+| Readable number plates | 4 | **4**, plus 2 "ROAD TRAIN" signs (over-blurring is harmless) |
+| Faces | 7 | **6** with `face`, 5 with `human face`. Missed by both: a driver in profile behind a side window |
+
+**Decision:** the privacy prompts are `face` and `license plate`. `face` found everything `human face` found, plus a driver behind a windscreen.
+
+An earlier observation: a plate of 22 × 8 px (far away, unreadable) was found in a lossless PNG at confidence 0.52 but not after JPEG re-encoding. Plates too small to read carry no privacy risk, but small faces deserve more measurement. Tiling large photos is the next step if recall on real yard photos is low.
+
+## Not measured yet
 
 - Whole door photos taken the way the app is used (the author's own photos, planned).
 - Size/type codes (TRUDI has labelled crops: `22G1`, `45G1`, …).
-- Damage proposals and privacy blurring (see [build-log.md](build-log.md) for first observations).
+- Damage proposals on labelled damage photos.
+- Privacy recall on the author's own yard photos.

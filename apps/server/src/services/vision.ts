@@ -9,8 +9,11 @@ import type { ImageInput, PixelBox, SegmentedObject, Segmenter } from '../ports.
 /** The concept that outlines the container. Tested against the alternatives in docs/build-log.md. */
 export const CONTAINER_CONCEPT = 'shipping container';
 
-/** What is blurred before a photo is stored. */
-export const PRIVACY_CONCEPTS = ['human face', 'license plate'] as const;
+/**
+ * What is blurred before a photo is stored. `face` finds faces `human face`
+ * misses, e.g. a driver behind a windscreen (docs/evaluation.md).
+ */
+export const PRIVACY_CONCEPTS = ['face', 'license plate'] as const;
 
 /** A detected face outline must cover at least this share of the photo to be trusted. */
 const MIN_FACE_AREA_SHARE = 0.05;

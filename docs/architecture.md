@@ -55,7 +55,7 @@ Node 24 runs the TypeScript sources directly (type stripping), so the server has
 | Read the number, size/type, seals and placards | Muse Spark 1.3, structured output | Photo of the doors, downscaled to 1600 px | JSON, transcribed as painted | Built |
 | Choose between valid repairs of a misread number | Muse Spark 1.3, structured output | Same photo and 2+ candidate numbers | The matching candidate, or none | Built |
 | Find the face's corners | SAM 3.1, prompt `shipping container` | Photo of one face | Mask; its extreme points give the four corners | Built |
-| Privacy | SAM 3.1, prompts `human face`, `license plate` | Every face photo | Boxes, blurred before the photo is stored | Built |
+| Privacy | SAM 3.1, prompts `face`, `license plate` | Every face photo | Boxes, blurred before the photo is stored | Built |
 | Find and code damage | Muse Spark 1.3, structured output | Registered face photo | Rough boxes with CEDEX damage and component codes, a description and a confidence | Built |
 | Outline damage | SAM 3.1, one box prompt per finding | Same photo and Spark's boxes | Precise masks, mapped onto the face in metres as proposed marks | Built |
 | Spoken notes | Muse Voice Transcribe 1.0, push-to-talk | A note recorded in the browser, converted there to 24 kHz mono WAV | Note text in Polish or English, biased to container vocabulary | Built |
