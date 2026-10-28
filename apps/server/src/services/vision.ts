@@ -71,7 +71,12 @@ export async function detectFaceCorners(
   segmenter: Segmenter,
   image: ImageInput & { readonly width: number; readonly height: number },
 ): Promise<Quad | null> {
-  const objects = await segmenter.segment(image, CONTAINER_CONCEPT);
+  const quad = containerCorners(await segmenter.segment(image, CONTAINER_CONCEPT));
+  return quad && quadArea(quad) >= MIN_FACE_AREA_SHARE * image.width * image.height ? quad : null;
+}
+
+/** The corners of the most prominent container among the objects SAM found. */
+export function containerCorners(objects: readonly SegmentedObject[]): Quad | null {
   let best: { object: SegmentedObject; score: number } | undefined;
   for (const object of objects) {
     const score = maskArea(object) * (object.confidence ?? 1);
@@ -79,8 +84,7 @@ export async function detectFaceCorners(
   }
   if (!best) return null;
   try {
-    const quad = quadFromPoints(maskBoundary(best.object));
-    return quadArea(quad) >= MIN_FACE_AREA_SHARE * image.width * image.height ? quad : null;
+    return quadFromPoints(maskBoundary(best.object));
   } catch (error) {
     if (error instanceof DegenerateGeometryError) return null;
     throw error;

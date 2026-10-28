@@ -66,8 +66,22 @@ export interface SegmentedObject {
   };
 }
 
-/** Finds and outlines objects in a photo (SAM 3.1). */
+export interface VideoInput {
+  readonly data: Uint8Array;
+  readonly mimeType: 'video/mp4' | 'video/quicktime';
+}
+
+/** The objects SAM found in one frame of a video. */
+export interface TrackedFrame {
+  /** Zero-based index of the decoded frame. */
+  readonly frame: number;
+  readonly objects: readonly SegmentedObject[];
+}
+
+/** Finds and outlines objects in a photo, or tracks them through a video (SAM 3.1). */
 export interface Segmenter {
+  /** Every instance of a concept in every frame of a video, tracked across frames. */
+  track(video: VideoInput, concept: string): Promise<TrackedFrame[]>;
   /** Every instance of a concept named by a short noun phrase. */
   segment(image: ImageInput, concept: string): Promise<SegmentedObject[]>;
   /** The object inside each box, outlined; `null` where nothing is found. */
@@ -140,6 +154,12 @@ export interface StoredMedia {
 export interface MediaStore {
   put(data: Uint8Array): Promise<StoredMedia>;
   get(sha256: string): Promise<Uint8Array | undefined>;
+}
+
+/** Results that are expensive to compute, kept by a content hash. */
+export interface ResultCache<T> {
+  get(key: string): Promise<T | undefined>;
+  put(key: string, value: T): Promise<void>;
 }
 
 // Persistence --------------------------------------------------------------

@@ -27,6 +27,7 @@ import {
   type StartHandoverInput,
   TranscriptionSchema,
   type UpdateMark,
+  VideoTrackingSchema,
 } from '@plomba/contracts';
 import type { Quad } from '@plomba/core';
 import type { z } from 'zod';
@@ -118,6 +119,12 @@ export const api = {
       upload({ face, image, capturedAt: new Date().toISOString() }),
       PhotoSchema,
     ),
+
+  trackVideo: (video: Blob) => {
+    const form = new FormData();
+    form.set('video', video, 'clip.mp4');
+    return request('/api/videos/track', { method: 'POST', body: form }, VideoTrackingSchema);
+  },
 
   registerFrame: (id: string, frame: Blob) =>
     request(path`/api/handovers/${id}/frames`, upload({ image: frame }), FrameRegistrationSchema),

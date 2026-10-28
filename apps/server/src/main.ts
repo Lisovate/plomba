@@ -24,10 +24,12 @@ import {
 import { ConfigError, loadConfig } from './config.ts';
 import { createApp } from './http/app.ts';
 import { FileMediaStore } from './media/file-media-store.ts';
+import { JsonFileCache } from './media/json-file-cache.ts';
 import { ClaimService } from './services/claims.ts';
 import { HandoverService } from './services/handovers.ts';
 import { IdentifyService } from './services/identify.ts';
 import { SpeechService } from './services/speech.ts';
+import { VideoService } from './services/video.ts';
 
 function main(): void {
   const config = loadConfig();
@@ -84,6 +86,7 @@ function main(): void {
     }),
     speech: new SpeechService(transcriber),
     claims: new ClaimService({ ...repositories, media, agent: new MuseSparkAgent(meta, spark) }),
+    video: new VideoService(segmenter, new JsonFileCache(join(config.dataDir, 'tracks'))),
     media,
     logger,
     webDistDir: config.webDistDir,

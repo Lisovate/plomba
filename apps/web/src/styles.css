@@ -803,3 +803,15 @@ legend {
   font-size: 0.85rem;
   font-weight: 600;
 }
+
+/* Video simulation -------------------------------------------------------- */
+
+.video-ar video {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.overlay.passive {
+  pointer-events: none;
+}

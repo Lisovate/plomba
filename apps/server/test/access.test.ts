@@ -1,40 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import {
-  SqliteContainerRepository,
-  SqliteHandoverRepository,
-  SqliteMarkRepository,
-  SqlitePhotoRepository,
-} from '../src/adapters/sqlite/repositories.ts';
-import { createApp } from '../src/http/app.ts';
-import { ClaimService } from '../src/services/claims.ts';
-import { IdentifyService } from '../src/services/identify.ts';
-import { SpeechService } from '../src/services/speech.ts';
-import {
-  createTestHandoverService,
-  FakeReader,
-  FakeTranscriber,
-  ScriptedAgent,
-  silentLogger,
-} from './fakes.ts';
+import { createTestApp } from './fakes.ts';
 
 function app(accessCode?: string) {
-  const { service, media, db } = createTestHandoverService();
-  return createApp({
-    identify: new IdentifyService(new FakeReader(null)),
-    handovers: service,
-    speech: new SpeechService(new FakeTranscriber()),
-    claims: new ClaimService({
-      containers: new SqliteContainerRepository(db),
-      handovers: new SqliteHandoverRepository(db),
-      photos: new SqlitePhotoRepository(db),
-      marks: new SqliteMarkRepository(db),
-      media,
-      agent: new ScriptedAgent([]),
-    }),
-    media,
-    logger: silentLogger,
-    accessCode,
-  });
+  return createTestApp(accessCode === undefined ? {} : { accessCode }).app;
 }
 
 const login = (code: string) => ({

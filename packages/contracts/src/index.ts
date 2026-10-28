@@ -138,6 +138,15 @@ export const PhotoSchema = z.object({
 
 export const UpdateCornersSchema = z.object({ corners: QuadSchema });
 
+/** The container's face, frame by frame, in a recorded video (SAM 3.1 video tracking). */
+export const VideoTrackingSchema = z.object({
+  /** The highest tracked frame index plus one; with the clip's duration, its frame rate. */
+  frameCount: z.number().int(),
+  frames: z.array(z.object({ frame: z.number().int(), corners: QuadSchema })),
+  /** True when the same clip was tracked before and the result came from the cache. */
+  cached: z.boolean(),
+});
+
 /** Where the face is in a live camera frame. Frames are never stored. */
 export const FrameRegistrationSchema = z.object({
   width: z.number().int(),
@@ -329,6 +338,7 @@ export type ClaimResult = z.infer<typeof ClaimResultSchema>;
 export type ClaimCheck = z.infer<typeof ClaimCheckSchema>;
 export type Session = z.infer<typeof SessionSchema>;
 export type FrameRegistration = z.infer<typeof FrameRegistrationSchema>;
+export type VideoTracking = z.infer<typeof VideoTrackingSchema>;
 
 /** Request bodies as clients write them, before defaults are applied. */
 export type StartHandoverInput = z.input<typeof StartHandoverSchema>;

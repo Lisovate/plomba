@@ -1,44 +1,11 @@
 import { IdentifyResultSchema, ProblemSchema } from '@plomba/contracts';
 import { describe, expect, it } from 'vitest';
-import {
-  SqliteContainerRepository,
-  SqliteHandoverRepository,
-  SqliteMarkRepository,
-  SqlitePhotoRepository,
-} from '../src/adapters/sqlite/repositories.ts';
-import { createApp } from '../src/http/app.ts';
-import { ClaimService } from '../src/services/claims.ts';
-import { IdentifyService } from '../src/services/identify.ts';
-import { SpeechService } from '../src/services/speech.ts';
-import {
-  createTestHandoverService,
-  FakeReader,
-  FakeTranscriber,
-  makePhoto,
-  makeWav,
-  ScriptedAgent,
-  silentLogger,
-} from './fakes.ts';
+import { createTestApp, FakeReader, makePhoto, makeWav } from './fakes.ts';
 
 function testApp() {
-  const { service, media, db } = createTestHandoverService();
   const reader = new FakeReader('LSOU1077379');
   reader.choice = 'LSCU1077379';
-  return createApp({
-    identify: new IdentifyService(reader),
-    handovers: service,
-    speech: new SpeechService(new FakeTranscriber()),
-    claims: new ClaimService({
-      containers: new SqliteContainerRepository(db),
-      handovers: new SqliteHandoverRepository(db),
-      photos: new SqlitePhotoRepository(db),
-      marks: new SqliteMarkRepository(db),
-      media,
-      agent: new ScriptedAgent([]),
-    }),
-    media,
-    logger: silentLogger,
-  });
+  return createTestApp({ reader }).app;
 }
 
 describe('HTTP API', () => {

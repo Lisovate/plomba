@@ -9,6 +9,7 @@ import {
   SqliteMarkRepository,
   SqlitePhotoRepository,
 } from '../src/adapters/sqlite/repositories.ts';
+import { createApp } from '../src/http/app.ts';
 import type {
   Agent,
   AgentRun,
@@ -19,13 +20,20 @@ import type {
   MarkingsReader,
   MediaStore,
   PixelBox,
+  ResultCache,
   SegmentedObject,
   Segmenter,
   SizedImage,
   SpeechTranscriber,
   StoredMedia,
+  TrackedFrame,
+  VideoInput,
 } from '../src/ports.ts';
+import { ClaimService } from '../src/services/claims.ts';
 import { HandoverService } from '../src/services/handovers.ts';
+import { IdentifyService } from '../src/services/identify.ts';
+import { SpeechService } from '../src/services/speech.ts';
+import { VideoService } from '../src/services/video.ts';
 
 export const silentLogger = pino({ level: 'silent' });
 
@@ -111,6 +119,14 @@ export class FakeSegmenter implements Segmenter {
   async segment(_image: ImageInput, concept: string): Promise<SegmentedObject[]> {
     this.calls.push(concept);
     return this.responses.get(concept) ?? [];
+  }
+
+  /** Frames returned by `track`, as set by a test. */
+  tracked: TrackedFrame[] = [];
+
+  async track(_video: VideoInput, concept: string): Promise<TrackedFrame[]> {
+    this.calls.push(`track:${concept}`);
+    return this.tracked;
   }
 
   async refine(_image: SizedImage, boxes: readonly PixelBox[]) {
@@ -263,4 +279,43 @@ export class ScriptedAgent implements Agent {
       },
     };
   }
+}
+
+/** An in-memory result cache. */
+export class MemoryCache<T> implements ResultCache<T> {
+  readonly entries = new Map<string, T>();
+
+  async get(key: string) {
+    return this.entries.get(key);
+  }
+
+  async put(key: string, value: T) {
+    this.entries.set(key, value);
+  }
+}
+
+/** The HTTP app over in-memory adapters and fakes. */
+export function createTestApp(
+  options: { reader?: MarkingsReader; accessCode?: string; agent?: Agent } = {},
+) {
+  const context = createTestHandoverService();
+  const { service, media, db, segmenter } = context;
+  const app = createApp({
+    identify: new IdentifyService(options.reader ?? new FakeReader(null)),
+    handovers: service,
+    speech: new SpeechService(new FakeTranscriber()),
+    claims: new ClaimService({
+      containers: new SqliteContainerRepository(db),
+      handovers: new SqliteHandoverRepository(db),
+      photos: new SqlitePhotoRepository(db),
+      marks: new SqliteMarkRepository(db),
+      media,
+      agent: options.agent ?? new ScriptedAgent([]),
+    }),
+    video: new VideoService(segmenter, new MemoryCache()),
+    media,
+    logger: silentLogger,
+    accessCode: options.accessCode,
+  });
+  return { ...context, app };
 }

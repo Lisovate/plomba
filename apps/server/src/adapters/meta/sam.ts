@@ -6,12 +6,23 @@
 import {
   buildObjectPrompt,
   decodeMaskToRaster,
+  frameIndexOf,
   parseImageStream,
+  parseVideoStream,
   type ResponsesEvent,
   recordsOfKind,
+  type SegmentationRecord,
 } from '@meta-sam/parser';
 import { UpstreamError } from '../../errors.ts';
-import type { ImageInput, PixelBox, SegmentedObject, Segmenter, SizedImage } from '../../ports.ts';
+import type {
+  ImageInput,
+  PixelBox,
+  SegmentedObject,
+  Segmenter,
+  SizedImage,
+  TrackedFrame,
+  VideoInput,
+} from '../../ports.ts';
 import { type MetaClient, outputText, toDataUrl } from './client.ts';
 
 export class Sam3Segmenter implements Segmenter {
@@ -40,6 +51,31 @@ export class Sam3Segmenter implements Segmenter {
     });
     const objects = await this.#request(image, prompt);
     return boxes.map((_, index) => objects.find((o) => o.id === String(index + 1)) ?? null);
+  }
+
+  /** Uploads the clip through the Files API and tracks the concept through every frame. */
+  async track(video: VideoInput, concept: string): Promise<TrackedFrame[]> {
+    const extension = video.mimeType === 'video/quicktime' ? 'mov' : 'mp4';
+    const fileId = await this.#client.uploadFile(video.data, `clip.${extension}`, video.mimeType);
+    const response = await this.#client.createResponse(
+      {
+        model: this.#model,
+        input: [
+          {
+            type: 'message',
+            role: 'user',
+            content: [
+              { type: 'input_text', text: concept },
+              { type: 'input_video', file_id: fileId },
+            ],
+          },
+        ],
+        // One-bit masks are several times smaller; outlines don't need more.
+        metadata: { include_confidence: 'true', mask_encoding: 'one_bit' },
+      },
+      { timeoutMs: VIDEO_TIMEOUT_MS },
+    );
+    return parseVideoSegmentation(outputText(response));
   }
 
   async #request(image: ImageInput, text: string): Promise<SegmentedObject[]> {
@@ -73,24 +109,51 @@ function toPromptBox(box: PixelBox, size: { width: number; height: number }) {
   };
 }
 
-/** Parses SAM image output text into objects with decoded masks. */
-export async function parseSegmentation(text: string): Promise<SegmentedObject[]> {
-  if (text.trim() === '') return [];
-  const lane = { item_id: 'output', output_index: 0, content_index: 0 } as const;
-  async function* events(): AsyncIterable<ResponsesEvent> {
-    yield { type: 'response.output_text.delta', delta: text, ...lane };
-    yield { type: 'response.output_text.done', text, ...lane };
-    yield { type: 'response.completed' };
-  }
+/** Video segmentation can take minutes on long clips. */
+const VIDEO_TIMEOUT_MS = 10 * 60 * 1000;
 
-  const result = await parseImageStream(events()).finalResult;
+/** Replays a complete output text as the event stream the parser reads. */
+async function* asEvents(text: string): AsyncIterable<ResponsesEvent> {
+  const lane = { item_id: 'output', output_index: 0, content_index: 0 } as const;
+  yield { type: 'response.output_text.delta', delta: text, ...lane };
+  yield { type: 'response.output_text.done', text, ...lane };
+  yield { type: 'response.completed' };
+}
+
+function throwOnErrors(result: { diagnostics: readonly { severity: string; message: string }[] }) {
   const errors = result.diagnostics.filter((d) => d.severity === 'error');
   if (errors.length > 0) {
     throw new UpstreamError(`SAM output could not be parsed: ${errors[0]?.message}`);
   }
+}
 
-  const boxes = new Map(recordsOfKind(result.records, 'box').map((b) => [b.objectId, b]));
-  return recordsOfKind(result.records, 'mask').map((record) => {
+/** Parses SAM image output text into objects with decoded masks. */
+export async function parseSegmentation(text: string): Promise<SegmentedObject[]> {
+  if (text.trim() === '') return [];
+  const result = await parseImageStream(asEvents(text)).finalResult;
+  throwOnErrors(result);
+  return toObjects(result.records);
+}
+
+/** Parses SAM video output text into the objects of each frame, in frame order. */
+export async function parseVideoSegmentation(text: string): Promise<TrackedFrame[]> {
+  if (text.trim() === '') return [];
+  const result = await parseVideoStream(asEvents(text)).finalResult;
+  throwOnErrors(result);
+  const byFrame = new Map<number, SegmentationRecord[]>();
+  for (const record of result.records) {
+    if (record.kind === 'text') continue;
+    const frame = frameIndexOf(record) ?? 0;
+    byFrame.set(frame, [...(byFrame.get(frame) ?? []), record]);
+  }
+  return [...byFrame.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([frame, records]) => ({ frame, objects: toObjects(records) }));
+}
+
+function toObjects(records: readonly SegmentationRecord[]): SegmentedObject[] {
+  const boxes = new Map(recordsOfKind(records, 'box').map((b) => [b.objectId, b]));
+  return recordsOfKind(records, 'mask').map((record) => {
     const box = boxes.get(record.objectId);
     return {
       id: record.objectId,

@@ -8,7 +8,8 @@ import type { Logger } from 'pino';
 
 export type ResponsesContent =
   | { readonly type: 'input_text'; readonly text: string }
-  | { readonly type: 'input_image'; readonly image_url: string };
+  | { readonly type: 'input_image'; readonly image_url: string }
+  | { readonly type: 'input_video'; readonly file_id: string };
 
 export interface ResponsesMessage {
   readonly type: 'message';
@@ -162,12 +163,20 @@ export class MetaClient {
    * Creates a response. Requests are never stored by the API (`store: false`):
    * inspection photos can show people and vehicles.
    */
-  async createResponse(request: ResponsesRequest): Promise<ResponsesResponse> {
+  async createResponse(
+    request: ResponsesRequest,
+    options: { readonly timeoutMs?: number } = {},
+  ): Promise<ResponsesResponse> {
     const started = performance.now();
-    const body = (await this.#post(request.model, '/responses', () => ({
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...request, store: false }),
-    }))) as ResponsesResponse;
+    const body = (await this.#post(
+      request.model,
+      '/responses',
+      () => ({
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...request, store: false }),
+      }),
+      options.timeoutMs,
+    )) as ResponsesResponse;
     const ms = Math.round(performance.now() - started);
     this.#options.logger.info(
       { model: request.model, responseId: body.id, status: body.status, ms, usage: body.usage },
@@ -214,6 +223,23 @@ export class MetaClient {
     }))) as { data: { b64_json?: string }[] };
   }
 
+  /** Uploads a file (e.g. a video for SAM 3.1) and returns its ID for `file_id` inputs. */
+  async uploadFile(data: Uint8Array, filename: string, mimeType: string): Promise<string> {
+    const body = (await this.#post(
+      'files',
+      '/files',
+      () => {
+        const form = new FormData();
+        form.set('purpose', 'user_data');
+        form.set('file', new Blob([data as Uint8Array<ArrayBuffer>], { type: mimeType }), filename);
+        return { body: form };
+      },
+      Math.max(this.#options.timeoutMs, 300_000),
+    )) as { id?: string };
+    if (!body.id) throw new MetaApiError('The Files API returned no file ID', { retryable: false });
+    return body.id;
+  }
+
   /** Transcribes a WAV file (mono PCM16, 16 or 24 kHz) with Muse Voice Transcribe. */
   async transcribe(
     audio: Uint8Array,
@@ -244,12 +270,13 @@ export class MetaClient {
     model: string,
     path: string,
     build: () => { headers?: Record<string, string>; body: NonNullable<RequestInit['body']> },
+    timeoutMs = this.#options.timeoutMs,
   ): Promise<unknown> {
     const maxRetries = this.#options.maxRetries ?? 2;
     const backoff = this.#options.backoffMs ?? defaultBackoff;
     for (let attempt = 0; ; attempt++) {
       try {
-        return await this.#send(path, build());
+        return await this.#send(path, build(), timeoutMs);
       } catch (error) {
         if (!(error instanceof MetaApiError) || !error.retryable || attempt >= maxRetries) {
           throw error;
@@ -267,6 +294,7 @@ export class MetaClient {
   async #send(
     path: string,
     { headers, body }: { headers?: Record<string, string>; body: NonNullable<RequestInit['body']> },
+    timeoutMs: number,
   ): Promise<unknown> {
     let response: Response;
     try {
@@ -278,7 +306,7 @@ export class MetaClient {
           ...headers,
         },
         body,
-        signal: AbortSignal.timeout(this.#options.timeoutMs),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (cause) {
       throw new MetaApiError(`Meta Model API request failed: ${(cause as Error).message}`, {

@@ -23,6 +23,7 @@ import type { ClaimService } from '../services/claims.ts';
 import type { HandoverService } from '../services/handovers.ts';
 import type { IdentifyService } from '../services/identify.ts';
 import type { SpeechService } from '../services/speech.ts';
+import type { VideoService } from '../services/video.ts';
 import { installAccessControl } from './access.ts';
 
 export interface AppDeps {
@@ -30,6 +31,7 @@ export interface AppDeps {
   readonly handovers: HandoverService;
   readonly speech: SpeechService;
   readonly claims: ClaimService;
+  readonly video: VideoService;
   readonly media: MediaStore;
   readonly logger: Logger;
   /** The built web app, served with a single-page-app fallback. */
@@ -40,6 +42,7 @@ export interface AppDeps {
 
 /** Phones produce 3–12 MB photos; leave room for multipart overhead. */
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 300 * 1024 * 1024;
 
 export function createApp(deps: AppDeps): Hono {
   const app = new Hono();
@@ -110,7 +113,7 @@ export function createApp(deps: AppDeps): Hono {
 
 function api(deps: AppDeps): Hono {
   const api = new Hono();
-  const { identify, handovers, speech, claims } = deps;
+  const { identify, handovers, speech, claims, video } = deps;
   const uploadLimit = bodyLimit({
     maxSize: MAX_UPLOAD_BYTES,
     onError: () => {
@@ -119,6 +122,25 @@ function api(deps: AppDeps): Hono {
   });
 
   api.get('/health', (c) => c.json({ status: 'ok' }));
+
+  // Walk-around clips from a phone: up to a few minutes of 1080p.
+  const videoLimit = bodyLimit({
+    maxSize: MAX_VIDEO_BYTES,
+    onError: () => {
+      throw new HTTPException(413, { message: 'The video is too large' });
+    },
+  });
+
+  api.post('/videos/track', videoLimit, async (c) => {
+    const form = await c.req.parseBody().catch(() => {
+      throw new ValidationError('Expected multipart/form-data');
+    });
+    const file = form.video;
+    if (!(file instanceof File) || file.size === 0) {
+      throw new ValidationError('Attach the clip as the "video" field');
+    }
+    return c.json(await video.track(new Uint8Array(await file.arrayBuffer())));
+  });
 
   api.post('/identify', uploadLimit, async (c) => {
     const { image } = await readUpload(c);

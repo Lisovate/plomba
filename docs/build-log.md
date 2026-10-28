@@ -87,3 +87,10 @@ A dated record of what was built and when. The newest entry is at the bottom.
 - measure identification, damage proposals and privacy blurring on those photos;
 - try Muse Glimmer on a Mac through Ollama as the vision model, and measure it with the eval script;
 - deploy a demo instance behind HTTPS with an access code.
+
+**Evening (day 2):** a desktop simulation of the walk-around, since live AR on a phone needs a trusted HTTPS address.
+- **AR on recorded video with SAM 3.1 video tracking.**
+  - A clip is uploaded through the Files API and SAM 3.1 tracks the container through every frame in one request: 450 frames in 26 s.
+  - The browser plays it with the container's CEDEX sections and the previous handover's damage drawn on it, frame by frame, following SAM's stable object ID.
+  - Tracking results are cached by the clip's hash; clips aren't stored.
+- **Test footage:** "StraddleCarrierLiftsContainerFromDoubleStackTrain" by 4300streetcar, Wikimedia Commons, CC BY 4.0 (2021). Converted to 30 s of 15 fps MP4 for testing; not stored in the repository. Openly licensed walk-around inspection footage hardly exists, so the next clips will be the author's own.

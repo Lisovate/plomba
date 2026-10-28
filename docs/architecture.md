@@ -97,6 +97,10 @@ A container moves between cities, so Plomba stores every mark in the container's
 - **A mark is a rectangle in metres on a face**, drawn by the checker on the photo and mapped through the inverse homography.
 - **The next handover draws the same marks on its own photos.** Any photo of that face, from any phone, gets them through its own homography. These are the dashed "ghosts" the checker confirms as still there, changed or repaired.
 - **Why not live AR:** Safari on iPhone has no WebXR, so world-tracked AR isn't available to a web app on iPhone. Overlays on photos work the same on iPhone and Android.
+  - **AR on recorded video:** a walk-around clip (MP4/MOV from a phone or glasses) is uploaded through the Files API, and SAM 3.1 tracks the container through every frame in one request.
+    - The app follows the most prominent container by its stable object ID, and plays the clip with the CEDEX sections and the damage drawn on the face frame by frame (`requestVideoFrameCallback`).
+    - Results are cached by the clip's SHA-256, and the clip itself isn't stored.
+    - The desktop simulation (`/simulate`) uses this path.
   - **Live ghosts:** when the checker opens the camera on a face with previous marks, the app sends a 768 px frame about every 1.5 s to `POST /api/handovers/:id/frames`. SAM 3.1 finds the face there, the frame is not stored, and the marks are drawn over the live preview. Between registrations the overlay doesn't track movement; ARKit-style tracking would need a native app.
   - A native ARKit app remains an option if live tracking turns out to matter.
 
