@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/dev-dist
+**/coverage
+**/data
+.git
+.github
+.env
+.env.*
+!.env.example
+*.key
+*-key.txt
+*.pem
+HANDOVER.md

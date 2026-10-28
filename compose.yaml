@@ -1,0 +1,31 @@
+# Self-hosting Plomba on one machine:
+#
+#   META_API_KEY_PATH=/path/to/meta.key docker compose up -d
+#
+# The key is passed as a Docker secret (a file mounted at /run/secrets), never
+# as an environment variable or an image layer. Phones only allow the camera
+# over HTTPS, so put a TLS-terminating reverse proxy in front: see
+# docs/self-hosting.md.
+
+services:
+  plomba:
+    build: .
+    image: plomba:latest
+    ports:
+      - "${PLOMBA_PORT:-8080}:8080"
+    environment:
+      META_API_KEY_FILE: /run/secrets/meta_api_key
+      # META_API_BASE_URL: https://api.meta.ai/v1
+      # LOG_LEVEL: info
+    secrets:
+      - meta_api_key
+    volumes:
+      - plomba-data:/data
+    restart: unless-stopped
+
+secrets:
+  meta_api_key:
+    file: ${META_API_KEY_PATH:?Set META_API_KEY_PATH to the file that holds the Meta Model API key}
+
+volumes:
+  plomba-data:
