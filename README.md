@@ -45,12 +45,14 @@ It's open source (Apache-2.0) and built to be self-hosted: a terminal, depot or 
 
 **2026-10-28: Day 2.** Working end to end against the Meta Model API:
 
-- reading the container number with Muse Spark, checked by the ISO 6346 check digit, with look-alike repair;
-- photographing each face, with corners found by SAM 3.1 and faces and number plates blurred;
-- damage marks stored in metres on the container and coded to CEDEX locations;
-- the previous handover's marks drawn on the new photos, to be confirmed;
-- sealing each handover into a hash-chained history;
-- the installable web app in English and Polish, and a Docker image for self-hosting.
+- **Identify:** Muse Spark reads the doors, and only a read that passes the ISO 6346 check digit is accepted. Look-alike repairs are suggestions the checker taps; on 96 real crops, 62% were verified with no input and none of the verified reads was wrong ([evaluation](docs/evaluation.md)).
+- **Locate:** each face is photographed and registered from SAM 3.1's outline of the container. Damage marks are stored in metres on the container and coded to CEDEX locations, and the CEDEX sections photographed are tracked.
+- **Last handover:** the previous handover's marks are drawn on new photos and over the live camera, and confirmed as still there, changed or repaired.
+- **New damage:** Muse Spark finds and codes it, and SAM 3.1 outlines it; the checker confirms each proposal. Notes can be dictated in Polish or English (Muse Voice Transcribe).
+- **Close:** the handover is sealed into a hash-chained history, with an EIR to print or save as PDF, an EDIFACT CODECO message, and a claim drafted by a Muse Spark agent whose evidence is checked against the sealed records.
+- **Privacy:** faces and number plates are blurred before photos are stored.
+- **Self-hosting:** an installable web app in English and Polish, one Docker image, an optional access code, and a path for running the vision model on Muse Glimmer on your own hardware (built and tested against Meta's API; not yet run on Glimmer itself).
+- **Tests:** 123 unit and integration tests and a browser end-to-end test, run in CI.
 
 Progress is recorded day by day in [docs/build-log.md](docs/build-log.md).
 

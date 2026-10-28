@@ -50,12 +50,6 @@ A dated record of what was built and when. The newest entry is at the bottom.
   - Muse Spark (reasoning `low`) took 6–12 s per call; reasoning was 85–97% of the output tokens.
   - SAM 3.1 took about 2 s per image.
 
-**Next:**
-- damage proposals from SAM 3.1, ranked and coded by Muse Spark;
-- EIR report and EDIFACT CODECO message;
-- coverage per CEDEX section;
-- test on a real phone over HTTPS.
-
 **Later on day 2:**
 - **Damage proposals.** SAM 3.1 finds nothing for `dent`, `damage`, `crushed metal` or `torn metal`, even on a crushed container; `hole` finds bolt holes. So Muse Spark finds and codes the damage, and SAM 3.1 outlines each finding from a box prompt.
   - On a crushed 20 ft side, the result was `RXXX BT PAA` (Spark 98%, SAM 88%), in 6.7 s.
@@ -86,3 +80,10 @@ A dated record of what was built and when. The newest entry is at the bottom.
 - **Privacy prompts measured** on five openly licensed truck photos: every readable plate found; `face` found 6 of 7 faces, `human face` 5.
 - **Rail and road transport.** A handover records whether the container came by truck (registration) or rail wagon. Wagon numbers are checked with the UIC check digit as they're typed (e.g. `21 81 2471 217-3`). The CODECO message carries the leg as TDT (rail 2, road 3).
 - **The app explains identification and errors in Polish or English**, with Muse Spark's own note shown separately.
+
+**Next (day 3):**
+- test on a real iPhone and Android phone over HTTPS: camera, installing to the home screen, dictation;
+- photograph real containers (own footage, outside restricted port areas), head-on per face;
+- measure identification, damage proposals and privacy blurring on those photos;
+- try Muse Glimmer on a Mac through Ollama as the vision model, and measure it with the eval script;
+- deploy a demo instance behind HTTPS with an access code.
