@@ -147,6 +147,15 @@ A dated record of what was built and when. The newest entry is at the bottom.
   - **Left and right are decided in code.** Muse Spark says what each end of a side shows (doors, the front, or nothing telling), and code applies the convention. A side with no frame showing the doors is flagged for the checker to confirm.
   - On three clips with hand-checked sides, three runs each: 8 of 9 right, 6 of them honestly flagged as guesses. A prompt cue about trailer axles and landing legs made it worse (6 of 9) and was dropped.
 
+- **Walk-around evaluation on 68 labelled clips** (cut from public videos, local only): walk-arounds, corner views, door ends, trucks and rail, POV and dash-cam, night, rain, snow, 20/40/45 ft, reefer, tank and flat-rack. Of 39 faces chosen as photos, 29 matched the labels (74%) and 3 swapped left and right; 34 expected faces weren't chosen. Container numbers read from the clips: 9 right, 0 wrong ([evaluation.md](evaluation.md)).
+- **Integrations** ([integrations.md](integrations.md)): what a claims desk, a rail operator's system, a trucking dispatch or a lessor's fleet system needs.
+  - Signed webhooks for `handover.started` and `handover.sealed` (HMAC-SHA256 with a timestamp, retried at 1 s, 10 s and 60 s). The sealed event carries the marks and, for each damage, the last handover that photographed the spot clean.
+  - API tokens for other systems, one per system, compared in constant time.
+  - A fleet list by owner code (`GET /api/containers?owner=PLBU`).
+  - OpenAPI 3.1 generated from the same zod schemas the server validates with, at `GET /api/openapi.json`.
+- **The app redesigned as a product:** a design system (tokens, buttons, pills, entity rows, a timeline, a stepper), a header with navigation and a bottom tab bar with the inspect button, a dashboard with the day's numbers, and a fleet screen. The walk-around screen shows its steps while SAM 3.1 and Muse Spark work, and every action has an icon.
+- **Live demo at https://app.plomba.lisovate.com**, with a certificate from Let's Encrypt.
+
 **Findings:**
 - **Naming faces from a walk-around** (test clips used locally only, not stored or published):
   - On a drone clip of a 20 ft container, Muse Spark named the long side (95%) and called every corner-on frame "no single face".
