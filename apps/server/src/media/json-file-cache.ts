@@ -1,6 +1,7 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ResultCache } from '../ports.ts';
+import { writeFileAtomic } from './atomic-write.ts';
 
 const KEY = /^[0-9a-f]{64}$/;
 
@@ -25,8 +26,6 @@ export class JsonFileCache<T> implements ResultCache<T> {
   async put(key: string, value: T): Promise<void> {
     if (!KEY.test(key)) throw new RangeError('Cache keys are SHA-256 hex digests');
     await mkdir(this.#root, { recursive: true });
-    const path = join(this.#root, `${key}.json`);
-    await writeFile(`${path}.${process.pid}.tmp`, JSON.stringify(value));
-    await rename(`${path}.${process.pid}.tmp`, path);
+    await writeFileAtomic(join(this.#root, `${key}.json`), JSON.stringify(value));
   }
 }

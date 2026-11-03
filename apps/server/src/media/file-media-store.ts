@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { MediaStore, StoredMedia } from '../ports.ts';
+import { writeFileAtomic } from './atomic-write.ts';
 
 const SHA256 = /^[0-9a-f]{64}$/;
 
@@ -21,10 +22,7 @@ export class FileMediaStore implements MediaStore {
     const sha256 = createHash('sha256').update(data).digest('hex');
     const path = this.#path(sha256);
     await mkdir(dirname(path), { recursive: true });
-    // Write to a temporary name and rename, so a crash never leaves a partial file under the final name.
-    const temporary = `${path}.${process.pid}.tmp`;
-    await writeFile(temporary, data);
-    await rename(temporary, path);
+    await writeFileAtomic(path, data);
     return { sha256, size: data.byteLength };
   }
 
