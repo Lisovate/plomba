@@ -4,24 +4,28 @@
  * container's hash chain.
  */
 
-import type {
-  Container,
-  ContainerHistory,
-  CreateMark,
-  Handover,
-  HandoverDetail,
-  HandoverSummary,
-  Mark,
-  Photo,
-  RegisterContainer,
-  StartHandover,
-  UpdateMark,
+import {
+  type Container,
+  type ContainerHistory,
+  type CreateMark,
+  FaceRectSchema,
+  FaceSchema,
+  type Handover,
+  type HandoverDetail,
+  type HandoverSummary,
+  type Mark,
+  MarkStatusSchema,
+  type Photo,
+  type RegisterContainer,
+  type StartHandover,
+  type UpdateMark,
 } from '@plomba/contracts';
 import {
   buildCodeco,
   chainHash,
   clampToFace,
   DEFAULT_DIMENSIONS,
+  damageHistory,
   FACES,
   type Face,
   type FaceCoverage,
@@ -35,6 +39,7 @@ import {
   rectOverlap,
   verifyChain,
 } from '@plomba/core';
+import { z } from 'zod';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
 import { blurRegions, normaliseImage } from '../media/images.ts';
 import type {
@@ -51,6 +56,24 @@ import type {
 } from '../ports.ts';
 import { findingsToDrafts } from './damage.ts';
 import { detectFaceCorners, findPrivacyRegions } from './vision.ts';
+
+/** The parts of a sealed record (versions 1 and 2) that the damage history reads. */
+const SealedRecordSchema = z.object({
+  /** Version 2: CEDEX cells with no photo, by face. */
+  notInspected: z.partialRecord(FaceSchema, z.array(z.string())).optional(),
+  handover: z.object({ id: z.string() }),
+  marks: z.array(
+    z.object({
+      id: z.string(),
+      face: FaceSchema,
+      rect: FaceRectSchema,
+      locationCode: z.string(),
+      damageCode: z.string().nullable(),
+      status: MarkStatusSchema,
+      previousMarkId: z.string().nullable(),
+    }),
+  ),
+});
 
 export interface HandoverServiceDeps {
   readonly containers: ContainerRepository;
@@ -127,6 +150,10 @@ export class HandoverService {
         content: JSON.parse(link.record) as unknown,
       })),
     );
+    // Only sealed records count as evidence, and only while the chain holds.
+    const sealed = verification.ok
+      ? links.map((link) => SealedRecordSchema.parse(JSON.parse(link.record)))
+      : [];
     return {
       container,
       handovers: this.#d.handovers.listForContainer(container.number),
@@ -135,6 +162,14 @@ export class HandoverService {
         length: links.length,
         brokenAt: verification.ok ? null : verification.index,
       },
+      damage: damageHistory(
+        sealed.map((record) => ({
+          id: record.handover.id,
+          marks: record.marks,
+          ...(record.notInspected ? { notInspected: record.notInspected } : {}),
+        })),
+        container.dimensions,
+      ),
     };
   }
 

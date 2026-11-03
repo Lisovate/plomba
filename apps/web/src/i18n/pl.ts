@@ -202,6 +202,17 @@ export const pl: Messages = {
   'start.wagonExpected': 'Cyfra kontrolna powinna być {digit}',
   'handover.road': 'Ciężarówka {vehicle}',
   'handover.rail': 'Wagon {vehicle}',
+  'passport.title': 'Paszport uszkodzeń',
+  'passport.intro':
+    'Wszystkie uszkodzenia zapisane na tym kontenerze, wyłącznie z zaplombowanych przekazań. Kolor oznacza przekazanie, w którym zapisano je po raz pierwszy.',
+  'passport.mapLabel': 'Mapa ścian kontenera z zapisanymi uszkodzeniami',
+  'passport.handover': '#{n} {direction} · {place} · {date}',
+  'passport.none': 'Żadne zaplombowane przekazanie nie zapisało uszkodzeń.',
+  'passport.firstRecorded': 'Zapisane po raz pierwszy: {handover}',
+  'passport.lastClear': 'Nie było go przy: {handover}.',
+  'passport.between': 'Powstało między tymi dwoma przekazaniami.',
+  'passport.alreadyThere': 'Było już przy pierwszym zaplombowanym przekazaniu.',
+  'passport.notInspected': 'Miejsce bez zdjęcia przy: {handovers}',
   'walk.title': 'Nagranie obchodu',
   'walk.intro':
     'Nagraj jeden powolny obchód kontenera telefonem lub okularami Meta AI. SAM 3.1 śledzi kontener w każdej klatce, Plomba wybiera klatki, na których jedna ściana jest widoczna w całości i na wprost, a Muse Spark nazywa każdą ścianę i odczytuje drzwi. Ty zatwierdzasz, a klatki stają się zdjęciami tego przekazania. Samo nagranie nie jest zapisywane.',

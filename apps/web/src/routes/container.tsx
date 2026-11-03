@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { api, queryKeys } from '../api/client.ts';
+import { ContainerPassport } from '../components/container-passport.tsx';
 import { Card, ContainerNumberText, ErrorNotice, Spinner } from '../components/ui.tsx';
 import { useI18n } from '../i18n/index.tsx';
 import { useProfile } from '../lib/profile.ts';
@@ -21,7 +22,7 @@ export function ContainerScreen() {
   if (history.isError)
     return <ErrorNotice error={history.error} onRetry={() => history.refetch()} />;
 
-  const { container, handovers, chain } = history.data;
+  const { container, handovers, chain, damage } = history.data;
   const open = handovers.find((h) => h.status === 'open');
   const { length, width, height } = container.dimensions;
 
@@ -49,6 +50,8 @@ export function ContainerScreen() {
       ) : (
         <StartHandoverForm containerNumber={container.number} />
       )}
+
+      <ContainerPassport container={container} handovers={handovers} damage={damage} />
 
       {handovers.length > 0 && (
         <section>

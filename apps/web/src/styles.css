@@ -889,3 +889,71 @@ legend {
   padding: 0;
   accent-color: var(--navy);
 }
+
+/* Damage passport --------------------------------------------------------- */
+
+.passport-map {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: 0.5rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.passport-face {
+  fill: #f4f6f9;
+  stroke: var(--navy);
+  stroke-width: 0.04;
+}
+
+.passport-cell {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 0.02;
+}
+
+.passport-title {
+  font-size: 0.45px;
+  font-weight: 600;
+  fill: var(--navy);
+}
+
+.passport-mark rect {
+  fill-opacity: 0.35;
+  stroke-width: 0.06;
+}
+
+.passport-mark text {
+  font-size: 0.36px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 0.08px;
+}
+
+.passport-mark.repaired rect {
+  fill-opacity: 0;
+  stroke-dasharray: 0.12 0.08;
+}
+
+.passport-legend {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0.75rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-right: 0.4rem;
+  border-radius: 3px;
+  vertical-align: -0.1rem;
+}
+
+.passport-item {
+  align-items: flex-start;
+}

@@ -200,6 +200,17 @@ export const en = {
   'start.wagonExpected': 'The check digit should be {digit}',
   'handover.road': 'Truck {vehicle}',
   'handover.rail': 'Wagon {vehicle}',
+  'passport.title': 'Damage passport',
+  'passport.intro':
+    'Every damage recorded on this container, from the sealed handovers only. Colour shows the handover that first recorded it.',
+  'passport.mapLabel': "Map of the container's faces with the recorded damage",
+  'passport.handover': '#{n} {direction} · {place} · {date}',
+  'passport.none': 'No damage recorded at any sealed handover.',
+  'passport.firstRecorded': 'First recorded: {handover}',
+  'passport.lastClear': 'Not there at: {handover}.',
+  'passport.between': 'It happened between these two handovers.',
+  'passport.alreadyThere': 'Already there at the first sealed handover.',
+  'passport.notInspected': 'Spot not photographed at: {handovers}',
   'walk.title': 'Walk-around video',
   'walk.intro':
     "Record one slow walk around the container on a phone or Meta AI glasses. SAM 3.1 tracks the container through every frame, Plomba picks the frames where one face is whole and square-on, and Muse Spark names each face and reads the doors. You confirm, and the frames become this handover's photos. The clip itself is not stored.",

@@ -248,10 +248,33 @@ export const ChainStatusSchema = z.object({
   brokenAt: z.number().int().nullable(),
 });
 
+/**
+ * One damage followed through the sealed handovers: first recorded at one,
+ * not there at the latest earlier one that inspected the spot. It happened
+ * in between.
+ */
+export const DamageHistorySchema = z.object({
+  /** The id of the mark that first recorded it. */
+  id: z.string(),
+  face: FaceSchema,
+  rect: FaceRectSchema,
+  locationCode: z.string(),
+  damageCode: z.string().nullable(),
+  status: MarkStatusSchema,
+  firstRecorded: z.string(),
+  /** The latest earlier handover that photographed the spot and recorded nothing; null if none did. */
+  lastClear: z.string().nullable(),
+  /** Handovers after `lastClear` that didn't photograph the spot. */
+  notInspectedAt: z.array(z.string()),
+  trail: z.array(z.object({ handoverId: z.string(), status: MarkStatusSchema })),
+});
+
 export const ContainerHistorySchema = z.object({
   container: ContainerSchema,
   handovers: z.array(HandoverSchema),
   chain: ChainStatusSchema,
+  /** The container's damage across handovers, from the sealed records only. */
+  damage: z.array(DamageHistorySchema),
 });
 
 // Claims -------------------------------------------------------------------
@@ -346,6 +369,7 @@ export type HandoverDetail = z.infer<typeof HandoverDetailSchema>;
 export type HandoverSummary = z.infer<typeof HandoverSummarySchema>;
 export type ChainStatus = z.infer<typeof ChainStatusSchema>;
 export type ContainerHistory = z.infer<typeof ContainerHistorySchema>;
+export type DamageHistory = z.infer<typeof DamageHistorySchema>;
 export type Problem = z.infer<typeof ProblemSchema>;
 export type Transcription = z.infer<typeof TranscriptionSchema>;
 export type Claim = z.infer<typeof ClaimSchema>;

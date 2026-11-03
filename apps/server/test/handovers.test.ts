@@ -125,17 +125,34 @@ describe('a handover', () => {
         previousMarkId: dent.id,
       }),
     );
+    const hole = service.addMark(
+      second.id,
+      markInput({ face: 'R', rect: { u0: 3, v0: 0.5, u1: 3.2, v1: 0.7 }, damageCode: 'HO' }),
+    );
     const sealed = await service.close(second.id, { acceptGaps: true });
     expect(sealed.seal?.previousHash).toBe(first.seal?.hash);
 
     const history = await service.history(NUMBER);
     expect(history.chain).toEqual({ ok: true, length: 2, brokenAt: null });
+    // The dent was there at gate-in; the hole is new, but gate-in had no photo of that spot.
+    expect(history.damage).toEqual([
+      expect.objectContaining({ id: dent.id, firstRecorded: handover.id, status: 'still-there' }),
+      expect.objectContaining({
+        id: hole.id,
+        firstRecorded: second.id,
+        lastClear: null,
+        notInspectedAt: [handover.id],
+      }),
+    ]);
 
     // Quietly editing a sealed record breaks the chain at that record.
     db.prepare(`UPDATE handovers SET record = replace(record, '"DT"', '"CO"') WHERE id = ?`).run(
       handover.id,
     );
-    expect((await service.history(NUMBER)).chain).toEqual({ ok: false, length: 2, brokenAt: 0 });
+    const broken = await service.history(NUMBER);
+    expect(broken.chain).toEqual({ ok: false, length: 2, brokenAt: 0 });
+    // A tampered chain is no evidence of anything.
+    expect(broken.damage).toEqual([]);
   });
 
   it('rejects marks that point at the wrong previous handover', async () => {
