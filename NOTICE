@@ -5,3 +5,8 @@ This product is licensed under the Apache License, Version 2.0 (see LICENSE).
 
 Third-party components used at run time keep their own licences:
 - @meta-sam/parser: SAM License (https://github.com/meta-models/meta-sam)
+
+Third-party content in this repository:
+- docs/images/screens.jpg shows frames of "How to buy a shipping container in
+  10 minutes" by Cowboy Steve Builds (https://www.youtube.com/watch?v=WFknzOt_8UA),
+  licensed CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/).

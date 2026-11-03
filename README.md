@@ -2,67 +2,80 @@
 
 **A digital seal on a shipping container's condition at every handover.**
 
+![Plomba on a phone: a walk-around video with the container's CEDEX sections tracked by SAM 3.1; the damage recorded at the last handover drawn on the same spot of a new photo; the container's damage passport](docs/images/screens.jpg)
+
 *Plomba* is Polish for the seal on a container's doors, the tag that proves the box wasn't opened. Plomba does the same for the container's condition.
 
 On its way from a seaport to the customer, a container changes hands several times: ship, port terminal, train, inland terminal, truck, depot. Each handover moves liability for damage. Yet at most inland and rail terminals, the container's condition is still recorded on paper or in loose phone photos. When a dent turns up later, nobody can prove where it happened.
 
-Plomba is an app for the checker doing the walk-around at a handover. It installs from the browser onto an iPhone or an Android phone. It uses Meta's models to see, read, listen and reason, and draws what the previous handover recorded onto photos of the same container.
+Plomba is an app for the checker doing the walk-around at a handover. It installs from the browser onto an iPhone or an Android phone. It uses Meta's models to see, read, listen and reason, and it keeps every mark on the container's own coordinates, so the next handover, in another city, sees the same damage on the same spot.
 
-It's open source (Apache-2.0) and built to be self-hosted: a terminal, depot or rail operator runs one container on its own machine and keeps its data. See [docs/self-hosting.md](docs/self-hosting.md).
+It's open source (Apache-2.0) and built to be self-hosted: a terminal, depot or rail operator runs one container on its own machine and keeps its data ([self-hosting](docs/self-hosting.md)).
 
-## What it will do
+**Try it:** a demo installation runs at https://plomba.lisovate.com (the access code is in the hackathon submission). Its handovers and places are simulated, and its photos are openly licensed (see [Credits](#credits)).
 
-1. **Identify:** point the phone at the doors. The app reads the container number (validated with the ISO 6346 check digit), the seal number and any hazard placards, and loads the container's handover history.
-2. **Locate:** the checker photographs each face. The app finds the face's corners and maps the photo onto the container's own coordinates, in metres on each face, not in the room or the photo.
-3. **Show the last handover:** damage recorded at the previous handover, even in another city, is drawn on the same spot of the same container in the new photos. The checker only confirms what's new.
-4. **Record:**
-   - The app proposes outlines of possible damage; the checker confirms by tap or by voice, in Polish or English.
-   - Where each mark sits on the container becomes the standard ISO 9897 (CEDEX) location code, with damage and component codes suggested.
-   - Faces and number plates are blurred.
-5. **Close:**
-   - an equipment interchange receipt (EIR) with annotated photos;
-   - a comparison with the previous handover;
+## How a handover works
+
+1. **Identify.** Point the phone at the doors. Muse Spark reads the container number, and the ISO 6346 check digit verifies it. Only a read that passes is accepted; anything else is a suggestion the checker taps. The container's history loads.
+2. **Photograph, or record one walk-around.**
+   - Each face photo is registered from SAM 3.1's outline of the container: four corners, a homography, and the photo is mapped onto the face in metres.
+   - Or the checker records one walk around the container, on a phone or Meta AI glasses. SAM 3.1 tracks the container through every frame, Plomba picks the frames where one face is whole and square-on, and Muse Spark names each face. The checker confirms, and the frames become the photos.
+3. **See the last handover.** Damage recorded at the previous handover is drawn on the same spot of the new photos, and over the live camera. The checker marks each item still there, changed or repaired.
+4. **Record new damage.** Muse Spark finds and codes it (CEDEX damage and component codes), and SAM 3.1 outlines it. The checker confirms each proposal, and the location code comes from where the mark sits on the container. Notes can be dictated in Polish or English (Muse Voice Transcribe). Faces and number plates are blurred before anything is stored.
+5. **Seal.** The handover is hash-chained into the container's history. Out come:
+   - an equipment interchange receipt (EIR) to print or save as PDF;
    - an EDIFACT CODECO gate message;
-   - a draft claim when new damage is found;
-   - a tamper-evident entry in the container's history.
+   - for new damage, a claim drafted by a Muse Spark agent, whose every cited item and hash is checked against the sealed records.
+6. **Know where it happened.** The container's damage passport shows every damage coloured by the handover that first recorded it, between the last handover that photographed that spot clean and the first that didn't.
 
-## Devices
-
-- **Phone (iPhone or Android):** the main device, through the installable web app. Camera, overlays, review and confirmation.
-- **Meta AI glasses:** hands-free capture. A walk-around recorded on the glasses (or a phone) is uploaded, and Plomba turns it into the handover's face photos. The glasses toolkit is a native SDK, so live streaming would need a native app.
+```mermaid
+flowchart LR
+  doors[Doors photo] -->|Muse Spark reads| check{ISO 6346<br/>check digit}
+  check -->|verified| history[Container history]
+  walk[Walk-around video<br/>phone or Meta glasses] -->|SAM 3.1 tracks,<br/>Muse Spark names faces| photos[Face photos]
+  photos -->|SAM 3.1 outline,<br/>homography| marks[Marks in metres<br/>on the container]
+  history --> ghosts[Last handover's damage<br/>on the same spot]
+  marks --> ghosts
+  photos -->|Muse Spark finds,<br/>SAM 3.1 outlines| damage[New damage,<br/>CEDEX-coded]
+  ghosts --> seal[Seal: SHA-256 chain]
+  damage --> seal
+  seal --> out[EIR · CODECO ·<br/>verified claim · passport]
+```
 
 ## Meta models
 
 | Model | Job in Plomba |
 |---|---|
-| **SAM 3.1** | Outline the container to register each photo to its face; track it through walk-around videos; find faces and number plates to blur; outline damage |
-| **Muse Spark** | Read the container number, seal and placards (checked by the ISO 6346 check digit); name the face in each walk-around frame; find and code damage; run the agent that drafts the claim, verified against the sealed records |
-| **Muse Voice Transcribe** | Spoken notes and commands in Polish and English; statements labelled by speaker when a handover is disputed |
-| **Muse Spark Open, Muse Glimmer** (open weights) | The same vision jobs on open weights a company can host itself. Muse Spark Open is measured: no wrong number accepted ([evaluation](docs/evaluation.md)) |
-| **Muse Image** | Synthetic test cases of rare damage, labelled as synthetic and never counted in reported accuracy |
+| **SAM 3.1** | Outline the container to register each photo to its face; track it through walk-around videos (the AR anchor); find faces and number plates to blur; outline damage from Muse Spark's boxes |
+| **Muse Spark** | Read the number, seals and placards; name the face in each walk-around frame; find and code damage; run the claim agent with tools, verified against the sealed records |
+| **Muse Voice Transcribe** | Spoken notes in Polish or English, biased to container vocabulary |
+| **Muse Spark Open** (open weights) | The same vision jobs on open weights a company can host itself, through any OpenAI-compatible endpoint (measured, see below). Muse Glimmer can serve the same path |
+| **Muse Image** | Synthetic damage for robustness tests, labelled as synthetic and never counted in reported accuracy |
 
-## Status
+## What we found about the models
 
-**2026-11-03.** Working end to end against the Meta Model API:
+Measured on openly licensed data, details in [docs/evaluation.md](docs/evaluation.md):
 
-- **Identify:** Muse Spark reads the doors, and only a read that passes the ISO 6346 check digit is accepted. Look-alike repairs are suggestions the checker taps; on 96 real crops, 62% were verified with no input and none of the verified reads was wrong ([evaluation](docs/evaluation.md)).
-- **Walk-around video:** one clip from a phone or Meta AI glasses becomes the handover's face photos.
-  - SAM 3.1 tracks the container through every frame, and Plomba picks the frames where one face is whole and square-on.
-  - Muse Spark names each face (left or right, from the walk and the loading direction) and reads the doors. The checker confirms.
-  - The clip plays back with the container's CEDEX sections and the last handover's damage drawn on it, frame by frame.
-- **Locate:** each face photo is registered from SAM 3.1's outline of the container. Damage marks are stored in metres on the container and coded to CEDEX locations, and the CEDEX sections photographed are tracked.
-- **Last handover:** the previous handover's marks are drawn on new photos and over the live camera, and confirmed as still there, changed or repaired.
-- **New damage:** Muse Spark finds and codes it, and SAM 3.1 outlines it; the checker confirms each proposal. Notes can be dictated in Polish or English (Muse Voice Transcribe).
-- **Close:** the handover is sealed into a hash-chained history, with an EIR to print or save as PDF, an EDIFACT CODECO message, and a claim drafted by a Muse Spark agent whose evidence is checked against the sealed records.
-- **Damage passport:** every damage on a map of the container, coloured by the handover that first recorded it, with the last earlier handover that photographed the spot and didn't record it. The damage happened between the two. Built only from the sealed, hash-verified records.
-- **Privacy:** faces and number plates are blurred before photos are stored.
-- **Open weights:** the vision jobs run on any OpenAI-compatible endpoint. On Muse Spark Open, identification verified 54% of the crops with no wrong number accepted.
-- **Self-hosting:** an installable web app in English and Polish, one Docker image, and an optional access code.
-- **Tests:** 146 unit and integration tests and a browser end-to-end test, run in CI.
+- **Muse Spark misreads worn numbers confidently.** The check digit catches it, but "repairing" a misread until the check digit passes was wrong 12 times out of 15. So only reads that pass as read are accepted. On 96 real crops: 61.5% verified with no input, and **0 wrong numbers accepted**.
+- **Enlarging small photos doubled accuracy** (32% → 62% verified and right), at the same cost.
+- **Open weights are as safe, just less convenient.** Muse Spark Open verified 54% of the same crops, again with 0 wrong numbers accepted.
+- **SAM 3.1 can't find damage by name** (`dent`, `damage` return nothing; `hole` finds bolt holes), **but it outlines damage precisely from a box.** So Muse Spark finds and codes, and SAM 3.1 outlines.
+- **SAM 3.1 video tracking works as an AR anchor without AR hardware:** 450 frames in 26 s, with object IDs stable enough to keep the container's coordinates on it through a walk.
+- **Muse Spark can tell left from right on a container** when it sees the walk-around frames in order, and it's helped by domain clues: containers ride doors to the rear.
+- **For privacy, the prompt `face` beats `human face`** (6 of 7 faces, against 5), and every readable number plate was found.
 
-Progress is recorded day by day in [docs/build-log.md](docs/build-log.md).
+## Status and limits
 
-Plomba is being built for the **Meta Global AI Developer Hackathon 2026** (Startup Track, theme "Build for Your World"). Everything in this repository is created during the hackathon, starting 2026-10-26.
+Everything above works end to end against the Meta Model API, with 147 unit and integration tests and a browser end-to-end test in CI. Progress is logged day by day in [docs/build-log.md](docs/build-log.md).
+
+**Not yet:**
+- **Live, world-tracked AR on iPhone:** Safari has no WebXR. Ghosts are drawn on photos, on recorded video and on the live camera, re-registered about every 1.5 s.
+- **Faces that never fit in one frame** (close-range video) can't be registered yet. The app asks for a recording from further back.
+- **Muse Glimmer** hasn't been run; Muse Spark Open has been, through the same path.
+- **Voice commands and dispute recordings labelled by speaker** are planned.
+- **Real-container evaluation:** the reported accuracy is on public crops; the author's own photos are next.
+
+Built for the **Meta Global AI Developer Hackathon 2026** (Startup Track, theme "Build for Your World"). Everything in this repository was created during the hackathon, starting 2026-10-26.
 
 ## Quick start
 
@@ -73,19 +86,23 @@ npm run dev:server      # API on http://localhost:8787
 npm run dev:web         # app on http://localhost:5173
 ```
 
-`npm run check` runs lint, type checks and tests. To run Plomba for real, with HTTPS and a phone, see [docs/self-hosting.md](docs/self-hosting.md).
+`npm run check` runs lint, type checks and tests. To run Plomba for real, with HTTPS and a phone, see [docs/self-hosting.md](docs/self-hosting.md): one Docker image, the key as a Docker secret, an optional access code.
 
 ## Documentation
 
 - [docs/product.md](docs/product.md): users, the handover flow, scope for the hackathon, principles
-- [docs/architecture.md](docs/architecture.md): components, how each model is used, marks in container coordinates, the hash chain, data model, standards
+- [docs/architecture.md](docs/architecture.md): components, how each model is used, walk-around videos, marks in container coordinates, the hash chain, the damage passport, data model, standards
 - [docs/evaluation.md](docs/evaluation.md): measured accuracy on openly licensed data
 - [docs/self-hosting.md](docs/self-hosting.md): running Plomba on your own machine
 - [docs/build-log.md](docs/build-log.md): dated log of what was built and when
 
+## Credits
+
+The photos in the screenshots above and in the demo installation are frames of "How to buy a shipping container in 10 minutes" by Cowboy Steve Builds (YouTube), licensed CC BY 3.0. The damage passport in the screenshot shows test data.
+
 ## Licence
 
-[Apache-2.0](LICENSE).
+[Apache-2.0](LICENSE). Third-party content keeps its own licence (see [NOTICE](NOTICE)).
 
 ## Author
 
