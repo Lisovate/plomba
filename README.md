@@ -79,6 +79,21 @@ Everything above works end to end against the Meta Model API, with 165 unit and 
 
 Built for the **Meta Global AI Developer Hackathon 2026** (Startup Track, theme "Build for Your World"). Everything in this repository was created during the hackathon, starting 2026-10-26.
 
+## Where to look in the code
+
+| What | Where |
+|---|---|
+| Ports and adapters: every model behind an interface, wired in one place | [`apps/server/src/ports.ts`](apps/server/src/ports.ts), [`main.ts`](apps/server/src/main.ts) |
+| Identification as a verifiable loop: model reads, check digit decides | [`services/identify.ts`](apps/server/src/services/identify.ts), [`core/iso6346.ts`](packages/core/src/iso6346.ts) |
+| Marks in the container's own coordinates: homography, CEDEX codes and their inverse | [`core/geometry.ts`](packages/core/src/geometry.ts), [`core/cedex.ts`](packages/core/src/cedex.ts) |
+| Walk-around: frame scoring, corner-view split, photo choice | [`core/walkaround.ts`](packages/core/src/walkaround.ts), [`routes/walkaround.tsx`](apps/web/src/routes/walkaround.tsx) |
+| Damage passport: "it happened between these two handovers", only from sealed records | [`core/passport.ts`](packages/core/src/passport.ts) |
+| Claim agent whose evidence is verified against the sealed records | [`services/claims.ts`](apps/server/src/services/claims.ts) |
+| Hash chain over canonical JSON | [`core/hash-chain.ts`](packages/core/src/hash-chain.ts) |
+| EDIFACT CODECO D.95B | [`core/codeco.ts`](packages/core/src/codeco.ts) |
+| Every Meta model call, with prompts and JSON schemas | [`adapters/meta/`](apps/server/src/adapters/meta) |
+| Evaluation scripts | [`apps/server/scripts/`](apps/server/scripts) |
+
 ## Quick start
 
 ```sh
