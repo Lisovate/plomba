@@ -57,7 +57,10 @@ describe('registerContainer', () => {
       ]);
 
       expect(() => service.registerContainer({ number: NUMBER, sizeTypeCode })).toThrow(
-        new ConflictError('Cannot change container dimensions after a handover has been sealed'),
+        ConflictError,
+      );
+      expect(() => service.registerContainer({ number: NUMBER, sizeTypeCode })).toThrow(
+        `is on record as 22G1 since a sealed handover, and ${sizeTypeCode} has other dimensions`,
       );
       expect(await service.history(NUMBER)).toEqual(before);
       expect(service.registerContainer({ number: NUMBER, sizeTypeCode: '22G1' })).toEqual(

@@ -128,7 +128,7 @@ export class HandoverService {
           // Sealed coverage has no size code, so its dimensions must stay fixed.
           if (changed && this.#d.handovers.findLastClosed(number)) {
             throw new ConflictError(
-              'Cannot change container dimensions after a handover has been sealed',
+              `${number} is on record as ${existing.sizeTypeCode ?? 'its first sealed size'} since a sealed handover, and ${sizeType.code} has other dimensions, which would change how its sealed records read. Check the size and type code on the doors.`,
             );
           }
           this.#d.containers.updateSizeType(number, sizeType.code, sizeType.dimensions);

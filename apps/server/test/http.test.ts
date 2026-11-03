@@ -99,8 +99,8 @@ describe('HTTP API', () => {
     });
     expect(resized.status).toBe(409);
     expect(resized.headers.get('content-type')).toContain('application/problem+json');
-    expect(ProblemSchema.parse(await resized.json()).title).toBe(
-      'Cannot change container dimensions after a handover has been sealed',
+    expect(ProblemSchema.parse(await resized.json()).title).toContain(
+      'CSQU3054383 is on record as 42G1 since a sealed handover, and 22G1 has other dimensions',
     );
   });
 

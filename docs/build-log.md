@@ -161,6 +161,14 @@ A dated record of what was built and when. The newest entry is at the bottom.
 
   A typed client parses every answer with the same zod schemas the server validates with. The tests run each example against the real HTTP API and real signed webhooks (52 tests). A sandbox serves the API with fake models, so anyone can try them without a Meta key.
 - **Handover search for other systems:** `GET /api/handovers` filters by truck or wagon (spaces, hyphens and case ignored), container, status, direction and place, and pages with a cursor in a `Link` header (RFC 8288). The cursor holds the start time and id, so handovers added between requests don't shift or repeat later pages. The driver's-receipt example now finds a truck's older handovers by plate alone.
+- **A second code review, of everything built so far,** found seven real defects, each now fixed with a test that failed before the fix:
+  - sealing could leave out a mark added while the record was being hashed; the record is now compared with the handover inside the sealing transaction, and edits wait until sealing ends;
+  - changing a sealed container's size and type code changed how its sealed records read (which spots had been photographed clean); it is now refused with a message naming the code on record;
+  - a claim draft read the live tables, so a mark changed after sealing could pass the checks; claims now come from the verified sealed records only, and a broken chain refuses the draft;
+  - an off-hire statement quoted damage codes from after the lease; each step of a damage's history now carries the codes recorded then;
+  - a photo with an unreadable capture time made its handover unreadable; such uploads are refused, and times are stored in UTC;
+  - two writes of the same photo or cache entry at once shared a temporary file;
+  - retrying a walk-around after a failure uploaded photos again; it now resumes at the step that failed.
 - **The app redesigned as a product:** a design system (tokens, buttons, pills, entity rows, a timeline, a stepper), a header with navigation and a bottom tab bar with the inspect button, a dashboard with the day's numbers, and a fleet screen. The walk-around screen shows its steps while SAM 3.1 and Muse Spark work, and every action has an icon.
 - **Live demo at https://app.plomba.lisovate.com**, with a certificate from Let's Encrypt.
 - **Product website** ([apps/site](../apps/site)) at https://plomba.lisovate.com: the problem, how a handover works, a page for each kind of company (shipping lines, rail and intermodal, trucking, owners and lessors, terminals and depots), the integrations, open source, and Plomba Cloud for companies that would rather not run it, with a waitlist.
