@@ -12,6 +12,14 @@ export const en = {
   'common.error': 'Something went wrong',
   'common.offline': 'No connection. Your work is safe; try again when you are back online.',
 
+  'intro.identify': 'Point the phone at the doors: the container number is read and verified.',
+  'intro.record': 'Photograph each face, or record one walk around the container.',
+  'intro.confirm':
+    "Damage from the last handover appears on the same spot. Confirm it, and record what's new.",
+  'intro.seal':
+    'Seal the handover: a receipt, a gate message and a tamper-evident history that follows the container.',
+  'profile.change': 'Change',
+  'common.done': 'Done',
   'profile.title': 'Checker',
   'profile.name': 'Your name',
   'profile.place': 'Place (terminal or depot)',

@@ -1,11 +1,12 @@
 import type { HandoverSummary } from '@plomba/contracts';
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { api, queryKeys } from '../api/client.ts';
 import { Card, ContainerNumberText, ErrorNotice, Spinner } from '../components/ui.tsx';
 import { useI18n } from '../i18n/index.tsx';
 import { useInstallPrompt } from '../lib/install.ts';
-import { isComplete, useProfile } from '../lib/profile.ts';
+import { isComplete, type Profile, useProfile } from '../lib/profile.ts';
 
 export function HomeScreen() {
   const { t } = useI18n();
@@ -13,31 +14,43 @@ export function HomeScreen() {
   const install = useInstallPrompt();
   const recent = useQuery({ queryKey: queryKeys.recent, queryFn: api.recentHandovers });
   const ready = isComplete(profile);
+  // Decided once per visit, so the form doesn't fold away while the checker is typing.
+  const [firstVisit] = useState(() => !isComplete(profile));
+  const [editing, setEditing] = useState(firstVisit);
 
   const open = recent.data?.filter((h) => h.status === 'open') ?? [];
   const sealed = recent.data?.filter((h) => h.status === 'closed') ?? [];
 
   return (
     <div className="stack">
-      <Card>
-        <h2>{t('profile.title')}</h2>
-        <label className="field">
-          {t('profile.name')}
-          <input
-            value={profile.checker}
-            autoComplete="name"
-            onChange={(e) => saveProfile({ ...profile, checker: e.target.value })}
-          />
-        </label>
-        <label className="field">
-          {t('profile.place')}
-          <input
-            value={profile.place}
-            onChange={(e) => saveProfile({ ...profile, place: e.target.value })}
-          />
-        </label>
-        {!ready && <p className="muted">{t('profile.missing')}</p>}
-      </Card>
+      {firstVisit && (
+        <Card className="intro">
+          <h1>{t('app.tagline')}</h1>
+          <ol className="steps">
+            <li>{t('intro.identify')}</li>
+            <li>{t('intro.record')}</li>
+            <li>{t('intro.confirm')}</li>
+            <li>{t('intro.seal')}</li>
+          </ol>
+        </Card>
+      )}
+
+      {!editing ? (
+        <p className="profile-line">
+          <span>
+            {profile.checker} · {profile.place}
+          </span>
+          <button type="button" className="link" onClick={() => setEditing(true)}>
+            {t('profile.change')}
+          </button>
+        </p>
+      ) : (
+        <ProfileForm
+          profile={profile}
+          onChange={saveProfile}
+          onDone={ready ? () => setEditing(false) : undefined}
+        />
+      )}
 
       {ready ? (
         <Link to="/identify" className="button primary large">
@@ -62,6 +75,46 @@ export function HomeScreen() {
       {open.length > 0 && <HandoverList title={t('home.open')} handovers={open} />}
       {sealed.length > 0 && <HandoverList title={t('home.recent')} handovers={sealed} />}
     </div>
+  );
+}
+
+function ProfileForm({
+  profile,
+  onChange,
+  onDone,
+}: {
+  profile: Profile;
+  onChange: (profile: Profile) => void;
+  /** Shown as a Done button once the profile is complete. */
+  onDone: (() => void) | undefined;
+}) {
+  const { t } = useI18n();
+  return (
+    <Card>
+      <h2>{t('profile.title')}</h2>
+      <label className="field">
+        {t('profile.name')}
+        <input
+          value={profile.checker}
+          autoComplete="name"
+          onChange={(e) => onChange({ ...profile, checker: e.target.value })}
+        />
+      </label>
+      <label className="field">
+        {t('profile.place')}
+        <input
+          value={profile.place}
+          onChange={(e) => onChange({ ...profile, place: e.target.value })}
+        />
+      </label>
+      {onDone ? (
+        <button type="button" className="secondary" onClick={onDone}>
+          {t('common.done')}
+        </button>
+      ) : (
+        <p className="muted">{t('profile.missing')}</p>
+      )}
+    </Card>
   );
 }
 

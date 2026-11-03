@@ -189,6 +189,8 @@ function FaceMap({
       ))}
       {damage.map((d) => {
         const stroke = colour(d.firstRecorded);
+        // The label goes above the damage, or inside it where the face title would be in the way.
+        const roomAbove = d.rect.v1 <= height - 0.45;
         return (
           <g
             key={d.id}
@@ -202,7 +204,11 @@ function FaceMap({
               stroke={stroke}
               fill={stroke}
             />
-            <text x={x + d.rect.u0} y={toY(d.rect.v1) - 0.08} fill={stroke}>
+            <text
+              x={x + d.rect.u0 + (roomAbove ? 0 : 0.08)}
+              y={roomAbove ? toY(d.rect.v1) - 0.08 : toY(d.rect.v1) + 0.42}
+              fill={stroke}
+            >
               {[d.locationCode, d.damageCode].filter(Boolean).join(' ')}
             </text>
           </g>

@@ -14,6 +14,14 @@ export const pl: Messages = {
   'common.offline':
     'Brak połączenia. Twoja praca jest bezpieczna; spróbuj ponownie po odzyskaniu sieci.',
 
+  'intro.identify': 'Skieruj telefon na drzwi: numer kontenera zostanie odczytany i zweryfikowany.',
+  'intro.record': 'Sfotografuj każdą ścianę albo nagraj jeden obchód kontenera.',
+  'intro.confirm':
+    'Uszkodzenia z poprzedniego przekazania pojawiają się w tym samym miejscu. Potwierdź je i zapisz nowe.',
+  'intro.seal':
+    'Zaplombuj przekazanie: protokół, komunikat bramowy i odporna na zmiany historia, która podąża za kontenerem.',
+  'profile.change': 'Zmień',
+  'common.done': 'Gotowe',
   'profile.title': 'Kontroler',
   'profile.name': 'Imię i nazwisko',
   'profile.place': 'Miejsce (terminal lub depot)',
