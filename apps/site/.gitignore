@@ -1,0 +1,2 @@
+# Waitlist leads when WAITLIST_DB is left at its default: never commit them.
+/data/

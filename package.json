@@ -15,7 +15,8 @@
   "scripts": {
     "dev:server": "npm run dev --workspace @plomba/server",
     "dev:web": "npm run dev --workspace @plomba/web",
-    "build": "npm run build --workspace @plomba/web",
+    "dev:site": "npm run dev --workspace @plomba/site",
+    "build": "npm run build --workspace @plomba/web --workspace @plomba/site",
     "start": "npm run start --workspace @plomba/server",
     "lint": "biome check .",
     "format": "biome check --write .",
