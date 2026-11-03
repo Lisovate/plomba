@@ -36,6 +36,48 @@ describe('registerContainer', () => {
     expect(first.dimensions.length).toBeCloseTo(6.058);
     expect(service.registerContainer({ number: NUMBER })).toEqual(first);
   });
+
+  it.each(['42G1', '25G1'])(
+    'refuses dimension changes to %s after sealing',
+    async (sizeTypeCode) => {
+      const { service, handover } = await startedHandover();
+      await service.close(handover.id, { acceptGaps: true });
+      const second = service.start({
+        containerNumber: NUMBER,
+        direction: 'out',
+        place: 'Łódź',
+        checker: 'AN',
+        sealNumbers: [],
+      });
+      const mark = service.addMark(second.id, markInput({ face: 'L', damageCode: 'DT' }));
+      await service.close(second.id, { acceptGaps: true });
+      const before = await service.history(NUMBER);
+      expect(before.damage).toEqual([
+        expect.objectContaining({ id: mark.id, lastClear: null, notInspectedAt: [handover.id] }),
+      ]);
+
+      expect(() => service.registerContainer({ number: NUMBER, sizeTypeCode })).toThrow(
+        new ConflictError('Cannot change container dimensions after a handover has been sealed'),
+      );
+      expect(await service.history(NUMBER)).toEqual(before);
+      expect(service.registerContainer({ number: NUMBER, sizeTypeCode: '22G1' })).toEqual(
+        before.container,
+      );
+    },
+  );
+
+  it('allows dimension corrections before sealing and type changes with the same dimensions', async () => {
+    const { service, handover } = await startedHandover();
+    const corrected = service.registerContainer({ number: NUMBER, sizeTypeCode: '42G1' });
+    expect(corrected.dimensions.length).toBe(12.192);
+    await service.close(handover.id, { acceptGaps: true });
+
+    const changed = service.registerContainer({ number: NUMBER, sizeTypeCode: '42R1' });
+    expect(changed.sizeTypeCode).toBe('42R1');
+    expect(changed.dimensions).toEqual(corrected.dimensions);
+    expect(service.registerContainer({ number: NUMBER, sizeTypeCode: '42R1' })).toEqual(changed);
+    expect(service.registerContainer({ number: NUMBER })).toEqual(changed);
+  });
 });
 
 describe('a handover', () => {

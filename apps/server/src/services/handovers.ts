@@ -141,6 +141,16 @@ export class HandoverService {
       const existing = this.#d.containers.get(number);
       if (existing) {
         if (sizeType && existing.sizeTypeCode !== sizeType.code) {
+          const changed =
+            existing.dimensions.length !== sizeType.dimensions.length ||
+            existing.dimensions.width !== sizeType.dimensions.width ||
+            existing.dimensions.height !== sizeType.dimensions.height;
+          // Sealed coverage has no size code, so its dimensions must stay fixed.
+          if (changed && this.#d.handovers.findLastClosed(number)) {
+            throw new ConflictError(
+              'Cannot change container dimensions after a handover has been sealed',
+            );
+          }
           this.#d.containers.updateSizeType(number, sizeType.code, sizeType.dimensions);
           return { ...existing, sizeTypeCode: sizeType.code, dimensions: sizeType.dimensions };
         }

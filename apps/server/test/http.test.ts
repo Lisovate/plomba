@@ -92,6 +92,16 @@ describe('HTTP API', () => {
       length: 1,
       brokenAt: null,
     });
+
+    const resized = await post('/api/containers', {
+      number: 'CSQU3054383',
+      sizeTypeCode: '22G1',
+    });
+    expect(resized.status).toBe(409);
+    expect(resized.headers.get('content-type')).toContain('application/problem+json');
+    expect(ProblemSchema.parse(await resized.json()).title).toBe(
+      'Cannot change container dimensions after a handover has been sealed',
+    );
   });
 
   it('refuses a photo whose capture time is not a date, and stores capture times in UTC', async () => {
