@@ -154,6 +154,8 @@ export const en = {
   'report.damage': 'Damage (ISO 9897 / CEDEX)',
   'report.location': 'Location',
   'report.status': 'Status',
+  'report.firstRecorded': 'First recorded',
+  'report.here': 'At this handover',
   'report.photos': 'Photos',
   'report.codeco': 'EDIFACT CODECO gate report',
   'report.codecoHint':

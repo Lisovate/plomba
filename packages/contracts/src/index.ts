@@ -278,7 +278,9 @@ export const DamageHistorySchema = z.object({
   lastClear: z.string().nullable(),
   /** Handovers after `lastClear` that didn't photograph the spot. */
   notInspectedAt: z.array(z.string()),
-  trail: z.array(z.object({ handoverId: z.string(), status: MarkStatusSchema })),
+  trail: z.array(
+    z.object({ handoverId: z.string(), markId: z.string(), status: MarkStatusSchema }),
+  ),
 });
 
 export const ContainerHistorySchema = z.object({

@@ -155,6 +155,8 @@ export const pl: Messages = {
   'report.damage': 'Uszkodzenia (ISO 9897 / CEDEX)',
   'report.location': 'Miejsce',
   'report.status': 'Stan',
+  'report.firstRecorded': 'Zapisane po raz pierwszy',
+  'report.here': 'Przy tym przekazaniu',
   'report.photos': 'Zdjęcia',
   'report.codeco': 'Komunikat EDIFACT CODECO',
   'report.codecoHint':

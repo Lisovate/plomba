@@ -51,6 +51,31 @@ function damageName(code: string | null): string {
 }
 
 /**
+ * The container's sealed handovers in chain order, with a colour and a label
+ * ("#2 Gate out · Łódź · 4.11.2026") for each, as the passport shows them.
+ */
+export function useSealedHandovers(handovers: readonly Handover[]) {
+  const { t, language } = useI18n();
+  const sealed = handovers
+    .filter((h) => h.seal)
+    .sort((a, b) => (a.seal?.sequence ?? 0) - (b.seal?.sequence ?? 0));
+  const order = new Map(sealed.map((h, i) => [h.id, i]));
+  const colour = (handoverId: string) => PALETTE[(order.get(handoverId) ?? 0) % PALETTE.length];
+  const name = (handoverId: string) => {
+    const i = order.get(handoverId);
+    const h = i === undefined ? undefined : sealed[i];
+    if (!h || i === undefined) return '—';
+    return t('passport.handover', {
+      n: i + 1,
+      direction: t(h.direction === 'in' ? 'handover.in' : 'handover.out'),
+      place: h.place,
+      date: new Date(h.closedAt ?? h.startedAt).toLocaleDateString(language),
+    });
+  };
+  return { sealed, colour, name };
+}
+
+/**
  * The container's damage passport: every damage on a map of its faces,
  * coloured by the sealed handover that first recorded it, and for each one
  * the handovers it happened between.
@@ -65,22 +90,7 @@ export function ContainerPassport({
   damage: readonly DamageHistory[];
 }) {
   const { t } = useI18n();
-  const sealed = handovers
-    .filter((h) => h.seal)
-    .sort((a, b) => (a.seal?.sequence ?? 0) - (b.seal?.sequence ?? 0));
-  const order = new Map(sealed.map((h, i) => [h.id, i]));
-  const colour = (handoverId: string) => PALETTE[(order.get(handoverId) ?? 0) % PALETTE.length];
-  const name = (handoverId: string) => {
-    const i = order.get(handoverId);
-    const h = i === undefined ? undefined : sealed[i];
-    if (!h || i === undefined) return '—';
-    return t('passport.handover', {
-      n: i + 1,
-      direction: t(h.direction === 'in' ? 'handover.in' : 'handover.out'),
-      place: h.place,
-      date: new Date(h.closedAt ?? h.startedAt).toLocaleDateString(),
-    });
-  };
+  const { sealed, colour, name } = useSealedHandovers(handovers);
   const { faces, width, height } = layout(container);
 
   if (sealed.length === 0) return null;

@@ -48,7 +48,11 @@ export interface DamageHistory {
   /** Earlier handovers after `lastClear` that didn't photograph the spot. */
   readonly notInspectedAt: string[];
   /** Every handover that recorded it, oldest first. */
-  readonly trail: { readonly handoverId: string; readonly status: PassportStatus }[];
+  readonly trail: {
+    readonly handoverId: string;
+    readonly markId: string;
+    readonly status: PassportStatus;
+  }[];
 }
 
 /** The CEDEX cells of a face a rectangle overlaps. */
@@ -81,7 +85,10 @@ export function damageHistory(
           locationCode: mark.locationCode,
           damageCode: mark.damageCode ?? existing.damageCode,
           status: mark.status,
-          trail: [...existing.trail, { handoverId: handover.id, status: mark.status }],
+          trail: [
+            ...existing.trail,
+            { handoverId: handover.id, markId: mark.id, status: mark.status },
+          ],
         });
         continue;
       }
@@ -109,7 +116,7 @@ export function damageHistory(
         firstRecorded: handover.id,
         lastClear,
         notInspectedAt: notInspectedAt.reverse(),
-        trail: [{ handoverId: handover.id, status: mark.status }],
+        trail: [{ handoverId: handover.id, markId: mark.id, status: mark.status }],
       });
     }
   });

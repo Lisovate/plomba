@@ -181,6 +181,7 @@ The container page shows every damage on a map of the container's faces (each lo
 - **"Not there at" is evidence, not assumption.** For each damage, Plomba walks back from the handover that first recorded it to the latest earlier handover whose photos covered every CEDEX cell under the damage (from the sealed record's `notInspected`). The damage happened between those two handovers, so a dispute narrows to the legs and holders in between.
   - Handovers in between that had no photo of the spot are listed, because the damage may predate them.
   - When no earlier handover photographed the spot, the passport says it was already there at the first sealed handover.
+- **The EIR carries it too:** each damage on the receipt says where it was first recorded, or, if it's new, the last handover that photographed the spot clean.
 
 ## Data model
 
