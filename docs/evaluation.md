@@ -83,6 +83,26 @@ A small check: five photos of trucks and people, from Wikimedia Commons (CC BY 4
 
 An earlier observation: a plate of 22 × 8 px (far away, unreadable) was found in a lossless PNG at confidence 0.52 but not after JPEG re-encoding. Plates too small to read carry no privacy risk, but small faces deserve more measurement. Tiling large photos is the next step if recall on real yard photos is low.
 
+## Damage by voice: coding the checker's words (2026-11-03)
+
+**What's measured:** the coding step of damage by voice. A note, as Muse Voice Transcribe would write it, goes through the app's parser, and the CEDEX location code (from `sectionRect`) and damage code are compared with the expected ones.
+
+**Data:** 20 notes typed by the author, 10 in Polish and 10 in English, for a 40 ft container:
+- every face and both kinds of half (upper/lower, and left/right on the roof);
+- section ranges, the full length, and a face named other than the one in view;
+- one note with two damages and one with none.
+
+They name sections explicitly, as the app asks checkers to. This is not recorded speech; transcription was checked separately on a synthetic Polish recording (word for word).
+
+| | Muse Spark 1.3 | Muse Spark Open (open weights) |
+|---|---|---|
+| Notes coded exactly (every location and damage code) | **20 of 20** | **20 of 20** |
+| Latency p50 | 4.8 s | 2.3 s |
+
+Run with: `node --env-file=.env apps/server/scripts/eval-spoken-damage.ts` (the `META_VISION_*` settings choose the model).
+
+**Limits:** 20 notes written by someone who knows the codes. Real checkers will be vaguer ("near the doors", "about the middle"); the app reports damage it can't place instead of guessing, and measuring on real recordings from checkers is next.
+
 ## Synthetic robustness tests (not counted in accuracy)
 
 **Method:**
