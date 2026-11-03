@@ -51,7 +51,12 @@ export function ContainerScreen() {
         <StartHandoverForm containerNumber={container.number} />
       )}
 
-      <ContainerPassport container={container} handovers={handovers} damage={damage} />
+      <ContainerPassport
+        container={container}
+        handovers={handovers}
+        damage={damage}
+        chainOk={chain.ok}
+      />
 
       {handovers.length > 0 && (
         <section>

@@ -1,11 +1,11 @@
-import type { DamageHistory, Handover, HandoverDetail, Mark } from '@plomba/contracts';
+import type { ContainerHistory, HandoverDetail, Mark } from '@plomba/contracts';
 import { COMPONENT_CODES, DAMAGE_CODES, FACES, isComponentCode, isDamageCode } from '@plomba/core';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { api, queryKeys } from '../api/client.ts';
 import { ClaimPanel } from '../components/claim-panel.tsx';
-import { useSealedHandovers } from '../components/container-passport.tsx';
+import { DamageOrigin, useSealedHandovers } from '../components/container-passport.tsx';
 import { FaceOverlay } from '../components/face-overlay.tsx';
 import { ContainerNumberText, ErrorNotice, Spinner } from '../components/ui.tsx';
 import { type Translate, useI18n } from '../i18n/index.tsx';
@@ -140,12 +140,7 @@ export function ReportScreen() {
                   <td>{codeLabel(m.componentCode, 'component')}</td>
                   <td>{t(`mark.status.${m.status}`)}</td>
                   <td>
-                    <FirstRecorded
-                      mark={m}
-                      handoverId={handover.id}
-                      handovers={history.data?.handovers ?? []}
-                      damage={history.data?.damage ?? []}
-                    />
+                    <FirstRecorded mark={m} handoverId={handover.id} history={history.data} />
                   </td>
                   <td>{m.note ?? ''}</td>
                 </tr>
@@ -223,46 +218,36 @@ export function ReportScreen() {
 }
 
 /**
- * Where a damage on this receipt was first recorded, and the last handover
- * that photographed its spot clean, from the container's sealed records.
+ * Where a damage on this receipt was first recorded, and the handovers it
+ * happened between, from the container's sealed records. "—" wherever the
+ * records can't say: not loaded, a broken chain, or an earlier mark not found.
  */
 function FirstRecorded({
   mark,
   handoverId,
-  handovers,
-  damage,
+  history,
 }: {
   mark: Mark;
   handoverId: string;
-  handovers: readonly Handover[];
-  damage: readonly DamageHistory[];
+  history: ContainerHistory | undefined;
 }) {
   const { t } = useI18n();
-  const { name } = useSealedHandovers(handovers);
+  const { name } = useSealedHandovers(history?.handovers ?? []);
+  if (!history?.chain.ok) return <>—</>;
   // Sealed: this mark is in a history. Not sealed yet: the mark it confirms may be.
-  const history = damage.find((d) =>
+  const found = history.damage.find((d) =>
     d.trail.some((step) => step.markId === mark.id || step.markId === mark.previousMarkId),
   );
-  if (!history || history.firstRecorded === handoverId) {
-    return (
-      <>
-        {t('report.here')}
-        {history?.lastClear && (
-          <span className="muted">
-            {' '}
-            · {t('passport.lastClear', { handover: name(history.lastClear) })}
-          </span>
-        )}
-        {history && history.notInspectedAt.length > 0 && (
-          <span className="muted">
-            {' · '}
-            {t('passport.notInspected', { handovers: history.notInspectedAt.map(name).join('; ') })}
-          </span>
-        )}
-      </>
-    );
-  }
-  return <>{name(history.firstRecorded)}</>;
+  if (!found) return <>{mark.previousMarkId ? '—' : t('report.here')}</>;
+  if (found.firstRecorded !== handoverId) return <>{name(found.firstRecorded)}</>;
+  return (
+    <>
+      {t('report.here')}
+      <span className="origin">
+        <DamageOrigin history={found} name={name} />
+      </span>
+    </>
+  );
 }
 
 function codeLabel(code: string | null, list: 'damage' | 'component'): string {

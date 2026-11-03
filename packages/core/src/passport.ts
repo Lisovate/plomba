@@ -6,7 +6,7 @@
  */
 
 import { faceCells } from './cedex.ts';
-import type { Face, FaceRect } from './faces.ts';
+import { type Face, type FaceRect, rectOverlap } from './faces.ts';
 import type { ContainerDimensions } from './size-type.ts';
 
 export type PassportStatus = 'new' | 'still-there' | 'changed' | 'repaired';
@@ -24,7 +24,10 @@ export interface PassportMark {
 
 export interface PassportHandover {
   readonly id: string;
-  /** CEDEX cells with no photo at this handover, by face. Missing in records that didn't track coverage. */
+  /**
+   * CEDEX cells with no photo at this handover, by face. Missing in records
+   * that didn't track coverage, which then can't show that a spot was clean.
+   */
   readonly notInspected?: Partial<Record<Face, readonly string[]>>;
   readonly marks: readonly PassportMark[];
 }
@@ -47,6 +50,12 @@ export interface DamageHistory {
   readonly lastClear: string | null;
   /** Earlier handovers after `lastClear` that didn't photograph the spot. */
   readonly notInspectedAt: string[];
+  /**
+   * An earlier handover that recorded damage on the same spot, which this
+   * damage doesn't continue: possibly the same damage, recorded afresh. The
+   * search for a clear handover stops there.
+   */
+  readonly recordedNearbyAt: string | null;
   /** Every handover that recorded it, oldest first. */
   readonly trail: {
     readonly handoverId: string;
@@ -96,15 +105,25 @@ export function damageHistory(
       const cells = cellsUnder(mark.face, mark.rect, dimensions);
       const notInspectedAt: string[] = [];
       let lastClear: string | null = null;
+      let recordedNearbyAt: string | null = null;
       for (let i = index - 1; i >= 0; i--) {
         const earlier = handovers[i] as PassportHandover;
-        const skipped = new Set(earlier.notInspected?.[mark.face] ?? []);
-        if (cells.some((code) => skipped.has(code))) {
-          notInspectedAt.push(earlier.id);
-        } else {
-          lastClear = earlier.id;
+        // Damage recorded on the same spot (and not found repaired) means the spot wasn't clear.
+        const nearby = earlier.marks.some(
+          (m) =>
+            m.face === mark.face && m.status !== 'repaired' && rectOverlap(m.rect, mark.rect) > 0,
+        );
+        if (nearby) {
+          recordedNearbyAt = earlier.id;
           break;
         }
+        const skipped = earlier.notInspected?.[mark.face];
+        if (!earlier.notInspected || cells.some((code) => skipped?.includes(code))) {
+          notInspectedAt.push(earlier.id);
+          continue;
+        }
+        lastClear = earlier.id;
+        break;
       }
       histories.set(mark.id, {
         id: mark.id,
@@ -116,6 +135,7 @@ export function damageHistory(
         firstRecorded: handover.id,
         lastClear,
         notInspectedAt: notInspectedAt.reverse(),
+        recordedNearbyAt,
         trail: [{ handoverId: handover.id, markId: mark.id, status: mark.status }],
       });
     }

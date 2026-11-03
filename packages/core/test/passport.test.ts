@@ -70,11 +70,40 @@ describe('damageHistory', () => {
     expect(history?.lastClear).toBeNull();
   });
 
-  it('treats records without coverage as having inspected everything', () => {
+  it('does not count records without coverage as proof the spot was clean', () => {
     const [history] = damageHistory(
-      [{ id: 'old', marks: [] }, handover('lodz', [mark('m1')])],
+      [handover('gdynia'), { id: 'old', marks: [] }, handover('lodz', [mark('m1')])],
       DEFAULT_DIMENSIONS,
     );
-    expect(history?.lastClear).toBe('old');
+    expect(history).toMatchObject({ lastClear: 'gdynia', notInspectedAt: ['old'] });
+  });
+
+  it('stops at an earlier handover that recorded damage on the same spot', () => {
+    // Recorded afresh at Łódź instead of confirmed: it may well be the Gdynia dent.
+    const [, history] = damageHistory(
+      [handover('poznan'), handover('gdynia', [mark('m1')]), handover('lodz', [mark('m2')])],
+      DEFAULT_DIMENSIONS,
+    );
+    expect(history).toMatchObject({
+      firstRecorded: 'lodz',
+      lastClear: null,
+      recordedNearbyAt: 'gdynia',
+    });
+  });
+
+  it('counts a spot found repaired as clear', () => {
+    const histories = damageHistory(
+      [
+        handover('gdynia', [mark('m1')]),
+        handover('depot', [mark('m2', { status: 'repaired', previousMarkId: 'm1' })]),
+        handover('lodz', [mark('m3')]),
+      ],
+      DEFAULT_DIMENSIONS,
+    );
+    expect(histories[1]).toMatchObject({
+      firstRecorded: 'lodz',
+      lastClear: 'depot',
+      recordedNearbyAt: null,
+    });
   });
 });

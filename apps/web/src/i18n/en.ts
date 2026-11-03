@@ -227,6 +227,9 @@ export const en = {
   'passport.between': 'It happened between these two handovers.',
   'passport.alreadyThere': 'Already there at the first sealed handover.',
   'passport.notInspected': 'Spot not photographed at: {handovers}',
+  'passport.recordedNearby':
+    'Damage was already recorded on this spot at: {handover}. It may be the same damage.',
+  'passport.broken': "The container's history doesn't verify, so no damage history is shown.",
   'walk.title': 'Walk-around video',
   'walk.intro':
     "Record one slow walk around the container on a phone or Meta AI glasses. SAM 3.1 tracks the container through every frame, Plomba picks the frames where one face is whole and square-on, and Muse Spark names each face and reads the doors. You confirm, and the frames become this handover's photos. The clip itself is not stored.",

@@ -84,16 +84,27 @@ export function ContainerPassport({
   container,
   handovers,
   damage,
+  chainOk,
 }: {
   container: Container;
   handovers: readonly Handover[];
   damage: readonly DamageHistory[];
+  /** Whether the hash chain verifies; a broken chain is no evidence of anything. */
+  chainOk: boolean;
 }) {
   const { t } = useI18n();
   const { sealed, colour, name } = useSealedHandovers(handovers);
   const { faces, width, height } = layout(container);
 
   if (sealed.length === 0) return null;
+  if (!chainOk) {
+    return (
+      <section className="passport">
+        <h2>{t('passport.title')}</h2>
+        <p className="notice error">{t('passport.broken')}</p>
+      </section>
+    );
+  }
 
   return (
     <section className="passport">
@@ -143,26 +154,46 @@ export function ContainerPassport({
                 <span className="muted">· {t(`mark.status.${d.status}`)}</span>
               </span>
               <span>{t('passport.firstRecorded', { handover: name(d.firstRecorded) })}</span>
-              {d.lastClear ? (
-                <span>
-                  {t('passport.lastClear', { handover: name(d.lastClear) })}{' '}
-                  <strong>{t('passport.between')}</strong>
-                </span>
-              ) : (
-                d.notInspectedAt.length === 0 && (
-                  <span className="muted">{t('passport.alreadyThere')}</span>
-                )
-              )}
-              {d.notInspectedAt.length > 0 && (
-                <span className="muted">
-                  {t('passport.notInspected', { handovers: d.notInspectedAt.map(name).join('; ') })}
-                </span>
-              )}
+              <DamageOrigin history={d} name={name} />
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+/**
+ * Where a damage comes from, in words: the two handovers it happened between,
+ * or why that can't be said (an earlier record on the same spot, no photo).
+ */
+export function DamageOrigin({
+  history,
+  name,
+}: {
+  history: DamageHistory;
+  name: (handoverId: string) => string;
+}) {
+  const { t } = useI18n();
+  const { lastClear, notInspectedAt, recordedNearbyAt } = history;
+  return (
+    <>
+      {recordedNearbyAt ? (
+        <span>{t('passport.recordedNearby', { handover: name(recordedNearbyAt) })}</span>
+      ) : lastClear ? (
+        <span>
+          {t('passport.lastClear', { handover: name(lastClear) })}{' '}
+          <strong>{t('passport.between')}</strong>
+        </span>
+      ) : (
+        notInspectedAt.length === 0 && <span className="muted">{t('passport.alreadyThere')}</span>
+      )}
+      {notInspectedAt.length > 0 && (
+        <span className="muted">
+          {t('passport.notInspected', { handovers: notInspectedAt.map(name).join('; ') })}
+        </span>
+      )}
+    </>
   );
 }
 

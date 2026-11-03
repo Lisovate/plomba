@@ -288,6 +288,8 @@ export const DamageHistorySchema = z.object({
   lastClear: z.string().nullable(),
   /** Handovers after `lastClear` that didn't photograph the spot. */
   notInspectedAt: z.array(z.string()),
+  /** An earlier handover that recorded damage on this spot without it being linked: maybe the same damage. */
+  recordedNearbyAt: z.string().nullable(),
   trail: z.array(
     z.object({ handoverId: z.string(), markId: z.string(), status: MarkStatusSchema }),
   ),

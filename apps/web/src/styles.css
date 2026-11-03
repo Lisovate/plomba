@@ -989,6 +989,11 @@ legend {
   vertical-align: -0.1rem;
 }
 
+.origin span {
+  display: block;
+  font-size: 0.9rem;
+}
+
 .passport-item {
   align-items: flex-start;
 }
