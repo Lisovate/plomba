@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ConfigError, loadConfig } from '../src/config.ts';
+import { ConfigError, loadConfig, parseApiTokens } from '../src/config.ts';
 
 describe('loadConfig', () => {
   it('reads the key from a file and applies defaults', () => {
@@ -47,5 +47,41 @@ describe('loadConfig', () => {
       apiStyle: 'chat-completions',
       maxImages: 16,
     });
+  });
+
+  it('reads API tokens as name and token per line, and refuses weak or repeated ones', () => {
+    expect(
+      parseApiTokens(
+        `# integrations\nclaims-desk ${'a'.repeat(24)}\n\nrail-tos ${'b'.repeat(30)}\n`,
+      ),
+    ).toEqual([
+      { name: 'claims-desk', token: 'a'.repeat(24) },
+      { name: 'rail-tos', token: 'b'.repeat(30) },
+    ]);
+    expect(() => parseApiTokens('claims-desk short')).toThrow(ConfigError);
+    expect(() => parseApiTokens(`a ${'x'.repeat(24)}\na ${'y'.repeat(24)}`)).toThrow(ConfigError);
+  });
+
+  it('needs a signing secret for webhooks, and http(s) URLs', () => {
+    const base = { META_API_KEY: 'k' };
+    expect(() =>
+      loadConfig({ ...base, PLOMBA_WEBHOOK_URLS: 'https://a.example.com/hook' }),
+    ).toThrow(ConfigError);
+    expect(() =>
+      loadConfig({
+        ...base,
+        PLOMBA_WEBHOOK_URLS: 'ftp://a.example.com',
+        PLOMBA_WEBHOOK_SECRET: 's'.repeat(32),
+      }),
+    ).toThrow(ConfigError);
+    const config = loadConfig({
+      ...base,
+      PLOMBA_WEBHOOK_URLS: 'https://a.example.com/hook, https://b.example.com/hook',
+      PLOMBA_WEBHOOK_SECRET: 's'.repeat(32),
+    });
+    expect(config.webhooks?.urls).toEqual([
+      'https://a.example.com/hook',
+      'https://b.example.com/hook',
+    ]);
   });
 });

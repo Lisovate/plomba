@@ -48,6 +48,18 @@ const EnvSchema = z
     EDI_SENDER_ID: z.string().min(1).max(35).default('PLOMBA'),
     /** A line shown at the foot of every screen, e.g. "Demo data" or credits for the photos. */
     PLOMBA_NOTICE: z.string().trim().min(1).max(500).optional(),
+    /**
+     * A file of API tokens for other systems, one per line: a name, a space,
+     * and a token of at least 24 characters. Lines starting with # are ignored.
+     */
+    PLOMBA_API_TOKENS_FILE: z.string().min(1).optional(),
+    /** Endpoints that receive signed handover events, comma-separated (https in production). */
+    PLOMBA_WEBHOOK_URLS: z.string().min(1).optional(),
+    /** The secret webhooks are signed with, from a file (or PLOMBA_WEBHOOK_SECRET). */
+    PLOMBA_WEBHOOK_SECRET_FILE: z.string().min(1).optional(),
+    PLOMBA_WEBHOOK_SECRET: z.string().min(16).optional(),
+    /** Where people reach this installation, for links in webhooks (e.g. https://plomba.example.com). */
+    PLOMBA_PUBLIC_URL: z.url().optional(),
     /** A folder of sample walk-around clips with a samples.json, offered to try the app. */
     PLOMBA_SAMPLES_DIR: z.string().min(1).optional(),
   })
@@ -66,6 +78,12 @@ export interface Config {
   readonly accessCode: string | undefined;
   /** A line shown at the foot of every screen. */
   readonly notice: string | undefined;
+  /** Tokens other systems use to call the API. */
+  readonly apiTokens: readonly { readonly name: string; readonly token: string }[];
+  /** Where signed handover events are sent, if anywhere. */
+  readonly webhooks: { readonly urls: readonly string[]; readonly secret: string } | undefined;
+  /** This installation's address, for links sent to other systems. */
+  readonly publicUrl: string;
   /** A folder of sample walk-around clips (see media/sample-clips.ts). */
   readonly samplesDir: string | undefined;
   readonly meta: {
@@ -100,6 +118,56 @@ function readKey(file: string | undefined, variable: string): string | undefined
   }
 }
 
+/** Parses the API tokens file: `<name> <token>` per line. */
+export function parseApiTokens(text: string): { name: string; token: string }[] {
+  const tokens = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'))
+    .map((line, i) => {
+      const [name, token, ...rest] = line.split(/\s+/);
+      if (!name || !token || rest.length > 0 || token.length < 24) {
+        throw new ConfigError(
+          `API tokens file, line ${i + 1}: expected "<name> <token>" with a token of 24+ characters`,
+        );
+      }
+      return { name, token };
+    });
+  if (new Set(tokens.map((t) => t.name)).size !== tokens.length) {
+    throw new ConfigError('API tokens file: each name may appear once');
+  }
+  return tokens;
+}
+
+function readWebhooks(e: {
+  PLOMBA_WEBHOOK_URLS?: string | undefined;
+  PLOMBA_WEBHOOK_SECRET_FILE?: string | undefined;
+  PLOMBA_WEBHOOK_SECRET?: string | undefined;
+}): { urls: string[]; secret: string } | undefined {
+  if (!e.PLOMBA_WEBHOOK_URLS) return undefined;
+  const urls = e.PLOMBA_WEBHOOK_URLS.split(',')
+    .map((u) => u.trim())
+    .filter(Boolean);
+  for (const url of urls) {
+    if (!z.url({ protocol: /^https?$/ }).safeParse(url).success) {
+      throw new ConfigError(`PLOMBA_WEBHOOK_URLS: ${url} is not an http(s) URL`);
+    }
+  }
+  const secret =
+    readKey(e.PLOMBA_WEBHOOK_SECRET_FILE, 'PLOMBA_WEBHOOK_SECRET_FILE') ?? e.PLOMBA_WEBHOOK_SECRET;
+  if (!secret || secret.length < 16) {
+    throw new ConfigError(
+      'Webhooks need a signing secret of 16+ characters (PLOMBA_WEBHOOK_SECRET_FILE)',
+    );
+  }
+  return { urls, secret };
+}
+
+function readApiTokens(file: string | undefined): { name: string; token: string }[] {
+  const text = readKey(file, 'PLOMBA_API_TOKENS_FILE');
+  return text ? parseApiTokens(text) : [];
+}
+
 function expandHome(path: string): string {
   return path === '~' || path.startsWith('~/') ? homedir() + path.slice(1) : path;
 }
@@ -129,6 +197,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     ediSenderId: e.EDI_SENDER_ID,
     accessCode: e.PLOMBA_ACCESS_CODE,
     notice: e.PLOMBA_NOTICE,
+    apiTokens: readApiTokens(e.PLOMBA_API_TOKENS_FILE),
+    webhooks: readWebhooks(e),
+    publicUrl: (e.PLOMBA_PUBLIC_URL ?? `http://localhost:${e.PORT}`).replace(/\/+$/, ''),
     samplesDir: e.PLOMBA_SAMPLES_DIR ? resolve(expandHome(e.PLOMBA_SAMPLES_DIR)) : undefined,
     meta: {
       baseUrl: e.META_API_BASE_URL.replace(/\/+$/, ''),

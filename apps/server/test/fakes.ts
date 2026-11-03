@@ -18,6 +18,7 @@ import type {
   DamageDetector,
   DamageFinding,
   DamageNoteParser,
+  EventPublisher,
   FaceViewClassifier,
   ImageInput,
   MarkingsReader,
@@ -215,7 +216,7 @@ export class MemoryMediaStore implements MediaStore {
   }
 }
 
-export function createTestHandoverService() {
+export function createTestHandoverService(options: { events?: EventPublisher } = {}) {
   const db = openDatabase(':memory:');
   const segmenter = new FakeSegmenter();
   const detector = new FakeDetector();
@@ -232,6 +233,7 @@ export function createTestHandoverService() {
     clock: fixedClock(),
     newId: sequentialIds(),
     ediSenderId: 'PLOMBA-TEST',
+    ...(options.events ? { events: options.events } : {}),
   });
   return { db, segmenter, detector, media, service };
 }
@@ -376,6 +378,7 @@ export function createTestApp(
     notice?: string;
     noteParser?: DamageNoteParser;
     samples?: SampleClips;
+    apiTokens?: readonly { name: string; token: string }[];
   } = {},
 ) {
   const context = createTestHandoverService();
@@ -408,6 +411,7 @@ export function createTestApp(
     accessCode: options.accessCode,
     notice: options.notice,
     samples: options.samples,
+    apiTokens: options.apiTokens,
   });
   return { ...context, app };
 }

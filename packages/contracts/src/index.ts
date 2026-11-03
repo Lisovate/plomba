@@ -262,6 +262,16 @@ export const HandoverSummarySchema = HandoverSchema.extend({
 
 export const HandoverListSchema = z.array(HandoverSummarySchema);
 
+/** A container in a list: the fleet view of an owner, lessor or operator. */
+export const ContainerSummarySchema = ContainerSchema.extend({
+  handoverCount: z.number().int(),
+  sealedCount: z.number().int(),
+  /** The most recent handover, open or sealed. */
+  lastHandover: HandoverSchema.nullable(),
+});
+
+export const ContainerListSchema = z.array(ContainerSummarySchema);
+
 export const CloseHandoverSchema = z.object({
   /**
    * Seal even though some CEDEX sections have no photo. The sealed record then
@@ -369,6 +379,39 @@ export const SessionSchema = z.object({
 
 export const LoginSchema = z.object({ code: z.string().min(1).max(200) });
 
+// Integrations --------------------------------------------------------------
+
+export const HandoverEventTypeSchema = z.enum(['handover.started', 'handover.sealed']);
+
+/**
+ * What a webhook receives. Signed with HMAC-SHA256 in the `Plomba-Signature`
+ * header (`t=<unix seconds>,v1=<hex of HMAC(secret, "<t>.<body>")>`).
+ */
+export const WebhookEventSchema = z.object({
+  /** Unique per event; deliveries of the same event repeat it, so receivers can skip duplicates. */
+  id: z.uuid(),
+  type: HandoverEventTypeSchema,
+  occurredAt: isoDateTime,
+  data: z.object({
+    handover: HandoverSchema,
+    container: ContainerSchema,
+    /** Marks recorded at this handover, without rejected proposals. */
+    marks: z.array(MarkSchema),
+    /** For a sealed handover: the history of each damage it recorded, from the sealed chain. */
+    damage: z.array(DamageHistorySchema),
+    links: z.object({
+      /** The handover in the app. */
+      app: z.string(),
+      /** The EIR, to print or save as PDF. */
+      receipt: z.string(),
+      /** The EDIFACT CODECO gate message (sealed handovers). */
+      codeco: z.string(),
+      /** The container's history and damage passport. */
+      container: z.string(),
+    }),
+  }),
+});
+
 /** A sample walk-around clip the installation offers, with its credit. */
 export const SampleClipSchema = z.object({
   title: z.string(),
@@ -417,6 +460,7 @@ export type CreateMark = z.infer<typeof CreateMarkSchema>;
 export type UpdateMark = z.infer<typeof UpdateMarkSchema>;
 export type HandoverDetail = z.infer<typeof HandoverDetailSchema>;
 export type HandoverSummary = z.infer<typeof HandoverSummarySchema>;
+export type ContainerSummary = z.infer<typeof ContainerSummarySchema>;
 export type ChainStatus = z.infer<typeof ChainStatusSchema>;
 export type ContainerHistory = z.infer<typeof ContainerHistorySchema>;
 export type DamageHistory = z.infer<typeof DamageHistorySchema>;
@@ -431,6 +475,8 @@ export type VideoTracking = z.infer<typeof VideoTrackingSchema>;
 export type SpokenDamageResult = z.infer<typeof SpokenDamageResultSchema>;
 export type Instance = z.infer<typeof InstanceSchema>;
 export type SampleClip = z.infer<typeof SampleClipSchema>;
+export type HandoverEventType = z.infer<typeof HandoverEventTypeSchema>;
+export type WebhookEvent = z.infer<typeof WebhookEventSchema>;
 export type FaceView = z.infer<typeof FaceViewSchema>;
 export type FaceViews = z.infer<typeof FaceViewsSchema>;
 

@@ -4,7 +4,14 @@
  */
 
 import type { DatabaseSync } from 'node:sqlite';
-import type { Container, Handover, HandoverSummary, Mark, Photo } from '@plomba/contracts';
+import type {
+  Container,
+  ContainerSummary,
+  Handover,
+  HandoverSummary,
+  Mark,
+  Photo,
+} from '@plomba/contracts';
 import type { Face, Quad } from '@plomba/core';
 import { ConflictError } from '../../errors.ts';
 import type {
@@ -39,18 +46,35 @@ export class SqliteContainerRepository implements ContainerRepository {
     const row = this.#db.prepare('SELECT * FROM containers WHERE number = ?').get(number) as
       | Row
       | undefined;
-    return (
-      row && {
-        number: str(row, 'number'),
-        sizeTypeCode: strOrNull(row, 'size_type_code'),
-        dimensions: {
-          length: num(row, 'length_m'),
-          width: num(row, 'width_m'),
-          height: num(row, 'height_m'),
-        },
-        createdAt: str(row, 'created_at'),
-      }
-    );
+    return row && toContainer(row);
+  }
+
+  list(options: { readonly prefix?: string; readonly limit: number }): ContainerSummary[] {
+    const rows = this.#db
+      .prepare(
+        `SELECT c.*,
+           (SELECT count(*) FROM handovers h WHERE h.container_number = c.number) AS handover_count,
+           (SELECT count(*) FROM handovers h WHERE h.container_number = c.number AND h.status = 'closed') AS sealed_count,
+           (SELECT h.id FROM handovers h WHERE h.container_number = c.number
+              ORDER BY h.started_at DESC LIMIT 1) AS last_handover_id,
+           (SELECT max(h.started_at) FROM handovers h WHERE h.container_number = c.number) AS last_at
+         FROM containers c
+         WHERE c.number LIKE ? ESCAPE '\\'
+         ORDER BY last_at IS NULL, last_at DESC, c.number
+         LIMIT ?`,
+      )
+      .all(`${(options.prefix ?? '').replace(/[\\%_]/g, '\\$&')}%`, options.limit) as Row[];
+    const lastHandover = this.#db.prepare('SELECT * FROM handovers WHERE id = ?');
+    return rows.map((row) => {
+      const lastId = strOrNull(row, 'last_handover_id');
+      const last = lastId ? (lastHandover.get(lastId) as Row | undefined) : undefined;
+      return {
+        ...toContainer(row),
+        handoverCount: num(row, 'handover_count'),
+        sealedCount: num(row, 'sealed_count'),
+        lastHandover: last ? toHandover(last) : null,
+      };
+    });
   }
 
   insert(container: Container): void {
@@ -77,6 +101,19 @@ export class SqliteContainerRepository implements ContainerRepository {
       )
       .run(sizeTypeCode, dimensions.length, dimensions.width, dimensions.height, number);
   }
+}
+
+function toContainer(row: Row): Container {
+  return {
+    number: str(row, 'number'),
+    sizeTypeCode: strOrNull(row, 'size_type_code'),
+    dimensions: {
+      length: num(row, 'length_m'),
+      width: num(row, 'width_m'),
+      height: num(row, 'height_m'),
+    },
+    createdAt: str(row, 'created_at'),
+  };
 }
 
 function toHandover(row: Row): Handover {

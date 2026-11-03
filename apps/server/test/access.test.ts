@@ -45,6 +45,17 @@ describe('access control', () => {
     expect(await (await app().request('/api/instance')).json()).toEqual({ notice: null });
   });
 
+  it('lets other systems in with an API token, and no one with a wrong one', async () => {
+    const { app: guarded } = createTestApp({
+      accessCode: 'correct horse battery',
+      apiTokens: [{ name: 'claims-desk', token: 'a'.repeat(32) }],
+    });
+    const bearer = (token: string) => ({ headers: { authorization: `Bearer ${token}` } });
+    expect((await guarded.request('/api/handovers', bearer('a'.repeat(32)))).status).toBe(200);
+    expect((await guarded.request('/api/handovers', bearer('b'.repeat(32)))).status).toBe(401);
+    expect((await guarded.request('/api/handovers')).status).toBe(401);
+  });
+
   it('rejects a wrong code', async () => {
     const response = await app('correct horse battery').request('/api/session', login('guess'));
     expect(response.status).toBe(401);

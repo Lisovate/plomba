@@ -60,6 +60,10 @@ All settings are environment variables.
 | `PLOMBA_ACCESS_CODE` | — | If set (8+ characters), each device enters this code once and gets a 30-day session cookie; without it the API and photos answer 401. Leave unset behind single sign-on |
 | `EDI_SENDER_ID` | `PLOMBA` | This installation's ID in EDIFACT messages (UNB sender, NAD+MS) |
 | `PLOMBA_NOTICE` | — | One line shown at the foot of every screen, before and after the access code, e.g. "Demo data" or credits for the photos |
+| `PLOMBA_API_TOKENS_FILE` | — | API tokens for other systems, one `<name> <token>` per line (tokens of 24+ characters); they send `Authorization: Bearer <token>`. See [integrations.md](integrations.md) |
+| `PLOMBA_WEBHOOK_URLS` | — | Comma-separated endpoints that receive signed `handover.started` and `handover.sealed` events |
+| `PLOMBA_WEBHOOK_SECRET_FILE` | — | The secret webhooks are signed with (16+ characters); required with `PLOMBA_WEBHOOK_URLS` |
+| `PLOMBA_PUBLIC_URL` | `http://localhost:<PORT>` | This installation's address, used in links sent to other systems |
 | `PLOMBA_SAMPLES_DIR` | — | A folder of sample walk-around clips that people can try the app with (see below) |
 | `META_VISION_BASE_URL` | — | A separate endpoint for reading markings and finding damage (see below) |
 | `META_VISION_API_STYLE` | `responses` | `responses`, or `chat-completions` for OpenAI-compatible servers |

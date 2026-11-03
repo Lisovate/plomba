@@ -26,12 +26,14 @@ import {
   SqliteMarkRepository,
   SqlitePhotoRepository,
 } from './adapters/sqlite/repositories.ts';
+import { WebhookNotifier } from './adapters/webhooks.ts';
 import { ConfigError, loadConfig } from './config.ts';
 import { createApp } from './http/app.ts';
 import { FileMediaStore } from './media/file-media-store.ts';
 import { JsonFileCache } from './media/json-file-cache.ts';
 import { SampleClips } from './media/sample-clips.ts';
 import { ClaimService } from './services/claims.ts';
+import { describeHandoverEvent, EventBus } from './services/events.ts';
 import { HandoverService } from './services/handovers.ts';
 import { IdentifyService } from './services/identify.ts';
 import { SpeechService } from './services/speech.ts';
@@ -84,6 +86,8 @@ function main(): void {
     photos: new SqlitePhotoRepository(db),
     marks: new SqliteMarkRepository(db),
   };
+  // Handover events for other systems: signed webhooks when configured.
+  const events = new EventBus(logger);
   const handovers = new HandoverService({
     ...repositories,
     media,
@@ -93,7 +97,17 @@ function main(): void {
     clock: { now: () => new Date() },
     newId: randomUUID,
     ediSenderId: config.ediSenderId,
+    events,
   });
+  if (config.webhooks) {
+    const webhooks = new WebhookNotifier({
+      ...config.webhooks,
+      describe: (event, id) =>
+        describeHandoverEvent(handovers, event, { id, publicUrl: config.publicUrl }),
+      logger,
+    });
+    events.subscribe((event) => webhooks.deliver(event));
+  }
   const speech = new SpeechService(transcriber);
   // Structured output like the vision jobs, so it runs on the same (possibly open-weights) endpoint.
   const noteParser = new MuseSparkDamageNoteParser(visionClient, {
@@ -116,6 +130,8 @@ function main(): void {
     logger,
     webDistDir: config.webDistDir,
     accessCode: config.accessCode,
+    apiTokens: config.apiTokens,
+    publicUrl: config.publicUrl,
     notice: config.notice,
     samples: config.samplesDir ? SampleClips.load(config.samplesDir) : undefined,
   });

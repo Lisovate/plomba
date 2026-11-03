@@ -5,8 +5,10 @@
 
 import type {
   Container,
+  ContainerSummary,
   FaceView,
   Handover,
+  HandoverEventType,
   HandoverSummary,
   Mark,
   MarkingsRead,
@@ -201,6 +203,8 @@ export interface ResultCache<T> {
 
 export interface ContainerRepository {
   get(number: string): Container | undefined;
+  /** Containers whose number starts with `prefix` (e.g. an owner code), most recently handed over first. */
+  list(options: { readonly prefix?: string; readonly limit: number }): ContainerSummary[];
   insert(container: Container): void;
   updateSizeType(number: string, sizeTypeCode: string, dimensions: Container['dimensions']): void;
 }
@@ -293,6 +297,20 @@ export interface MarkRepository {
   insert(mark: NewMark): void;
   update(mark: Mark): void;
   listForHandover(handoverId: string): Mark[];
+}
+
+/** Something that happened to a handover, for other systems to react to. */
+export interface HandoverEvent {
+  readonly type: HandoverEventType;
+  readonly handoverId: string;
+  readonly containerNumber: string;
+  readonly occurredAt: string;
+}
+
+/** Where handover events go (webhooks, and anything else that subscribes). */
+export interface EventPublisher {
+  /** Never throws and never waits for delivery. */
+  publish(event: HandoverEvent): void;
 }
 
 /** Runs a function atomically. Repositories called inside share the transaction. */

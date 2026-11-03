@@ -196,6 +196,17 @@ describe('a handover', () => {
     expect(first).toMatchObject({ id: handover.id, status: 'open', photoCount: 1, markCount: 0 });
   });
 
+  it("lists an owner's containers, most recently handed over first", async () => {
+    const { service } = await startedHandover();
+    service.registerContainer({ number: 'MSCU9749070', sizeTypeCode: '45G1' });
+    const owned = service.listContainers({ owner: 'csqu' });
+    expect(owned.map((c) => [c.number, c.handoverCount, c.lastHandover?.place])).toEqual([
+      [NUMBER, 1, 'Gdynia rail terminal'],
+    ]);
+    expect(service.listContainers().map((c) => c.number)).toEqual([NUMBER, 'MSCU9749070']);
+    expect(() => service.listContainers({ owner: "CS%'" })).toThrow(ValidationError);
+  });
+
   it('reports unknown handovers and containers', async () => {
     const { service } = createTestHandoverService();
     expect(() => service.detail('00000000-0000-4000-8000-0000000000ff')).toThrow(NotFoundError);

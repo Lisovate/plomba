@@ -23,6 +23,11 @@ services:
       # Sample walk-around clips to try the app with: mount a folder with a
       # samples.json (see docs/self-hosting.md) and point this at it.
       PLOMBA_SAMPLES_DIR: ${PLOMBA_SAMPLES_DIR:-}
+      # Integrations (docs/integrations.md): API tokens and signed webhooks.
+      PLOMBA_API_TOKENS_FILE: ${PLOMBA_API_TOKENS_FILE:-}
+      PLOMBA_WEBHOOK_URLS: ${PLOMBA_WEBHOOK_URLS:-}
+      PLOMBA_WEBHOOK_SECRET_FILE: ${PLOMBA_WEBHOOK_SECRET_FILE:-}
+      PLOMBA_PUBLIC_URL: ${PLOMBA_PUBLIC_URL:-}
       # META_API_BASE_URL: https://api.meta.ai/v1
       # LOG_LEVEL: info
     secrets:

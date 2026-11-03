@@ -7,6 +7,7 @@
 import {
   type Container,
   type ContainerHistory,
+  type ContainerSummary,
   type CreateMark,
   FaceRectSchema,
   FaceSchema,
@@ -46,6 +47,8 @@ import type {
   Clock,
   ContainerRepository,
   DamageDetector,
+  EventPublisher,
+  HandoverEvent,
   HandoverRepository,
   IdGenerator,
   MarkRepository,
@@ -88,6 +91,8 @@ export interface HandoverServiceDeps {
   readonly newId: IdGenerator;
   /** This installation's ID in EDIFACT messages. */
   readonly ediSenderId: string;
+  /** Where handover events go (e.g. webhooks); none by default. */
+  readonly events?: EventPublisher;
 }
 
 type Coverage = Record<Face, FaceCoverage>;
@@ -175,6 +180,22 @@ export class HandoverService {
 
   // Handovers --------------------------------------------------------------
 
+  /**
+   * The containers an owner, lessor or operator follows: those whose number
+   * starts with `owner` (an owner code such as PLBU, or its three letters),
+   * most recently handed over first.
+   */
+  listContainers(options: { owner?: string | undefined; limit?: number } = {}): ContainerSummary[] {
+    const owner = options.owner?.trim().toUpperCase();
+    if (owner && !/^[A-Z]{3}[UJZ]?$/.test(owner)) {
+      throw new ValidationError(
+        'owner must be an owner code: three letters, optionally with U, J or Z',
+      );
+    }
+    const limit = Math.min(Math.max(options.limit ?? 100, 1), 500);
+    return this.#d.containers.list({ ...(owner ? { prefix: owner } : {}), limit });
+  }
+
   start(input: StartHandover): Handover {
     const container = this.#container(input.containerNumber);
     const vehicleId = vehicleIdentifier(input);
@@ -195,7 +216,9 @@ export class HandoverService {
         previousHandoverId: this.#d.handovers.findLastClosed(container.number)?.id ?? null,
       });
     });
-    return this.#handover(id);
+    const handover = this.#handover(id);
+    this.#publish('handover.started', handover);
+    return handover;
   }
 
   recent(limit = 30): HandoverSummary[] {
@@ -428,7 +451,9 @@ export class HandoverService {
             closedAt,
           });
         });
-        return this.#handover(handoverId);
+        const sealed = this.#handover(handoverId);
+        this.#publish('handover.sealed', sealed);
+        return sealed;
       } catch (error) {
         if (!(error instanceof ConflictError) || attempt >= SEAL_ATTEMPTS) throw error;
       }
@@ -545,6 +570,15 @@ export class HandoverService {
   }
 
   // Lookups ----------------------------------------------------------------
+
+  #publish(type: HandoverEvent['type'], handover: Handover): void {
+    this.#d.events?.publish({
+      type,
+      handoverId: handover.id,
+      containerNumber: handover.containerNumber,
+      occurredAt: this.#now(),
+    });
+  }
 
   #now(): string {
     return this.#d.clock.now().toISOString();

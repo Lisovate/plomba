@@ -26,7 +26,8 @@ import type { IdentifyService } from '../services/identify.ts';
 import type { SpeechService } from '../services/speech.ts';
 import type { SpokenDamageService } from '../services/spoken-damage.ts';
 import type { VideoService } from '../services/video.ts';
-import { installAccessControl } from './access.ts';
+import { type ApiToken, installAccessControl } from './access.ts';
+import { openApiDocument } from './openapi.ts';
 
 export interface AppDeps {
   readonly identify: IdentifyService;
@@ -41,10 +42,14 @@ export interface AppDeps {
   readonly webDistDir?: string | undefined;
   /** When set, API and media requests need a session obtained with this code. */
   readonly accessCode?: string | undefined;
+  /** Tokens other systems send as `Authorization: Bearer …`, when an access code is set. */
+  readonly apiTokens?: readonly ApiToken[] | undefined;
   /** The operator's notice for the foot of every screen. */
   readonly notice?: string | undefined;
   /** Sample walk-around clips to try the app with. */
   readonly samples?: SampleClips | undefined;
+  /** This installation's address, for the API description. */
+  readonly publicUrl?: string | undefined;
 }
 
 /** Phones produce 3–12 MB photos; leave room for multipart overhead. */
@@ -101,7 +106,7 @@ export function createApp(deps: AppDeps): Hono {
     return problem(c, 500, 'internal', 'Something went wrong on the server');
   });
 
-  installAccessControl(app, deps.accessCode);
+  installAccessControl(app, deps.accessCode, deps.apiTokens);
   app.route('/api', api(deps));
 
   app.get('/media/:sha256', async (c) => {
@@ -131,6 +136,9 @@ function api(deps: AppDeps): Hono {
   api.get('/health', (c) => c.json({ status: 'ok' }));
 
   api.get('/instance', (c) => c.json({ notice: deps.notice ?? null }));
+
+  const openApi = openApiDocument({ serverUrl: deps.publicUrl ?? '' });
+  api.get('/openapi.json', (c) => c.json(openApi));
 
   api.get('/samples', (c) => c.json(deps.samples?.list() ?? []));
 
@@ -193,6 +201,15 @@ function api(deps: AppDeps): Hono {
     const input = await readJson(c, RegisterContainerSchema);
     return c.json(handovers.registerContainer(input), 201);
   });
+
+  api.get('/containers', (c) =>
+    c.json(
+      handovers.listContainers({
+        owner: c.req.query('owner'),
+        limit: c.req.query('limit') ? Number(c.req.query('limit')) : undefined,
+      }),
+    ),
+  );
 
   api.get('/containers/:number', async (c) =>
     c.json(await handovers.history(c.req.param('number'))),
