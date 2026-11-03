@@ -12,6 +12,7 @@ import {
   ContainerSchema,
   type CreateMarkInput,
   type Face,
+  FaceViewsSchema,
   FrameRegistrationSchema,
   HandoverDetailSchema,
   HandoverListSchema,
@@ -124,6 +125,15 @@ export const api = {
     const form = new FormData();
     form.set('video', video, 'clip.mp4');
     return request('/api/videos/track', { method: 'POST', body: form }, VideoTrackingSchema);
+  },
+
+  /** Names the face of the container in each frame of a walk-around (frames in clip order). */
+  videoFaces: (frames: readonly Blob[]) => {
+    const form = new FormData();
+    frames.forEach((frame, i) => {
+      form.append('frame', frame, `frame-${i + 1}.jpg`);
+    });
+    return request('/api/videos/faces', { method: 'POST', body: form }, FaceViewsSchema);
   },
 
   registerFrame: (id: string, frame: Blob) =>

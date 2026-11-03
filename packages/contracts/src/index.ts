@@ -147,6 +147,21 @@ export const VideoTrackingSchema = z.object({
   cached: z.boolean(),
 });
 
+/** Which face of the container one frame of a walk-around shows, as judged by the vision model. */
+export const FaceViewSchema = z.object({
+  /** The face seen square-on, or null when no single face is (a corner, the ground, a close-up). */
+  face: FaceSchema.nullable(),
+  /** True when the whole face is in view, roughly square-on. */
+  squareOn: z.boolean(),
+  /** The model's own confidence in `face`, 0–1. */
+  confidence: z.number().min(0).max(1),
+  /** A few words on what is in view, from the model. */
+  note: z.string(),
+});
+
+/** The faces in a walk-around's chosen frames, in the order they were sent. */
+export const FaceViewsSchema = z.object({ views: z.array(FaceViewSchema) });
+
 /** Where the face is in a live camera frame. Frames are never stored. */
 export const FrameRegistrationSchema = z.object({
   width: z.number().int(),
@@ -339,6 +354,8 @@ export type ClaimCheck = z.infer<typeof ClaimCheckSchema>;
 export type Session = z.infer<typeof SessionSchema>;
 export type FrameRegistration = z.infer<typeof FrameRegistrationSchema>;
 export type VideoTracking = z.infer<typeof VideoTrackingSchema>;
+export type FaceView = z.infer<typeof FaceViewSchema>;
+export type FaceViews = z.infer<typeof FaceViewsSchema>;
 
 /** Request bodies as clients write them, before defaults are applied. */
 export type StartHandoverInput = z.input<typeof StartHandoverSchema>;

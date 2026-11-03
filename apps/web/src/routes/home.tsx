@@ -49,10 +49,6 @@ export function HomeScreen() {
         </button>
       )}
 
-      <Link to="/simulate" className="button secondary">
-        {t('home.simulate')}
-      </Link>
-
       {install.kind === 'prompt' && (
         <button type="button" className="secondary" onClick={install.prompt}>
           {t('home.install')}

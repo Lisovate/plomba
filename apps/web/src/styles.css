@@ -300,6 +300,11 @@ legend {
   border-left: 4px solid var(--seal);
 }
 
+.notice.ok {
+  background: #e7f6ec;
+  border-left-color: var(--ok);
+}
+
 .notice.error {
   background: #fdecea;
   border-left-color: var(--danger);
@@ -804,7 +809,7 @@ legend {
   font-weight: 600;
 }
 
-/* Video simulation -------------------------------------------------------- */
+/* Walk-around video -------------------------------------------------------- */
 
 .video-ar video {
   display: block;
@@ -814,4 +819,73 @@ legend {
 
 .overlay.passive {
   pointer-events: none;
+}
+
+.face-outline.faint {
+  stroke-dasharray: 10 8;
+  opacity: 0.7;
+}
+
+.filmstrip {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.filmstrip .frame {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.filmstrip .frame.used {
+  border-color: var(--seal);
+  box-shadow: 0 0 0 3px rgb(255 194 14 / 0.3);
+}
+
+.filmstrip img {
+  display: block;
+  width: 100%;
+  border-radius: 8px;
+}
+
+.frame-label,
+.frame-note {
+  margin: 0;
+}
+
+.frame-label {
+  font-weight: 600;
+}
+
+.frame-note {
+  font-size: 0.85rem;
+}
+
+.field.compact {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: var(--tap);
+  margin-bottom: 0.5rem;
+}
+
+.check input {
+  width: 1.4rem;
+  height: 1.4rem;
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--navy);
 }

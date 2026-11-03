@@ -142,6 +142,17 @@ function api(deps: AppDeps): Hono {
     return c.json(await video.track(new Uint8Array(await file.arrayBuffer())));
   });
 
+  // The chosen frames of a walk-around, in clip order, as repeated "frame" fields.
+  api.post('/videos/faces', videoLimit, async (c) => {
+    const form = await c.req.parseBody({ all: true }).catch(() => {
+      throw new ValidationError('Expected multipart/form-data');
+    });
+    const files = [form.frame ?? []].flat().filter((f): f is File => f instanceof File);
+    if (files.length === 0) throw new ValidationError('Attach the frames as "frame" fields');
+    const frames = await Promise.all(files.map(async (f) => new Uint8Array(await f.arrayBuffer())));
+    return c.json(await video.faces(frames));
+  });
+
   api.post('/identify', uploadLimit, async (c) => {
     const { image } = await readUpload(c);
     return c.json(await identify.identify(image));

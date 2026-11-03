@@ -12,7 +12,8 @@ export interface StructuredCall {
   readonly reasoningEffort: 'minimal' | 'low' | 'medium' | 'high';
   readonly instructions: string;
   readonly prompt: string;
-  readonly image: ImageInput;
+  /** One photo, or several in the order the prompt refers to them. */
+  readonly image: ImageInput | readonly ImageInput[];
   readonly schemaName: string;
   /** JSON schema sent to the model (strict mode). */
   readonly schema: Record<string, unknown>;
@@ -46,6 +47,10 @@ export async function askStructured<T>(
   return parsed.data;
 }
 
+function images(call: StructuredCall): readonly ImageInput[] {
+  return Array.isArray(call.image) ? call.image : [call.image as ImageInput];
+}
+
 async function viaChat(client: MetaClient, call: StructuredCall): Promise<string> {
   const completion = await client.createChatCompletion({
     model: call.model,
@@ -56,7 +61,10 @@ async function viaChat(client: MetaClient, call: StructuredCall): Promise<string
         role: 'user',
         content: [
           { type: 'text', text: call.prompt },
-          { type: 'image_url', image_url: { url: toDataUrl(call.image) } },
+          ...images(call).map((image) => ({
+            type: 'image_url' as const,
+            image_url: { url: toDataUrl(image) },
+          })),
         ],
       },
     ],
@@ -79,7 +87,10 @@ async function viaResponses(client: MetaClient, call: StructuredCall): Promise<s
         role: 'user',
         content: [
           { type: 'input_text', text: call.prompt },
-          { type: 'input_image', image_url: toDataUrl(call.image) },
+          ...images(call).map((image) => ({
+            type: 'input_image' as const,
+            image_url: toDataUrl(image),
+          })),
         ],
       },
     ],

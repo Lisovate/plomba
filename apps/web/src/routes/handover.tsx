@@ -50,6 +50,11 @@ export function HandoverScreen() {
           {t('handover.faces', { done: view.registeredFaces, total: FACES.length })} ·{' '}
           {t('handover.coverage', view.sections)}
         </p>
+        {editable && (
+          <Link to={`/handovers/${handover.id}/walkaround`} className="button secondary">
+            {t('handover.walkaround')}
+          </Link>
+        )}
       </Card>
 
       <nav className="face-tabs" aria-label="Faces">

@@ -3,12 +3,18 @@
  * (JSON schema) over a photo of the container.
  */
 
-import { type MarkingsRead, MarkingsReadSchema } from '@plomba/contracts';
-import { COMPONENT_CODES, DAMAGE_CODES } from '@plomba/core';
+import {
+  type FaceView,
+  FaceViewSchema,
+  type MarkingsRead,
+  MarkingsReadSchema,
+} from '@plomba/contracts';
+import { COMPONENT_CODES, DAMAGE_CODES, FACES } from '@plomba/core';
 import { z } from 'zod';
 import type {
   DamageDetector,
   DamageFinding,
+  FaceViewClassifier,
   ImageInput,
   MarkingsReader,
   SizedImage,
@@ -206,3 +212,83 @@ export class MuseSparkDamageDetector implements DamageDetector {
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+// Faces in a walk-around ----------------------------------------------------
+
+const VIEW_INSTRUCTIONS = `You look at frames from a video of a checker walking around one intermodal shipping container at a handover. The frames are in the order they were filmed.
+
+For each frame, say which face of the container is in view square-on:
+- D: the door end. Two doors with vertical locking bars, handles and hinges; the container number is painted on the doors.
+- F: the front end, opposite the doors. A plain corrugated wall without doors.
+- L or R: a long side. Left and right are as seen standing at the door end looking towards the front. So when you face a side from outside: if the door end is at the right of the frame, it is the left side (L); if the door end is at the left of the frame, it is the right side (R).
+- T: the roof, seen from above.
+- null: no single face is in view square-on, e.g. a corner with two faces at similar angles, a close-up of part of a face, or no container.
+
+When a side's ends aren't visible in its own frame, use other clues:
+- The frames come from one continuous walk, so the faces follow each other around the container: the doors, one side, the front, the other side. A side reached by walking from the doors, with the doors on the left of the frame, is R.
+- On a truck, trailer or rail wagon, containers are normally loaded with the doors at the rear, away from the cab or locomotive.
+
+For each frame give:
+- frame: its 1-based position in the list;
+- face: D, F, L, R, T or null;
+- squareOn: true when the whole face is in view and seen roughly square-on, not at a steep angle;
+- confidence: 0–1 for the face;
+- note: a few words on what is in view.`;
+
+const VIEW_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['views'],
+  properties: {
+    views: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['frame', 'face', 'squareOn', 'confidence', 'note'],
+        properties: {
+          frame: { type: 'integer' },
+          face: { type: ['string', 'null'], enum: [...FACES, null] },
+          squareOn: { type: 'boolean' },
+          confidence: { type: 'number' },
+          note: { type: 'string' },
+        },
+      },
+    },
+  },
+} as const;
+
+const ViewsAnswerSchema = z.object({
+  views: z.array(FaceViewSchema.extend({ frame: z.number().int() })),
+});
+
+export class MuseSparkFaceViewClassifier implements FaceViewClassifier {
+  readonly #client: MetaClient;
+  readonly #options: MuseSparkOptions;
+
+  constructor(client: MetaClient, options: MuseSparkOptions) {
+    this.#client = client;
+    this.#options = options;
+  }
+
+  async classify(frames: readonly ImageInput[]): Promise<FaceView[]> {
+    const { views } = await askStructured(
+      this.#client,
+      {
+        ...this.#options,
+        instructions: VIEW_INSTRUCTIONS,
+        prompt: `Here are ${frames.length} frames of the walk-around, in order. Name the face in each.`,
+        image: frames,
+        schemaName: 'walkaround_faces',
+        schema: VIEW_SCHEMA,
+      },
+      ViewsAnswerSchema,
+    );
+    // Align by the model's own frame numbers; a frame it skipped shows no face.
+    const byFrame = new Map(views.map(({ frame, ...view }) => [frame, view]));
+    return frames.map(
+      (_, i) =>
+        byFrame.get(i + 1) ?? { face: null, squareOn: false, confidence: 0, note: 'Not answered' },
+    );
+  }
+}

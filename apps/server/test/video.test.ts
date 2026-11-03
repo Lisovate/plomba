@@ -1,7 +1,17 @@
+import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import { ValidationError } from '../src/errors.ts';
 import { VideoService, videoType } from '../src/services/video.ts';
-import { FakeSegmenter, MemoryCache, rectangleObject } from './fakes.ts';
+import { FakeFaceViewClassifier, FakeSegmenter, MemoryCache, rectangleObject } from './fakes.ts';
+
+function videoService(segmenter = new FakeSegmenter(), classifier = new FakeFaceViewClassifier()) {
+  return new VideoService({ segmenter, classifier, cache: new MemoryCache() });
+}
+
+const jpeg = (width: number, height: number) =>
+  sharp({ create: { width, height, channels: 3, background: '#557' } })
+    .jpeg()
+    .toBuffer();
 
 /** The first bytes of an ISO base media file with the given brand. */
 function isoFile(brand: string): Uint8Array {
@@ -28,7 +38,7 @@ describe('VideoService', () => {
       { frame: 1, objects: [] },
       { frame: 2, objects: [rectangleObject(20, 10, 120, 60)] },
     ];
-    const service = new VideoService(segmenter, new MemoryCache());
+    const service = videoService(segmenter);
 
     const first = await service.track(isoFile('isom'));
     expect(first.cached).toBe(false);
@@ -52,7 +62,28 @@ describe('VideoService', () => {
       { frame: 1, objects: [small('2')] },
       { frame: 2, objects: [big('1'), small('2')] },
     ];
-    const result = await new VideoService(segmenter, new MemoryCache()).track(isoFile('isom'));
+    const result = await videoService(segmenter).track(isoFile('isom'));
     expect(result.frames.map((f) => f.frame)).toEqual([0, 2]);
+  });
+
+  it('names the face in every frame, downscaled, in one call', async () => {
+    const classifier = new FakeFaceViewClassifier([
+      { face: 'D', squareOn: true, confidence: 0.9, note: 'doors' },
+      { face: 'R', squareOn: true, confidence: 0.8, note: 'side, doors on the left' },
+    ]);
+    const service = videoService(undefined, classifier);
+    const frames = await Promise.all([jpeg(1920, 1080), jpeg(1920, 1080)]);
+    const { views } = await service.faces(frames.map((f) => new Uint8Array(f)));
+    expect(views.map((v) => v.face)).toEqual(['D', 'R']);
+    expect(classifier.calls).toEqual([2]);
+    const { width } = await sharp(classifier.frames[0]?.data).metadata();
+    expect(width).toBe(768);
+  });
+
+  it('refuses no frames or more than one call can look at', async () => {
+    const service = videoService();
+    await expect(service.faces([])).rejects.toThrow(ValidationError);
+    const many = Array.from({ length: 17 }, () => new Uint8Array(1));
+    await expect(service.faces(many)).rejects.toThrow(ValidationError);
   });
 });

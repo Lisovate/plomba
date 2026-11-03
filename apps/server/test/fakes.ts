@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { CreateMark, MarkingsRead } from '@plomba/contracts';
+import type { CreateMark, FaceView, MarkingsRead } from '@plomba/contracts';
 import { pino } from 'pino';
 import sharp from 'sharp';
 import { createTransactionRunner, openDatabase } from '../src/adapters/sqlite/database.ts';
@@ -16,6 +16,7 @@ import type {
   AgentTask,
   DamageDetector,
   DamageFinding,
+  FaceViewClassifier,
   ImageInput,
   MarkingsReader,
   MediaStore,
@@ -294,9 +295,35 @@ export class MemoryCache<T> implements ResultCache<T> {
   }
 }
 
+/** Answers with scripted views, one per frame, and records how many frames it saw. */
+export class FakeFaceViewClassifier implements FaceViewClassifier {
+  readonly calls: number[] = [];
+  /** The frames of the latest call, as the model would receive them. */
+  frames: readonly ImageInput[] = [];
+  readonly #views: readonly FaceView[];
+
+  constructor(views: readonly FaceView[] = []) {
+    this.#views = views;
+  }
+
+  async classify(frames: readonly ImageInput[]): Promise<FaceView[]> {
+    this.calls.push(frames.length);
+    this.frames = frames;
+    return frames.map(
+      (_, i) =>
+        this.#views[i] ?? { face: null, squareOn: false, confidence: 0, note: 'nothing scripted' },
+    );
+  }
+}
+
 /** The HTTP app over in-memory adapters and fakes. */
 export function createTestApp(
-  options: { reader?: MarkingsReader; accessCode?: string; agent?: Agent } = {},
+  options: {
+    reader?: MarkingsReader;
+    accessCode?: string;
+    agent?: Agent;
+    classifier?: FaceViewClassifier;
+  } = {},
 ) {
   const context = createTestHandoverService();
   const { service, media, db, segmenter } = context;
@@ -312,7 +339,11 @@ export function createTestApp(
       media,
       agent: options.agent ?? new ScriptedAgent([]),
     }),
-    video: new VideoService(segmenter, new MemoryCache()),
+    video: new VideoService({
+      segmenter,
+      classifier: options.classifier ?? new FakeFaceViewClassifier(),
+      cache: new MemoryCache(),
+    }),
     media,
     logger: silentLogger,
     accessCode: options.accessCode,

@@ -6,21 +6,42 @@
  */
 
 import { createHash } from 'node:crypto';
-import type { VideoTracking } from '@plomba/contracts';
+import type { FaceViews, VideoTracking } from '@plomba/contracts';
 import type { Point, Quad } from '@plomba/core';
 import { ValidationError } from '../errors.ts';
-import type { ResultCache, Segmenter, TrackedFrame, VideoInput } from '../ports.ts';
+import { normaliseImage } from '../media/images.ts';
+import type {
+  FaceViewClassifier,
+  ResultCache,
+  Segmenter,
+  TrackedFrame,
+  VideoInput,
+} from '../ports.ts';
 import { CONTAINER_CONCEPT, containerCorners } from './vision.ts';
 
 export type StoredTracking = Omit<VideoTracking, 'cached'>;
 
+/** One model call looks at every chosen frame at once, so it can follow the walk. */
+export const MAX_WALKAROUND_FRAMES = 16;
+
+/** Frames are only looked at, never stored: this is plenty to tell the faces apart. */
+const VIEW_MAX_SIDE = 768;
+
+export interface VideoServiceDeps {
+  readonly segmenter: Segmenter;
+  readonly classifier: FaceViewClassifier;
+  readonly cache: ResultCache<StoredTracking>;
+}
+
 export class VideoService {
   readonly #segmenter: Segmenter;
+  readonly #classifier: FaceViewClassifier;
   readonly #cache: ResultCache<StoredTracking>;
 
-  constructor(segmenter: Segmenter, cache: ResultCache<StoredTracking>) {
-    this.#segmenter = segmenter;
-    this.#cache = cache;
+  constructor(deps: VideoServiceDeps) {
+    this.#segmenter = deps.segmenter;
+    this.#classifier = deps.classifier;
+    this.#cache = deps.cache;
   }
 
   /** Tracks the container's face through a clip. The clip itself isn't stored. */
@@ -44,6 +65,19 @@ export class VideoService {
     };
     await this.#cache.put(key, result);
     return { ...result, cached: false };
+  }
+
+  /**
+   * Names the face of the container in each of a walk-around's chosen frames,
+   * given in clip order. The checker confirms the faces before any frame is
+   * added to a handover as a photo.
+   */
+  async faces(frames: readonly Uint8Array[]): Promise<FaceViews> {
+    if (frames.length === 0 || frames.length > MAX_WALKAROUND_FRAMES) {
+      throw new ValidationError(`Send 1 to ${MAX_WALKAROUND_FRAMES} frames`);
+    }
+    const images = await Promise.all(frames.map((frame) => normaliseImage(frame, VIEW_MAX_SIDE)));
+    return { views: await this.#classifier.classify(images) };
   }
 }
 

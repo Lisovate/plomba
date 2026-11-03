@@ -10,7 +10,7 @@ import { HandoverScreen } from './routes/handover.tsx';
 import { HomeScreen } from './routes/home.tsx';
 import { IdentifyScreen } from './routes/identify.tsx';
 import { ReportScreen } from './routes/report.tsx';
-import { SimulateScreen } from './routes/simulate.tsx';
+import { WalkaroundScreen } from './routes/walkaround.tsx';
 
 /** A 401 means the session ended: ask the server again, which brings back the access-code form. */
 function onError(error: unknown) {
@@ -74,7 +74,7 @@ const router = createBrowserRouter([
       { path: 'containers/:number', element: <ContainerScreen /> },
       { path: 'handovers/:id', element: <HandoverScreen /> },
       { path: 'handovers/:id/report', element: <ReportScreen /> },
-      { path: 'simulate', element: <SimulateScreen /> },
+      { path: 'handovers/:id/walkaround', element: <WalkaroundScreen /> },
     ],
   },
 ]);

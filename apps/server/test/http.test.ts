@@ -1,6 +1,6 @@
-import { IdentifyResultSchema, ProblemSchema } from '@plomba/contracts';
+import { FaceViewsSchema, IdentifyResultSchema, ProblemSchema } from '@plomba/contracts';
 import { describe, expect, it } from 'vitest';
-import { createTestApp, FakeReader, makePhoto, makeWav } from './fakes.ts';
+import { createTestApp, FakeFaceViewClassifier, FakeReader, makePhoto, makeWav } from './fakes.ts';
 
 function testApp() {
   const reader = new FakeReader('LSOU1077379');
@@ -93,6 +93,23 @@ describe('HTTP API', () => {
     const response = await testApp().request('/api/transcribe', { method: 'POST', body: form });
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ text: 'wgniecenie przy drzwiach', durationMs: 1000 });
+  });
+
+  it('names the faces in the frames of a walk-around, in order', async () => {
+    const classifier = new FakeFaceViewClassifier([
+      { face: 'D', squareOn: true, confidence: 0.9, note: 'doors' },
+      { face: 'L', squareOn: true, confidence: 0.7, note: 'side, doors on the right' },
+    ]);
+    const { app } = createTestApp({ classifier });
+    const form = new FormData();
+    for (const name of ['1.jpg', '2.jpg']) {
+      form.append('frame', new File([(await makePhoto()) as Uint8Array<ArrayBuffer>], name));
+    }
+    const response = await app.request('/api/videos/faces', { method: 'POST', body: form });
+    expect(response.status).toBe(200);
+    const { views } = FaceViewsSchema.parse(await response.json());
+    expect(views.map((v) => v.face)).toEqual(['D', 'L']);
+    expect(classifier.calls).toEqual([2]);
   });
 
   it('answers unknown API routes with 404 problem details', async () => {

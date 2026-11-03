@@ -10,7 +10,11 @@ import { join } from 'node:path';
 import { serve } from '@hono/node-server';
 import { pino } from 'pino';
 import { MetaClient } from './adapters/meta/client.ts';
-import { MuseSparkDamageDetector, MuseSparkMarkingsReader } from './adapters/meta/muse-spark.ts';
+import {
+  MuseSparkDamageDetector,
+  MuseSparkFaceViewClassifier,
+  MuseSparkMarkingsReader,
+} from './adapters/meta/muse-spark.ts';
 import { MuseSparkAgent } from './adapters/meta/muse-spark-agent.ts';
 import { MuseVoiceTranscriber } from './adapters/meta/muse-voice.ts';
 import { Sam3Segmenter } from './adapters/meta/sam.ts';
@@ -63,6 +67,10 @@ function main(): void {
   const spark = { model: config.meta.visionModel, reasoningEffort: config.meta.reasoningEffort };
   const reader = new MuseSparkMarkingsReader(visionClient, { ...spark, api: vision.apiStyle });
   const detector = new MuseSparkDamageDetector(visionClient, { ...spark, api: vision.apiStyle });
+  const classifier = new MuseSparkFaceViewClassifier(visionClient, {
+    ...spark,
+    api: vision.apiStyle,
+  });
   const segmenter = new Sam3Segmenter(meta, { model: config.meta.segmentationModel });
   const transcriber = new MuseVoiceTranscriber(meta, { model: config.meta.speechModel });
 
@@ -86,7 +94,11 @@ function main(): void {
     }),
     speech: new SpeechService(transcriber),
     claims: new ClaimService({ ...repositories, media, agent: new MuseSparkAgent(meta, spark) }),
-    video: new VideoService(segmenter, new JsonFileCache(join(config.dataDir, 'tracks'))),
+    video: new VideoService({
+      segmenter,
+      classifier,
+      cache: new JsonFileCache(join(config.dataDir, 'tracks')),
+    }),
     media,
     logger,
     webDistDir: config.webDistDir,

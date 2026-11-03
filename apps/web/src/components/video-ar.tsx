@@ -40,17 +40,19 @@ interface VideoArProps {
   readonly src: string;
   readonly tracking: VideoTracking | undefined;
   readonly detail: HandoverDetail;
-  readonly face: Face;
+  /** The face in view at a frame, or `null` while the camera turns a corner. */
+  readonly faceAt: (frame: number) => Face | null;
   /** Called with the video element, e.g. to capture the current frame. */
   readonly onVideo?: (video: HTMLVideoElement | null) => void;
 }
 
 /**
  * Plays a recorded clip with the container's coordinates drawn on it, frame
- * by frame from SAM 3.1's tracking: the CEDEX sections of the chosen face, the
- * previous handover's damage (dashed) and this handover's damage.
+ * by frame from SAM 3.1's tracking: the CEDEX sections of the face in view,
+ * the previous handover's damage (dashed) and this handover's damage. While
+ * the camera turns a corner only the container's outline is drawn.
  */
-export function VideoAr({ src, tracking, detail, face, onVideo }: VideoArProps) {
+export function VideoAr({ src, tracking, detail, faceAt, onVideo }: VideoArProps) {
   const { t } = useI18n();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
@@ -95,8 +97,9 @@ export function VideoAr({ src, tracking, detail, face, onVideo }: VideoArProps) 
   }, [tracking]);
 
   const corners = tracking ? cornersAt(tracking, frame) : null;
+  const face = faceAt(frame);
   const h = useMemo(() => {
-    if (!corners) return null;
+    if (!corners || !face) return null;
     try {
       return faceToImage(face, dimensions, corners);
     } catch {
@@ -128,7 +131,10 @@ export function VideoAr({ src, tracking, detail, face, onVideo }: VideoArProps) 
           preserveAspectRatio="xMidYMid meet"
           aria-hidden
         >
-          {h && corners && (
+          {corners && !h && (
+            <polygon points={points(corners)} className="face-outline faint" strokeWidth={2 * px} />
+          )}
+          {h && corners && face && (
             <>
               {faceCells(face, dimensions).map((cell) => (
                 <polygon
@@ -160,9 +166,14 @@ export function VideoAr({ src, tracking, detail, face, onVideo }: VideoArProps) 
       <p className="live-status">
         {tracking
           ? corners
-            ? t('sim.frame', { frame: frame + 1, total: tracking.frameCount })
-            : t('sim.lost')
-          : t('sim.label')}
+            ? [
+                t('walk.frame', { frame: frame + 1, total: tracking.frameCount }),
+                face ? t(`faceTitle.${face}`) : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            : t('walk.lost')
+          : t('walk.label')}
       </p>
     </div>
   );

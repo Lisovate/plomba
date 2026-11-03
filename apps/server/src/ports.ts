@@ -5,6 +5,7 @@
 
 import type {
   Container,
+  FaceView,
   Handover,
   HandoverSummary,
   Mark,
@@ -86,6 +87,12 @@ export interface Segmenter {
   segment(image: ImageInput, concept: string): Promise<SegmentedObject[]>;
   /** The object inside each box, outlined; `null` where nothing is found. */
   refine(image: SizedImage, boxes: readonly PixelBox[]): Promise<(SegmentedObject | null)[]>;
+}
+
+/** Names the face of the container seen in each frame of a walk-around. */
+export interface FaceViewClassifier {
+  /** One view per frame, in the order given; frames are in clip order. */
+  classify(frames: readonly ImageInput[]): Promise<FaceView[]>;
 }
 
 export interface DamageFinding {
