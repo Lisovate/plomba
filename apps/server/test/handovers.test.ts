@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { ConflictError, NotFoundError, ValidationError } from '../src/errors.ts';
-import { createTestHandoverService, makePhoto, markInput, rectangleObject } from './fakes.ts';
+import {
+  cornerObject,
+  createTestHandoverService,
+  makePhoto,
+  markInput,
+  rectangleObject,
+} from './fakes.ts';
 
 const NUMBER = 'CSQU3054383';
 
@@ -59,6 +65,19 @@ describe('a handover', () => {
     expect(photo.corners?.[0]).toEqual({ x: 40, y: 30.5 });
     expect(media.files.has(photo.sha256)).toBe(true);
     expect(photo.url).toBe(`/media/${photo.sha256}`);
+  });
+
+  it('registers a photo taken at an angle to the face it is aimed at', async () => {
+    const { service, segmenter, handover } = await startedHandover();
+    // Seen corner-on: the face on the left of the near edge (x = 300) is the larger.
+    segmenter.responses.set('shipping container', [cornerObject(300)]);
+
+    const photo = await service.addPhoto(handover.id, { face: 'R', data: await makePhoto() });
+
+    const xs = photo.corners?.map((p) => p.x) ?? [];
+    expect(Math.min(...xs)).toBeLessThan(5);
+    expect(Math.max(...xs)).toBeGreaterThan(295);
+    expect(Math.max(...xs)).toBeLessThan(310);
   });
 
   it('leaves corners for the checker when no container is found', async () => {

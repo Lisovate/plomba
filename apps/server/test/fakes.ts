@@ -93,6 +93,29 @@ export class FakeReader implements MarkingsReader {
 }
 
 /** A filled rectangle mask, at the photo's resolution. */
+/** A container seen corner-on: a hexagon whose near edge, at `nearX`, is taller than the outer edges. */
+export function cornerObject(nearX: number): SegmentedObject {
+  const [left, right, top, bottom] = [0, 400, 0, 200];
+  const width = right - left;
+  const height = bottom - top;
+  const data = new Uint8Array(width * height);
+  // Outer edges span y 30..170; the near edge spans the full 0..200.
+  const edgeTop = (x: number) =>
+    x <= nearX ? 30 - (30 * x) / nearX : (30 * (x - nearX)) / (width - nearX);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const t = edgeTop(x);
+      if (y >= t && y <= height - t) data[y * width + x] = 1;
+    }
+  }
+  return {
+    id: '0',
+    box: { left, top, right, bottom },
+    confidence: 0.9,
+    mask: { width, height, data, bounds: { left, top, right, bottom } },
+  };
+}
+
 export function rectangleObject(
   left: number,
   top: number,

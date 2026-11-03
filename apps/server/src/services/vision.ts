@@ -61,16 +61,25 @@ function maskArea(object: SegmentedObject): number {
 }
 
 /**
- * Finds the corners of the container face that fills a roughly head-on photo.
- * Returns `null` when nothing convincing is found; the checker then places the
- * corners by hand.
+ * Finds the corners of the container face a photo is aimed at. Seen at an
+ * angle, the container's outline covers two faces; the photo is then
+ * registered to the larger of the two, the one the checker is facing.
+ * Returns `null` when nothing convincing is found; the checker then places
+ * the corners by hand.
  */
 export async function detectFaceCorners(
   segmenter: Segmenter,
   image: ImageInput & { readonly width: number; readonly height: number },
 ): Promise<Quad | null> {
-  const quad = containerCorners(await segmenter.segment(image, CONTAINER_CONCEPT));
-  return quad && quadArea(quad) >= MIN_FACE_AREA_SHARE * image.width * image.height ? quad : null;
+  const outline = containerOutline(await segmenter.segment(image, CONTAINER_CONCEPT));
+  if (!outline) return null;
+  const { corners, split } = outline;
+  const quad = split
+    ? quadArea(split.left) >= quadArea(split.right)
+      ? split.left
+      : split.right
+    : corners;
+  return quadArea(quad) >= MIN_FACE_AREA_SHARE * image.width * image.height ? quad : null;
 }
 
 /** The corners of the most prominent container among the objects SAM found. */
