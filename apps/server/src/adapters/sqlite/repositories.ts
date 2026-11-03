@@ -211,25 +211,6 @@ export class SqliteHandoverRepository implements HandoverRepository {
     ).map(toHandover);
   }
 
-  listRecent(limit: number): HandoverSummary[] {
-    return (
-      this.#db
-        .prepare(
-          `SELECT h.*,
-             (SELECT count(*) FROM marks m WHERE m.handover_id = h.id AND m.source != 'rejected') AS mark_count,
-             (SELECT count(*) FROM photos p WHERE p.handover_id = h.id) AS photo_count
-           FROM handovers h
-           ORDER BY h.status = 'open' DESC, h.started_at DESC
-           LIMIT ?`,
-        )
-        .all(limit) as Row[]
-    ).map((row) => ({
-      ...toHandover(row),
-      markCount: num(row, 'mark_count'),
-      photoCount: num(row, 'photo_count'),
-    }));
-  }
-
   search(options: HandoverSearchOptions): HandoverSummary[] {
     const conditions: string[] = [];
     const values: (string | number)[] = [];

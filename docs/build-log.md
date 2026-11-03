@@ -160,6 +160,7 @@ A dated record of what was built and when. The newest entry is at the bottom.
   - a lessor's fleet condition report, and the damage that appeared between on-hire and off-hire.
 
   A typed client parses every answer with the same zod schemas the server validates with. The tests run each example against the real HTTP API and real signed webhooks (52 tests). A sandbox serves the API with fake models, so anyone can try them without a Meta key.
+- **Handover search for other systems:** `GET /api/handovers` filters by truck or wagon (spaces, hyphens and case ignored), container, status, direction and place, and pages with a cursor in a `Link` header (RFC 8288). The cursor holds the start time and id, so handovers added between requests don't shift or repeat later pages. The driver's-receipt example now finds a truck's older handovers by plate alone.
 - **The app redesigned as a product:** a design system (tokens, buttons, pills, entity rows, a timeline, a stepper), a header with navigation and a bottom tab bar with the inspect button, a dashboard with the day's numbers, and a fleet screen. The walk-around screen shows its steps while SAM 3.1 and Muse Spark work, and every action has an icon.
 - **Live demo at https://app.plomba.lisovate.com**, with a certificate from Let's Encrypt.
 - **Product website** ([apps/site](../apps/site)) at https://plomba.lisovate.com: the problem, how a handover works, a page for each kind of company (shipping lines, rail and intermodal, trucking, owners and lessors, terminals and depots), the integrations, open source, and Plomba Cloud for companies that would rather not run it, with a waitlist.
@@ -179,10 +180,3 @@ A dated record of what was built and when. The newest entry is at the bottom.
 - deploy the demo instance behind HTTPS with an access code, and test on a real phone;
 - record the 3-minute demo video;
 - final README pass and submission.
-
-## 2026-11-03 (Tue): Handover search
-
-- Added API filters for vehicle, container, status, direction and place, with page sizes from 1 to 100.
-- Added cursor paging through next-page `Link` headers. Searches use start time and ID, newest first. Bare requests keep the existing open-first order.
-- Added search and page iteration to the examples client. The driver's receipt now finds older sealed handovers by truck without a container number.
-- Documented the query contract and paging in OpenAPI and the integration guide. Tests cover filters, invalid queries, timestamp ties and handovers arriving between pages.

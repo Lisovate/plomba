@@ -82,6 +82,11 @@ const ENDPOINTS: readonly [method: string, path: string, purpose: string][] = [
     '/api/containers/{number}',
     "A container's sealed history and damage passport, with the hash chain verified",
   ],
+  [
+    'GET',
+    '/api/handovers?vehicle={plate}',
+    'Find handovers by truck, wagon, container, status or place, page by page',
+  ],
   ['POST', '/api/handovers', 'Start a handover'],
   ['GET', '/api/handovers/{id}', 'A handover with its photos and marks'],
   ['GET', '/api/handovers/{id}/codeco', 'The CODECO message for a sealed handover'],

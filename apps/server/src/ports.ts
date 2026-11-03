@@ -247,9 +247,7 @@ export interface HandoverRepository {
   /** The most recent closed handover of a container. */
   findLastClosed(containerNumber: string): Handover | undefined;
   listForContainer(containerNumber: string): Handover[];
-  /** Open handovers first, then the most recently started; with photo and mark counts. */
-  listRecent(limit: number): HandoverSummary[];
-  /** Matching handovers, newest first, with photo and mark counts. */
+  /** Matching handovers, newest first (open ones first with `openFirst`), with photo and mark counts. */
   search(options: HandoverSearchOptions): HandoverSummary[];
   /** The container's sealed records, oldest first. */
   chain(containerNumber: string): ChainLink[];

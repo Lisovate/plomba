@@ -221,10 +221,9 @@ function api(deps: AppDeps): Hono {
   });
 
   api.get('/handovers', (c) => {
-    const page = handovers.search(
-      c.req.query(),
-      new URL(c.req.url).search ? 'newest' : 'open-first',
-    );
+    // A bare request is the checker's list (open handovers first); any search is newest first.
+    const query = c.req.query();
+    const page = handovers.search(query, Object.keys(query).length > 0 ? 'newest' : 'open-first');
     if (page.nextCursor) {
       const next = new URL(c.req.url);
       next.searchParams.set('cursor', page.nextCursor);

@@ -231,8 +231,9 @@ export class HandoverService {
     return handover;
   }
 
+  /** The checker's list: open handovers first, then the most recently started. */
   recent(limit = 30): HandoverSummary[] {
-    return this.#d.handovers.listRecent(limit);
+    return this.#d.handovers.search({ limit, openFirst: true });
   }
 
   search(
