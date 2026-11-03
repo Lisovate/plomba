@@ -114,6 +114,14 @@ A dated record of what was built and when. The newest entry is at the bottom.
   - Built only from the sealed records, and only while the hash chain verifies.
 - **Open weights, measured.** The identification eval now reads markings through the configured vision endpoint. On Muse Spark Open (`meta-models/muse-spark-open-1026`, open weights, hosted on Baseten), 54.2% of the 96 TRUDI crops were verified and right, with no silent errors, against 61.5% for Muse Spark 1.3 ([evaluation.md](evaluation.md)).
 
+- **Damage by voice.** The checker says "wgniecenie, lewy bok, sekcja trzecia, na dole".
+  - Muse Voice Transcribe hears it, and Muse Spark codes each damage: the face, the CEDEX sections and half, and the damage and component codes.
+  - `sectionRect`, the inverse of the location code, turns the sections into a proposed mark for the checker to confirm.
+  - Damage said without a place ("a hole somewhere on the roof") is reported back, not guessed.
+  - Live: a synthetic Polish note was transcribed word for word and placed at `LB3N DT` in 7.3 s. Typed notes in Polish and English gave `LB3N DT`, `DB3N CO` and `LT90 DT RLA`.
+- **The demo installation** runs behind HTTPS on the author's server, with an access code. It holds one container's story from openly licensed footage: rust recorded at gate-in, then drawn as a ghost on a different photo at gate-out. A one-line operator notice (`PLOMBA_NOTICE`) labels it as a demo and credits the footage.
+- **README:** screenshots, a pipeline diagram, findings about the models, and the limits. The home screen explains the steps on a first visit. Fonts are named before `system-ui`, which resolved to a monospace font on a Linux desktop.
+
 **Findings:**
 - **Naming faces from a walk-around** (test clips used locally only, not stored or published):
   - On a drone clip of a 20 ft container, Muse Spark named the long side (95%) and called every corner-on frame "no single face".

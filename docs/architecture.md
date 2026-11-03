@@ -62,7 +62,8 @@ Node 24 runs the TypeScript sources directly (type stripping), so the server has
 | Find and code damage | Muse Spark 1.3, structured output | Registered face photo | Rough boxes with CEDEX damage and component codes, a description and a confidence | Built |
 | Outline damage | SAM 3.1, one box prompt per finding | Same photo and Spark's boxes | Precise masks, mapped onto the face in metres as proposed marks | Built |
 | Spoken notes | Muse Voice Transcribe 1.0, push-to-talk | A note recorded in the browser, converted there to 24 kHz mono WAV | Note text in Polish or English, biased to container vocabulary | Built |
-| Voice commands, disputes by speaker | Muse Voice Transcribe, streaming and diarisation | Live audio | Commands; statements labelled by speaker | Planned |
+| Damage by voice | Muse Voice Transcribe, then Muse Spark 1.3 (text-only structured output) | "Wgniecenie, lewy bok, sekcja trzecia, na dole" and the face in view | Per damage: face, CEDEX sections and half, damage and component codes, a note. `sectionRect` (core, the inverse of `locationCode`) turns the sections into a proposed mark | Built |
+| Disputes by speaker | Muse Voice Transcribe, diarisation | A recorded discussion | Statements labelled by speaker | Planned |
 | Compare and close | Deterministic code | Previous and current handover | EIR report, CODECO message | Built |
 | Draft a claim | Muse Spark 1.3, tool calling + structured output | Photos of the new damage; tools for the comparison and the container's history | A claim letter whose items and evidence are verified against the sealed records | Built |
 | Open-weights vision | Muse Spark Open (`meta-models/muse-spark-open-1026` on Baseten) or Muse Glimmer, through Chat Completions | As the Muse Spark vision rows | The same JSON, from open weights that a company can host itself | Muse Spark Open measured on identification ([evaluation.md](evaluation.md)); Glimmer not run yet |

@@ -21,7 +21,7 @@ It's open source (Apache-2.0) and built to be self-hosted: a terminal, depot or 
    - Each face photo is registered from SAM 3.1's outline of the container: four corners, a homography, and the photo is mapped onto the face in metres.
    - Or the checker records one walk around the container, on a phone or Meta AI glasses. SAM 3.1 tracks the container through every frame, Plomba picks the frames where one face is whole and square-on, and Muse Spark names each face. The checker confirms, and the frames become the photos.
 3. **See the last handover.** Damage recorded at the previous handover is drawn on the same spot of the new photos, and over the live camera. The checker marks each item still there, changed or repaired.
-4. **Record new damage.** Muse Spark finds and codes it (CEDEX damage and component codes), and SAM 3.1 outlines it. The checker confirms each proposal, and the location code comes from where the mark sits on the container. Notes can be dictated in Polish or English (Muse Voice Transcribe). Faces and number plates are blurred before anything is stored.
+4. **Record new damage.** Muse Spark finds and codes it (CEDEX damage and component codes), and SAM 3.1 outlines it. Or the checker just says it, hands-free: "wgniecenie, lewy bok, sekcja trzecia, na dole" becomes a coded proposal on that section (Muse Voice Transcribe, then Muse Spark). The checker confirms each proposal, and the location code comes from where the mark sits on the container. Faces and number plates are blurred before anything is stored.
 5. **Seal.** The handover is hash-chained into the container's history. Out come:
    - an equipment interchange receipt (EIR) to print or save as PDF;
    - an EDIFACT CODECO gate message;
@@ -47,8 +47,8 @@ flowchart LR
 | Model | Job in Plomba |
 |---|---|
 | **SAM 3.1** | Outline the container to register each photo to its face; track it through walk-around videos (the AR anchor); find faces and number plates to blur; outline damage from Muse Spark's boxes |
-| **Muse Spark** | Read the number, seals and placards; name the face in each walk-around frame; find and code damage; run the claim agent with tools, verified against the sealed records |
-| **Muse Voice Transcribe** | Spoken notes in Polish or English, biased to container vocabulary |
+| **Muse Spark** | Read the number, seals and placards; name the face in each walk-around frame; find and code damage, from a photo or from what the checker said; run the claim agent with tools, verified against the sealed records |
+| **Muse Voice Transcribe** | Damage said aloud, coded by Muse Spark onto the sections named; spoken notes in Polish or English, biased to container vocabulary |
 | **Muse Spark Open** (open weights) | The same vision jobs on open weights a company can host itself, through any OpenAI-compatible endpoint (measured, see below). Muse Glimmer can serve the same path |
 | **Muse Image** | Synthetic damage for robustness tests, labelled as synthetic and never counted in reported accuracy |
 
@@ -66,13 +66,13 @@ Measured on openly licensed data, details in [docs/evaluation.md](docs/evaluatio
 
 ## Status and limits
 
-Everything above works end to end against the Meta Model API, with 147 unit and integration tests and a browser end-to-end test in CI. Progress is logged day by day in [docs/build-log.md](docs/build-log.md).
+Everything above works end to end against the Meta Model API, with 155 unit and integration tests and a browser end-to-end test in CI. Progress is logged day by day in [docs/build-log.md](docs/build-log.md).
 
 **Not yet:**
 - **Live, world-tracked AR on iPhone:** Safari has no WebXR. Ghosts are drawn on photos, on recorded video and on the live camera, re-registered about every 1.5 s.
 - **Faces that never fit in one frame** (close-range video) can't be registered yet. The app asks for a recording from further back.
 - **Muse Glimmer** hasn't been run; Muse Spark Open has been, through the same path.
-- **Voice commands and dispute recordings labelled by speaker** are planned.
+- **Dispute recordings labelled by speaker** are planned.
 - **Real-container evaluation:** the reported accuracy is on public crops; the author's own photos are next.
 
 Built for the **Meta Global AI Developer Hackathon 2026** (Startup Track, theme "Build for Your World"). Everything in this repository was created during the hackathon, starting 2026-10-26.
