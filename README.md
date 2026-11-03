@@ -2,7 +2,7 @@
 
 **A digital seal on a shipping container's condition at every handover.**
 
-![Plomba on a phone: a walk-around video where SAM 3.1 tracks the container and both faces of a corner carry their CEDEX sections; the damage recorded at the last handover drawn on the same spot of a new photo; the container's damage passport](docs/images/screens.jpg)
+![Plomba on a phone: the checker's handovers; a walk-around video where SAM 3.1 tracks the container and Muse Spark names the doors and right side of a corner view; the damage recorded at the last handover drawn on the same spot of a new photo; the container's damage passport](docs/images/screens.jpg)
 
 *Plomba* is Polish for the seal on a container's doors, the tag that proves the box wasn't opened. Plomba does the same for the container's condition.
 
@@ -12,7 +12,7 @@ Plomba is an app for the checker doing the walk-around at a handover. It install
 
 It's open source (Apache-2.0) and built to be self-hosted: a terminal, depot or rail operator runs one container on its own machine and keeps its data ([self-hosting](docs/self-hosting.md)).
 
-**Try it:** a demo installation runs at https://plomba.lisovate.com (the access code is in the hackathon submission). Its handovers and places are simulated, and its photos are openly licensed (see [Credits](#credits)).
+**Try it:** a demo installation runs at https://app.plomba.lisovate.com (the access code is in the hackathon submission). Its handovers and places are simulated, and its photos are openly licensed (see [Credits](#credits)).
 
 ## How a handover works
 
@@ -68,7 +68,7 @@ Measured on openly licensed data, details in [docs/evaluation.md](docs/evaluatio
 
 ## Status and limits
 
-Everything above works end to end against the Meta Model API, with 186 unit and integration tests, and an end-to-end test of the whole handover on an Android phone (Chromium) and an iPhone (WebKit, Safari's engine), in CI. Progress is logged day by day in [docs/build-log.md](docs/build-log.md).
+Everything above works end to end against the Meta Model API, with 200 unit and integration tests, and an end-to-end test of the whole handover on an Android phone (Chromium) and an iPhone (WebKit, Safari's engine), in CI. Progress is logged day by day in [docs/build-log.md](docs/build-log.md).
 
 **Not yet:**
 - **Live, world-tracked AR on iPhone:** Safari has no WebXR. Ghosts are drawn on photos, on recorded video and on the live camera, re-registered about every 1.5 s.
@@ -121,7 +121,7 @@ The footage in the screenshots above and in the demo installation is openly lice
 - "How to buy a shipping container in 10 minutes" by Cowboy Steve Builds (YouTube);
 - "40' reefer shipping container delivery and repositioning" by Life, Take 2 (YouTube).
 
-The damage passport in the screenshot shows test data, and a passer-by in one thumbnail is blurred.
+The handovers and the damage passport in the screenshot show test data. People in the walk-around clip are blurred.
 
 ## Licence
 
