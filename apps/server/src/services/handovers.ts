@@ -26,6 +26,7 @@ import {
 } from '@plomba/contracts';
 import {
   buildCodeco,
+  canonicalJson,
   chainHash,
   clampToFace,
   DEFAULT_DIMENSIONS,
@@ -100,7 +101,7 @@ export interface HandoverServiceDeps {
 
 type Coverage = Record<Face, FaceCoverage>;
 
-/** Attempts at sealing when another handover of the same container wins the race. */
+/** Attempts at sealing when the content or the container's chain changes. */
 const SEAL_ATTEMPTS = 3;
 
 /** Live frames only need the container's outline. */
@@ -118,6 +119,7 @@ const DUPLICATE_OVERLAP = 0.5;
 
 export class HandoverService {
   readonly #d: HandoverServiceDeps;
+  readonly #closing = new Set<string>();
 
   constructor(deps: HandoverServiceDeps) {
     this.#d = deps;
@@ -481,8 +483,19 @@ export class HandoverService {
    * by the chain too.
    */
   async close(handoverId: string, options: { acceptGaps?: boolean } = {}): Promise<Handover> {
+    this.#openHandover(handoverId);
+    this.#closing.add(handoverId);
+    try {
+      return await this.#seal(handoverId, options);
+    } finally {
+      this.#closing.delete(handoverId);
+    }
+  }
+
+  async #seal(handoverId: string, options: { acceptGaps?: boolean }): Promise<Handover> {
     for (let attempt = 1; ; attempt++) {
-      const handover = this.#openHandover(handoverId);
+      const handover = this.#handover(handoverId);
+      if (handover.status !== 'open') throw new ConflictError(`Handover ${handoverId} is closed`);
       if (this.#d.marks.listForHandover(handoverId).some((m) => m.source === 'proposed')) {
         throw new ConflictError('Confirm or reject the proposed damage before sealing');
       }
@@ -503,6 +516,12 @@ export class HandoverService {
       const hash = await chainHash(previousHash, record);
       try {
         this.#d.transaction(() => {
+          // Another server may have accepted edits while this server was hashing.
+          const current = this.#handover(handoverId);
+          const content = this.#sealedRecord(current, closedAt, this.#coverage(current));
+          if (canonicalJson(content) !== canonicalJson(record)) {
+            throw new ConflictError('The handover changed while sealing');
+          }
           const latest = this.#d.handovers.chain(handover.containerNumber).at(-1)?.hash;
           if ((latest ?? GENESIS_HASH) !== previousHash) {
             throw new ConflictError('The chain moved on while sealing');
@@ -664,6 +683,7 @@ export class HandoverService {
   #openHandover(id: string): Handover {
     const handover = this.#handover(id);
     if (handover.status !== 'open') throw new ConflictError(`Handover ${id} is closed`);
+    if (this.#closing.has(id)) throw new ConflictError(`Handover ${id} is being sealed`);
     return handover;
   }
 

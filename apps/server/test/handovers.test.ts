@@ -214,6 +214,88 @@ describe('a handover', () => {
   });
 });
 
+describe('sealing', () => {
+  it('refuses edits and another close while hashing, and after sealing', async () => {
+    const { service, segmenter, handover } = await startedHandover();
+    const data = await makePhoto();
+    segmenter.responses.set('shipping container', [rectangleObject(0, 0, 400, 300)]);
+    const photo = await service.addPhoto(handover.id, { face: 'R', data });
+    const corners = photo.corners;
+    if (!corners) throw new Error('Expected detected corners');
+    const mark = service.addMark(handover.id, markInput());
+    const closing = service.close(handover.id, { acceptGaps: true });
+
+    expect(() => service.addMark(handover.id, markInput({ source: 'proposed' }))).toThrow(
+      ConflictError,
+    );
+    expect(() => service.updateMark(handover.id, mark.id, { damageCode: 'HO' })).toThrow(
+      ConflictError,
+    );
+    expect(() => service.updateCorners(handover.id, photo.id, corners)).toThrow(ConflictError);
+    const addingPhoto = service.addPhoto(handover.id, { face: 'L', data });
+    const proposing = service.proposeDamage(handover.id, photo.id);
+    const closingAgain = service.close(handover.id, { acceptGaps: true });
+    await Promise.all(
+      [addingPhoto, proposing, closingAgain].map((result) =>
+        expect(result).rejects.toThrow(ConflictError),
+      ),
+    );
+    await closing;
+
+    expect(() => service.addMark(handover.id, markInput())).toThrow(ConflictError);
+    expect(() => service.updateMark(handover.id, mark.id, { damageCode: 'HO' })).toThrow(
+      ConflictError,
+    );
+    await expect(service.addPhoto(handover.id, { face: 'L', data })).rejects.toThrow(ConflictError);
+  });
+
+  it.each([
+    {
+      content: 'marks',
+      sql: "UPDATE marks SET damage_code = 'HO' WHERE handover_id = ?",
+      expected: { marks: [expect.objectContaining({ damageCode: 'HO' })] },
+    },
+    {
+      content: 'photos',
+      sql: "UPDATE photos SET captured_at = '2026-10-28T09:00:00.000Z' WHERE handover_id = ?",
+      expected: { photos: [expect.objectContaining({ capturedAt: '2026-10-28T09:00:00.000Z' })] },
+    },
+    {
+      content: 'handover fields',
+      sql: "UPDATE handovers SET place = 'Łódź' WHERE id = ?",
+      expected: { handover: expect.objectContaining({ place: 'Łódź' }) },
+    },
+  ])('rehashes when another writer changes $content during hashing', async ({ sql, expected }) => {
+    const { service, db, handover } = await startedHandover();
+    service.addMark(handover.id, markInput({ damageCode: 'DT' }));
+    await service.addPhoto(handover.id, { face: 'R', data: await makePhoto() });
+
+    const closing = service.close(handover.id, { acceptGaps: true });
+    db.prepare(sql).run(handover.id);
+    await closing;
+
+    const row = db.prepare('SELECT record FROM handovers WHERE id = ?').get(handover.id) as {
+      record: string;
+    };
+    expect(JSON.parse(row.record)).toMatchObject(expected);
+    expect((await service.history(NUMBER)).chain.ok).toBe(true);
+  });
+
+  it('validates again if another writer adds a pending proposal during hashing', async () => {
+    const { service, db, handover } = await startedHandover();
+    const mark = service.addMark(handover.id, markInput());
+    const closing = service.close(handover.id, { acceptGaps: true });
+    db.prepare("UPDATE marks SET source = 'proposed' WHERE id = ?").run(mark.id);
+
+    await expect(closing).rejects.toThrow('Confirm or reject the proposed damage before sealing');
+    expect(service.detail(handover.id).handover.status).toBe('open');
+    service.updateMark(handover.id, mark.id, { source: 'confirmed' });
+    await expect(service.close(handover.id, { acceptGaps: true })).resolves.toMatchObject({
+      status: 'closed',
+    });
+  });
+});
+
 describe('damage proposals', () => {
   // A 400×300 photo in which the right side of a 20 ft container fills x 40–360, y 30–270.
   async function registeredPhoto() {
