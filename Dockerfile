@@ -14,9 +14,10 @@ COPY packages/core/package.json packages/core/
 COPY packages/contracts/package.json packages/contracts/
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
+COPY apps/site/package.json apps/site/
 RUN npm ci
 
-# Check and build the web app.
+# Check and build the web app (`npm run build` builds the product site too).
 FROM deps AS build
 COPY . .
 RUN npm run lint && npm run typecheck && npm test && npm run build
