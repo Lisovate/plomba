@@ -10,6 +10,7 @@ import type { FaceViews, VideoTracking } from '@plomba/contracts';
 import { isCornerPair, type Point, type Quad } from '@plomba/core';
 import { ValidationError } from '../errors.ts';
 import { normaliseImage } from '../media/images.ts';
+import { videoFrameCount } from '../media/mp4.ts';
 import type {
   FaceViewClassifier,
   ResultCache,
@@ -68,7 +69,8 @@ export class VideoService {
       ];
     });
     const result: StoredTracking = {
-      frameCount: (tracked.at(-1)?.frame ?? -1) + 1,
+      // SAM reports only frames where it found something, so ask the file how long it is.
+      frameCount: videoFrameCount(data) ?? (tracked.at(-1)?.frame ?? -1) + 1,
       frames,
     };
     await this.#cache.put(key, result);
