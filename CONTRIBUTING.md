@@ -5,7 +5,7 @@ Plomba records evidence that parties may rely on in a dispute, so the rules belo
 ## Before every commit
 
 - `npm run check`: lint (Biome), type checks and tests (Vitest).
-- After changing the web app: `npm run build`, then `npm run test:e2e` (the end-to-end test in a phone-sized browser, against the real server and a fake Meta Model API).
+- After changing the web app: `npm run build`, then `npm run test:e2e`: the end-to-end test on an Android phone (Chromium) and an iPhone (WebKit, Safari's engine), against the real server and a fake Meta Model API. WebKit needs the libraries Playwright lists (`npx playwright install-deps webkit`), or run it in Playwright's Docker image.
 - Commit messages follow conventional commits: `feat:`, `fix:`, `docs:`, `chore:`, `test:`.
 
 ## Secrets
