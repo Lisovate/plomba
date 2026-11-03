@@ -59,20 +59,25 @@ const samples: Sample[] = labels.data_list
   .slice(0, values.limit ? Number(values.limit) : undefined);
 
 const config = loadConfig();
+// The same endpoint the app reads markings with: Meta's API, or an
+// OpenAI-compatible server such as Muse Spark Open or Muse Glimmer.
+const { vision } = config.meta;
 const usage = { input: 0, cachedInput: 0, output: 0, calls: 0 };
 const client = new MetaClient({
-  baseUrl: config.meta.baseUrl,
-  apiKey: config.meta.apiKey,
+  baseUrl: vision.baseUrl ?? config.meta.baseUrl,
+  apiKey: vision.baseUrl ? (vision.apiKey ?? '') : config.meta.apiKey,
   timeoutMs: config.meta.timeoutMs,
   logger: pino({ level: 'warn' }),
   onResponse: ({ usage: u }) => {
-    const input = Number(u?.input_tokens ?? 0);
-    const cached = Number(
-      (u?.input_tokens_details as { cached_tokens?: number })?.cached_tokens ?? 0,
-    );
+    // Responses API and Chat Completions name their token counts differently.
+    const input = Number(u?.input_tokens ?? u?.prompt_tokens ?? 0);
+    const details = (u?.input_tokens_details ?? u?.prompt_tokens_details) as
+      | { cached_tokens?: number }
+      | undefined;
+    const cached = Number(details?.cached_tokens ?? 0);
     usage.input += input - cached;
     usage.cachedInput += cached;
-    usage.output += Number(u?.output_tokens ?? 0);
+    usage.output += Number(u?.output_tokens ?? u?.completion_tokens ?? 0);
     usage.calls++;
   },
 });
@@ -81,6 +86,7 @@ const service = new IdentifyService(
   new MuseSparkMarkingsReader(client, {
     model: config.meta.visionModel,
     reasoningEffort: config.meta.reasoningEffort,
+    api: vision.apiStyle,
   }),
   minLongSide === undefined ? {} : { minLongSide },
 );
@@ -140,7 +146,9 @@ const cost =
     usage.output * PRICE_PER_MILLION.output) /
   1e6;
 
-console.log(`| Metric | Value |
+console.log(`Model: ${config.meta.visionModel} at ${vision.baseUrl ?? config.meta.baseUrl}
+
+| Metric | Value |
 |---|---|
 | Photos | ${n} |
 | Muse Spark's raw read is exactly right | ${pct(rawExact)} |
@@ -155,11 +163,12 @@ console.log(`| Metric | Value |
 | Not verified, right number among the choices (one tap) | ${pct(offeredToChecker)} |
 | Latency p50 / p90 | ${quantile(0.5)} s / ${quantile(0.9)} s |
 | Model calls | ${usage.calls} (${(usage.calls / n).toFixed(2)} per photo) |
-| Estimated cost | $${cost.toFixed(3)} ($${(cost / n).toFixed(4)} per photo) |`);
+| Tokens in / out | ${usage.input + usage.cachedInput} / ${usage.output} |
+| Estimated cost | ${vision.baseUrl ? 'not priced (other provider)' : `$${cost.toFixed(3)} ($${(cost / n).toFixed(4)} per photo)`} |`);
 
 const resultsPath = join(
   datasetDir,
-  `identify-results-${new Date().toISOString().slice(0, 10)}-min${minLongSide ?? 'default'}.json`,
+  `identify-results-${new Date().toISOString().slice(0, 10)}-${config.meta.visionModel.replace(/\W+/g, '_')}-min${minLongSide ?? 'default'}.json`,
 );
 await writeFile(resultsPath, JSON.stringify({ usage, outcomes }, null, 2));
 console.error(`Per-photo results: ${resultsPath}`);
