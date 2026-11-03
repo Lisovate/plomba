@@ -9,8 +9,6 @@ import {
   type ContainerHistory,
   type ContainerSummary,
   type CreateMark,
-  FaceRectSchema,
-  FaceSchema,
   type Handover,
   type HandoverDetail,
   type HandoverSearch,
@@ -18,7 +16,6 @@ import {
   HandoverStatusSchema,
   type HandoverSummary,
   type Mark,
-  MarkStatusSchema,
   type Photo,
   type RegisterContainer,
   type StartHandover,
@@ -62,25 +59,8 @@ import type {
   TransactionRunner,
 } from '../ports.ts';
 import { findingsToDrafts } from './damage.ts';
+import { SealedRecordSchema } from './sealed-records.ts';
 import { detectFaceCorners, findPrivacyRegions } from './vision.ts';
-
-/** The parts of a sealed record (versions 1 and 2) that the damage history reads. */
-const SealedRecordSchema = z.object({
-  /** Version 2: CEDEX cells with no photo, by face. */
-  notInspected: z.partialRecord(FaceSchema, z.array(z.string())).optional(),
-  handover: z.object({ id: z.string() }),
-  marks: z.array(
-    z.object({
-      id: z.string(),
-      face: FaceSchema,
-      rect: FaceRectSchema,
-      locationCode: z.string(),
-      damageCode: z.string().nullable(),
-      status: MarkStatusSchema,
-      previousMarkId: z.string().nullable(),
-    }),
-  ),
-});
 
 export interface HandoverServiceDeps {
   readonly containers: ContainerRepository;

@@ -284,9 +284,14 @@ export class ScriptedAgent implements Agent {
   tasks: AgentTask<unknown>[] = [];
 
   readonly answers: ((toolResults: readonly unknown[]) => unknown)[];
+  readonly #callTools: boolean;
 
-  constructor(answers: ((toolResults: readonly unknown[]) => unknown)[]) {
+  constructor(
+    answers: ((toolResults: readonly unknown[]) => unknown)[],
+    options: { callTools?: boolean } = {},
+  ) {
     this.answers = answers;
+    this.#callTools = options.callTools ?? true;
   }
 
   start<T>(task: AgentTask<T>): AgentRun<T> {
@@ -297,7 +302,7 @@ export class ScriptedAgent implements Agent {
       toolCalls,
       correct: (feedback) => this.feedback.push(feedback),
       answer: async () => {
-        if (turn === 0) {
+        if (turn === 0 && this.#callTools) {
           for (const tool of task.tools) {
             toolCalls.push(tool.name);
             this.toolResults.push(await tool.run({}));

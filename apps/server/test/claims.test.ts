@@ -1,4 +1,4 @@
-import type { Claim } from '@plomba/contracts';
+import { type Claim, ProblemSchema } from '@plomba/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   SqliteContainerRepository,
@@ -9,6 +9,7 @@ import {
 import { ConflictError, UpstreamError } from '../src/errors.ts';
 import { ClaimService } from '../src/services/claims.ts';
 import {
+  createTestApp,
   createTestHandoverService,
   makePhoto,
   markInput,
@@ -19,8 +20,7 @@ import {
 const NUMBER = 'CSQU3054383';
 
 /** Gate-in at Gdynia with one dent; gate-out at Łódź where the dent is still there and a hole is new. */
-async function twoHandovers() {
-  const context = createTestHandoverService();
+async function twoHandovers(context = createTestHandoverService()) {
   const { service, segmenter } = context;
   segmenter.responses.set('shipping container', [rectangleObject(0, 0, 400, 300)]);
   service.registerContainer({ number: NUMBER, sizeTypeCode: '22G1' });
@@ -73,7 +73,140 @@ function claimService(context: Awaited<ReturnType<typeof twoHandovers>>, agent: 
   });
 }
 
+function recordedClaim(context: Awaited<ReturnType<typeof twoHandovers>>): Claim {
+  const firstHash = context.service.detail(context.first.id).handover.seal?.hash ?? '';
+  const secondHash = context.service.detail(context.second.id).handover.seal?.hash ?? '';
+  return {
+    addressee: 'Trans-Kontener',
+    subject: `Damage to ${NUMBER}`,
+    summary: 'A hole was found at gate-out.',
+    items: [
+      {
+        markId: context.hole.id,
+        locationCode: context.hole.locationCode,
+        damageCode: 'HO',
+        description: 'hole in the right side panel',
+        photoSha256: context.photo.sha256,
+      },
+    ],
+    letter: `Container ${NUMBER}: new hole. Records ${firstHash} and ${secondHash}.`,
+  };
+}
+
 describe('ClaimService', () => {
+  it.each([
+    {
+      fact: 'damage code',
+      sql: "UPDATE marks SET damage_code = 'CO' WHERE handover_id = ? AND damage_code = 'HO'",
+      changed: { damageCode: 'CO' },
+    },
+    {
+      fact: 'location code',
+      sql: "UPDATE marks SET location_code = 'LT1N' WHERE handover_id = ? AND damage_code = 'HO'",
+      changed: { locationCode: 'LT1N' },
+    },
+    {
+      fact: 'photo hash',
+      sql: `UPDATE photos SET sha256 = '${'f'.repeat(64)}' WHERE handover_id = ?`,
+      changed: { photoSha256: 'f'.repeat(64) },
+    },
+  ])('checks the sealed $fact even when the agent calls no tools', async ({ sql, changed }) => {
+    const context = await twoHandovers();
+    await context.service.close(context.second.id, { acceptGaps: true });
+    const recorded = recordedClaim(context);
+    context.db.prepare(sql).run(context.second.id);
+    const agent = new ScriptedAgent(
+      [
+        () => ({ ...recorded, items: recorded.items.map((item) => ({ ...item, ...changed })) }),
+        () => recorded,
+      ],
+      { callTools: false },
+    );
+
+    const result = await claimService(context, agent).draft(context.second.id, 'en');
+    expect(result).toMatchObject({
+      status: 'drafted',
+      claim: recorded,
+      verification: { attempts: 2, toolCalls: [] },
+    });
+    expect(agent.feedback).toHaveLength(1);
+    expect((await context.service.history(NUMBER)).chain.ok).toBe(true);
+  });
+
+  it.each([
+    "UPDATE marks SET source = 'rejected' WHERE handover_id = ?",
+    "UPDATE marks SET status = 'repaired' WHERE handover_id = ?",
+    'UPDATE handovers SET previous_handover_id = NULL WHERE id = ?',
+  ])('keeps the sealed comparison after mutable rows change: %s', async (sql) => {
+    const context = await twoHandovers();
+    await context.service.close(context.second.id, { acceptGaps: true });
+    const recorded = recordedClaim(context);
+    context.db.prepare(sql).run(context.second.id);
+    const agent = new ScriptedAgent([() => recorded], { callTools: false });
+
+    await expect(
+      claimService(context, agent).draft(context.second.id, 'en'),
+    ).resolves.toMatchObject({
+      status: 'drafted',
+      claim: recorded,
+      verification: { toolCalls: [] },
+    });
+  });
+
+  it.each([
+    `UPDATE handovers SET record = replace(record, 'Gdynia', 'Gdańsk') WHERE id = ?`,
+    "UPDATE handovers SET record = '{' WHERE id = ?",
+    `UPDATE handovers SET previous_hash = '${'f'.repeat(64)}' WHERE id = ?`,
+  ])('refuses an invalid chain before starting the agent: %s', async (sql) => {
+    const context = await twoHandovers();
+    await context.service.close(context.second.id, { acceptGaps: true });
+    const recorded = recordedClaim(context);
+    context.db.prepare(sql).run(context.first.id);
+    const agent = new ScriptedAgent([() => recorded], { callTools: false });
+
+    await expect(claimService(context, agent).draft(context.second.id, 'en')).rejects.toThrow(
+      new ConflictError('The container chain does not verify; a claim cannot be drafted'),
+    );
+    expect(agent.tasks).toEqual([]);
+  });
+
+  it('checks the chain even when there is no earlier handover to compare', async () => {
+    const context = await twoHandovers();
+    context.db
+      .prepare(`UPDATE handovers SET record = replace(record, 'Gdynia', 'Gdańsk') WHERE id = ?`)
+      .run(context.first.id);
+    const agent = new ScriptedAgent([]);
+
+    await expect(claimService(context, agent).draft(context.first.id, 'en')).rejects.toThrow(
+      ConflictError,
+    );
+    expect(agent.tasks).toEqual([]);
+  });
+
+  it('returns a 409 problem response for a broken chain', async () => {
+    const agent = new ScriptedAgent([], { callTools: false });
+    const appContext = createTestApp({ agent });
+    const context = await twoHandovers(appContext);
+    await context.service.close(context.second.id, { acceptGaps: true });
+    agent.answers.push(() => recordedClaim(context));
+    context.db
+      .prepare(`UPDATE handovers SET record = replace(record, 'Gdynia', 'Gdańsk') WHERE id = ?`)
+      .run(context.first.id);
+
+    const response = await appContext.app.request(`/api/handovers/${context.second.id}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ language: 'en' }),
+    });
+    expect(response.status).toBe(409);
+    expect(response.headers.get('content-type')).toContain('application/problem+json');
+    expect(ProblemSchema.parse(await response.json())).toMatchObject({
+      status: 409,
+      title: 'The container chain does not verify; a claim cannot be drafted',
+    });
+    expect(agent.tasks).toEqual([]);
+  });
+
   it('sends a draft with wrong evidence back to the agent until it matches the records', async () => {
     const context = await twoHandovers();
     const sealed = await context.service.close(context.second.id, { acceptGaps: true });

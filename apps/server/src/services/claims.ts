@@ -12,9 +12,11 @@ import {
   type ClaimResult,
   ClaimSchema,
   type Handover,
-  type Mark,
+  HandoverSchema,
+  MarkSchema,
 } from '@plomba/contracts';
 import { verifyChain } from '@plomba/core';
+import { z } from 'zod';
 import { ConflictError, NotFoundError, UpstreamError } from '../errors.ts';
 import { normaliseImage } from '../media/images.ts';
 import type {
@@ -27,12 +29,25 @@ import type {
   MediaStore,
   PhotoRepository,
 } from '../ports.ts';
+import { SealedRecordSchema } from './sealed-records.ts';
 
 /** Drafts the agent may write before the service gives up. */
 const MAX_ATTEMPTS = 3;
 
 /** Photos sent with the task; more cost tokens without adding facts. */
 const MAX_IMAGES = 2;
+
+const ClaimRecordSchema = SealedRecordSchema.extend({
+  handover: HandoverSchema.omit({ status: true, seal: true }).extend({
+    // Earlier records predate transport details.
+    transportMode: HandoverSchema.shape.transportMode.default(null),
+    vehicleId: HandoverSchema.shape.vehicleId.default(null),
+  }),
+  marks: z.array(MarkSchema.omit({ handoverId: true, createdAt: true })),
+  photos: z.array(z.object({ id: z.string(), sha256: z.string() })),
+});
+
+type SealedMark = z.infer<typeof ClaimRecordSchema>['marks'][number];
 
 export interface ClaimServiceDeps {
   readonly containers: ContainerRepository;
@@ -85,7 +100,7 @@ const ANSWER_SCHEMA = {
 interface Facts {
   readonly handover: Handover;
   readonly previous: Handover;
-  readonly newDamage: readonly Mark[];
+  readonly newDamage: readonly SealedMark[];
   readonly photoHash: ReadonlyMap<string, string>;
 }
 
@@ -97,12 +112,21 @@ export class ClaimService {
   }
 
   async draft(handoverId: string, language: keyof typeof LANGUAGES): Promise<ClaimResult> {
-    const handover = this.#d.handovers.get(handoverId);
-    if (!handover) throw new NotFoundError(`Handover ${handoverId} not found`);
-    if (!handover.seal) throw new ConflictError('Seal the handover before drafting a claim');
+    const row = this.#d.handovers.get(handoverId);
+    if (!row) throw new NotFoundError(`Handover ${handoverId} not found`);
+    if (!row.seal) throw new ConflictError('Seal the handover before drafting a claim');
+    const records = await this.#verifiedRecords(row.containerNumber);
+    const index = records.findIndex((r) => r.handover.id === handoverId);
+    const record = records[index];
+    if (!record)
+      throw new ConflictError('The handover is missing from the verified sealed records');
+    const { handover } = record;
     const previous = handover.previousHandoverId
-      ? this.#d.handovers.get(handover.previousHandoverId)
+      ? records.slice(0, index).find((r) => r.handover.id === handover.previousHandoverId)?.handover
       : undefined;
+    if (handover.previousHandoverId && !previous) {
+      throw new ConflictError('The previous handover is missing from the verified sealed records');
+    }
     if (!previous?.seal) {
       return {
         status: 'no-new-damage',
@@ -110,9 +134,7 @@ export class ClaimService {
       };
     }
 
-    const current = this.#d.marks
-      .listForHandover(handover.id)
-      .filter((m) => m.source === 'confirmed');
+    const current = record.marks.filter((m) => m.source === 'confirmed');
     const newDamage = current.filter((m) => m.previousMarkId === null && m.status === 'new');
     if (newDamage.length === 0) {
       return {
@@ -120,19 +142,22 @@ export class ClaimService {
         explanation: 'Every damage in this handover was already recorded at the previous one.',
       };
     }
-    const photos = this.#d.photos.listForHandover(handover.id);
     const facts: Facts = {
       handover,
       previous,
       newDamage,
-      photoHash: new Map(photos.map((p) => [p.id, p.sha256])),
+      photoHash: new Map(record.photos.map((p) => [p.id, p.sha256])),
     };
 
     const run = this.#d.agent.start({
       instructions: INSTRUCTIONS,
       prompt: `Draft a damage claim in ${LANGUAGES[language]} for the new damage found at handover ${handover.id} of container ${handover.containerNumber}. The attached photos show the faces with new damage.`,
       images: await this.#images(newDamage, facts.photoHash),
-      tools: this.#tools(facts, previous, current),
+      tools: this.#tools(
+        facts,
+        current,
+        records.map((r) => r.handover),
+      ),
       answer: { name: 'damage_claim', schema: ANSWER_SCHEMA },
       parser: ClaimSchema,
     });
@@ -156,7 +181,37 @@ export class ClaimService {
     );
   }
 
-  #tools(facts: Facts, previous: Handover, current: readonly Mark[]): AgentTool[] {
+  async #verifiedRecords(containerNumber: string) {
+    const links = this.#d.handovers.chain(containerNumber);
+    try {
+      const entries = links.map((link) => ({
+        ...link,
+        content: JSON.parse(link.record) as unknown,
+      }));
+      const verification = await verifyChain(entries);
+      if (!verification.ok) throw new Error(`The chain is broken at record ${verification.index}`);
+      return entries.map((entry) => {
+        const record = ClaimRecordSchema.parse(entry.content);
+        if (record.handover.containerNumber !== containerNumber) {
+          throw new Error('A sealed record belongs to another container');
+        }
+        return {
+          ...record,
+          handover: {
+            ...record.handover,
+            status: 'closed' as const,
+            seal: { sequence: entry.sequence, previousHash: entry.previousHash, hash: entry.hash },
+          },
+        };
+      });
+    } catch (cause) {
+      throw new ConflictError('The container chain does not verify; a claim cannot be drafted', {
+        cause,
+      });
+    }
+  }
+
+  #tools(facts: Facts, current: readonly SealedMark[], history: readonly Handover[]): AgentTool[] {
     const describe = (h: Handover) => ({
       id: h.id,
       direction: h.direction === 'in' ? 'gate-in' : 'gate-out',
@@ -170,7 +225,7 @@ export class ClaimService {
       transport: h.transportMode ? { mode: h.transportMode, vehicle: h.vehicleId } : null,
       recordHash: h.seal?.hash ?? null,
     });
-    const mark = (m: Mark) => ({
+    const mark = (m: SealedMark) => ({
       markId: m.id,
       face: m.face,
       locationCode: m.locationCode,
@@ -191,7 +246,7 @@ export class ClaimService {
         parameters: { type: 'object', properties: {}, additionalProperties: false },
         run: async () => ({
           containerNumber: facts.handover.containerNumber,
-          previousHandover: describe(previous),
+          previousHandover: describe(facts.previous),
           currentHandover: describe(facts.handover),
           newDamage: facts.newDamage.map(mark),
           earlierDamageNow: current
@@ -205,23 +260,11 @@ export class ClaimService {
           'Every sealed handover of the container, oldest first, and whether the chain of record hashes verifies intact.',
         parameters: { type: 'object', properties: {}, additionalProperties: false },
         run: async () => {
-          const links = this.#d.handovers.chain(facts.handover.containerNumber);
-          const verification = await verifyChain(
-            links.map((l) => ({
-              previousHash: l.previousHash,
-              hash: l.hash,
-              content: JSON.parse(l.record) as unknown,
-            })),
-          );
           const container = this.#d.containers.get(facts.handover.containerNumber);
           return {
             container,
-            chainIntact: verification.ok,
-            handovers: this.#d.handovers
-              .listForContainer(facts.handover.containerNumber)
-              .filter((h) => h.seal)
-              .reverse()
-              .map(describe),
+            chainIntact: true,
+            handovers: history.map(describe),
           };
         },
       },
@@ -229,7 +272,7 @@ export class ClaimService {
   }
 
   async #images(
-    newDamage: readonly Mark[],
+    newDamage: readonly SealedMark[],
     photoHash: ReadonlyMap<string, string>,
   ): Promise<ImageInput[]> {
     const hashes = [
