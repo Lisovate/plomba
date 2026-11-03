@@ -249,6 +249,7 @@ export const en = {
   'walk.frameAlt': 'Frame {frame} of the clip',
   'walk.noFace': 'No single face',
   'walk.angled': 'at an angle',
+  'walk.unclear': 'blurred or covered',
   'walk.useAs': 'Use as the photo of',
   'walk.notUsed': 'Not used',
   'walk.findDamage': 'Look for damage on each photo (Muse Spark and SAM 3.1)',

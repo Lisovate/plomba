@@ -251,6 +251,7 @@ export const pl: Messages = {
   'walk.frameAlt': 'Klatka {frame} nagrania',
   'walk.noFace': 'Brak jednej ściany',
   'walk.angled': 'pod kątem',
+  'walk.unclear': 'nieostre lub zasłonięte',
   'walk.useAs': 'Użyj jako zdjęcia',
   'walk.notUsed': 'Nie używaj',
   'walk.findDamage': 'Szukaj uszkodzeń na każdym zdjęciu (Muse Spark i SAM 3.1)',

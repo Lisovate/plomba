@@ -242,6 +242,7 @@ For each frame give:
 - frame: its 1-based position in the list;
 - face: D, F, L, R, T or null;
 - squareOn: true when the whole face is in view and seen roughly square-on, not at a steep angle;
+- clear: false when the image is blurred, or when anything in the foreground overlaps the container in the image, however small: a finger, hand, person, vehicle or pole. True only when the face is sharp and unobstructed;
 - confidence: 0–1 for the face;
 - note: a few words on what is in view.`;
 
@@ -255,11 +256,12 @@ const VIEW_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['frame', 'face', 'squareOn', 'confidence', 'note'],
+        required: ['frame', 'face', 'squareOn', 'clear', 'confidence', 'note'],
         properties: {
           frame: { type: 'integer' },
           face: { type: ['string', 'null'], enum: [...FACES, null] },
           squareOn: { type: 'boolean' },
+          clear: { type: 'boolean' },
           confidence: { type: 'number' },
           note: { type: 'string' },
         },
@@ -298,7 +300,13 @@ export class MuseSparkFaceViewClassifier implements FaceViewClassifier {
     const byFrame = new Map(views.map(({ frame, ...view }) => [frame, view]));
     return frames.map(
       (_, i) =>
-        byFrame.get(i + 1) ?? { face: null, squareOn: false, confidence: 0, note: 'Not answered' },
+        byFrame.get(i + 1) ?? {
+          face: null,
+          squareOn: false,
+          clear: false,
+          confidence: 0,
+          note: 'Not answered',
+        },
     );
   }
 }

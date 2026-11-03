@@ -329,7 +329,13 @@ export class FakeFaceViewClassifier implements FaceViewClassifier {
     this.frames = frames;
     return frames.map(
       (_, i) =>
-        this.#views[i] ?? { face: null, squareOn: false, confidence: 0, note: 'nothing scripted' },
+        this.#views[i] ?? {
+          face: null,
+          squareOn: false,
+          clear: false,
+          confidence: 0,
+          note: 'nothing scripted',
+        },
     );
   }
 }

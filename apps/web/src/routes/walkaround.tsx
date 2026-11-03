@@ -76,7 +76,13 @@ export function WalkaroundScreen() {
       const { views } = await api.videoFaces(blobs);
       const candidates = picked.map((c, i) => {
         const blob = blobs[i] as Blob;
-        const view = views[i] ?? { face: null, squareOn: false, confidence: 0, note: '' };
+        const view = views[i] ?? {
+          face: null,
+          squareOn: false,
+          clear: false,
+          confidence: 0,
+          note: '',
+        };
         return { ...c, blob, url: URL.createObjectURL(blob), view };
       });
       const door = bestFramePerFace(picked, views).get('D');
@@ -237,6 +243,7 @@ function Results({
                   <p className="frame-label">
                     {c.view.face ? t(`faceTitle.${c.view.face}`) : t('walk.noFace')}
                     {c.view.face && !c.view.squareOn && ` · ${t('walk.angled')}`}
+                    {c.view.face && !c.view.clear && ` · ${t('walk.unclear')}`}
                     {c.view.face && ` · ${Math.round(c.view.confidence * 100)}%`}
                   </p>
                   <p className="muted frame-note">{c.view.note}</p>

@@ -100,6 +100,20 @@ describe('bestFramePerFace', () => {
     expect(best.get('D')?.frame).toBe(15);
     expect(best.has('R')).toBe(false);
   });
+
+  it('prefers a clear frame to a larger one with a hand in front of the face', () => {
+    const best = bestFramePerFace(
+      [
+        { frame: 0, score: 0.6 },
+        { frame: 15, score: 0.4 },
+      ],
+      [
+        { face: 'L', squareOn: true, clear: false },
+        { face: 'L', squareOn: true, clear: true },
+      ],
+    );
+    expect(best.get('L')?.frame).toBe(15);
+  });
 });
 
 describe('faceAtFrame', () => {

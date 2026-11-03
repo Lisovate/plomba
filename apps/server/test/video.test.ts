@@ -68,8 +68,8 @@ describe('VideoService', () => {
 
   it('names the face in every frame, downscaled, in one call', async () => {
     const classifier = new FakeFaceViewClassifier([
-      { face: 'D', squareOn: true, confidence: 0.9, note: 'doors' },
-      { face: 'R', squareOn: true, confidence: 0.8, note: 'side, doors on the left' },
+      { face: 'D', squareOn: true, clear: true, confidence: 0.9, note: 'doors' },
+      { face: 'R', squareOn: true, clear: true, confidence: 0.8, note: 'side, doors on the left' },
     ]);
     const service = videoService(undefined, classifier);
     const frames = await Promise.all([jpeg(1920, 1080), jpeg(1920, 1080)]);

@@ -153,6 +153,8 @@ export const FaceViewSchema = z.object({
   face: FaceSchema.nullable(),
   /** True when the whole face is in view, roughly square-on. */
   squareOn: z.boolean(),
+  /** True when the face is sharp and nothing stands in front of it (a hand, a person, a vehicle). */
+  clear: z.boolean(),
   /** The model's own confidence in `face`, 0–1. */
   confidence: z.number().min(0).max(1),
   /** A few words on what is in view, from the model. */

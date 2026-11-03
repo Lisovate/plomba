@@ -32,7 +32,12 @@ export interface FaceView {
   readonly face: Face | null;
   /** True when the face is seen roughly square-on and whole. */
   readonly squareOn: boolean;
+  /** False when the face is blurred or partly covered (a hand, a person). Missing counts as clear. */
+  readonly clear?: boolean;
 }
+
+/** How much a blurred or covered frame counts against a clear one. */
+const UNCLEAR_WEIGHT = 0.5;
 
 export interface CandidateOptions {
   /** Chosen frames are at least this many frames apart. */
@@ -117,19 +122,23 @@ export function pickCandidateFrames(
   return chosen.sort((a, b) => a.frame - b.frame);
 }
 
-/** For each face, the highest-scoring candidate the model saw square-on as that face. */
+/**
+ * For each face, the best candidate the model saw square-on as that face: the
+ * highest score, with frames that are blurred or partly covered counting half.
+ */
 export function bestFramePerFace(
   candidates: readonly FrameCandidate[],
   views: readonly FaceView[],
 ): Map<Face, FrameCandidate> {
-  const best = new Map<Face, FrameCandidate>();
+  const best = new Map<Face, { candidate: FrameCandidate; weighted: number }>();
   candidates.forEach((candidate, i) => {
     const view = views[i];
     if (!view?.face || !view.squareOn) return;
+    const weighted = candidate.score * (view.clear === false ? UNCLEAR_WEIGHT : 1);
     const current = best.get(view.face);
-    if (!current || candidate.score > current.score) best.set(view.face, candidate);
+    if (!current || weighted > current.weighted) best.set(view.face, { candidate, weighted });
   });
-  return best;
+  return new Map([...best].map(([face, { candidate }]) => [face, candidate]));
 }
 
 /**
