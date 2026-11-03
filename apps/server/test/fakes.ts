@@ -357,6 +357,7 @@ export class FakeFaceViewClassifier implements FaceViewClassifier {
           face: null,
           squareOn: false,
           corner: null,
+          doorEnd: null,
           clear: false,
           confidence: 0,
           note: 'nothing scripted',

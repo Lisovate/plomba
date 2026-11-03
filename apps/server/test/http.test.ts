@@ -97,11 +97,20 @@ describe('HTTP API', () => {
 
   it('names the faces in the frames of a walk-around, in order', async () => {
     const classifier = new FakeFaceViewClassifier([
-      { face: 'D', squareOn: true, corner: null, clear: true, confidence: 0.9, note: 'doors' },
+      {
+        face: 'D',
+        squareOn: true,
+        corner: null,
+        doorEnd: null,
+        clear: true,
+        confidence: 0.9,
+        note: 'doors',
+      },
       {
         face: 'L',
         squareOn: true,
         corner: null,
+        doorEnd: null,
         clear: true,
         confidence: 0.7,
         note: 'side, doors on the right',

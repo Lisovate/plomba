@@ -36,6 +36,8 @@ export interface FaceView {
   readonly clear?: boolean;
   /** Seen corner-on: the faces either side of the near edge. */
   readonly corner?: { readonly left: Face; readonly right: Face } | null;
+  /** For a long side: at which end of the image the door end is, if anything shows it. */
+  readonly doorEnd?: 'left' | 'right' | null;
 }
 
 /** How much a blurred or covered frame counts against a clear one. */
@@ -272,19 +274,36 @@ export function chooseWalkaroundPhotos(
 }
 
 /**
- * Makes one continuous view of a long side name the same side. Candidate
- * frames between which the camera never turns a corner (no tracked frame in
- * between is seen corner-on, and the container is never lost) show the same
- * face, so where the model calls that side left in some frames and right in
- * others, the confidence-weighted majority wins. A tie is left as it is.
+ * Seen from outside, a long side with its door end at the right of the image
+ * is the left side (left and right are as seen from the door end).
+ */
+export function sideFromDoorEnd(doorEnd: 'left' | 'right'): 'L' | 'R' {
+  return doorEnd === 'right' ? 'L' : 'R';
+}
+
+/** How much a side named without the doors in view counts against one where they were seen. */
+const GUESS_WEIGHT = 0.25;
+
+/**
+ * Decides which long side a walk-around shows. Candidate frames between which
+ * the camera never turns a corner (no tracked frame in between is seen
+ * corner-on, and the container is never lost) show the same side. Within
+ * such a run, a frame where the model saw the door end votes, through
+ * `sideFromDoorEnd`, at its confidence; a frame where it only named the side
+ * (from the walk or the loading direction) votes at a quarter of that. The
+ * winner names the whole run; a tie is left as it is.
+ *
+ * Runs where no frame showed the door end are returned as `guessed`, so the
+ * checker can be asked which end the doors are at.
  */
 export function harmonizeSides<V extends FaceView & { readonly confidence?: number }>(
   candidates: readonly { readonly frame: number; readonly view: V }[],
   tracked: readonly { readonly frame: number; readonly split?: unknown }[],
-): V[] {
+): { views: V[]; guessed: ReadonlySet<number> } {
   const corners = new Set(tracked.filter((t) => t.split).map((t) => t.frame));
   const seen = new Set(tracked.map((t) => t.frame));
-  const isSide = (view: V) => (view.face === 'L' || view.face === 'R') && !view.corner;
+  const isSide = (view: V) =>
+    !view.corner && (view.face === 'L' || view.face === 'R' || (!view.face && !!view.doorEnd));
   const continuous = (from: number, to: number) => {
     for (let frame = from; frame <= to; frame++) {
       if (corners.has(frame) || !seen.has(frame)) return false;
@@ -293,6 +312,7 @@ export function harmonizeSides<V extends FaceView & { readonly confidence?: numb
   };
 
   const views = candidates.map((c) => c.view);
+  const guessed = new Set<number>();
   let start = 0;
   while (start < candidates.length) {
     const first = candidates[start] as { frame: number; view: V };
@@ -308,15 +328,23 @@ export function harmonizeSides<V extends FaceView & { readonly confidence?: numb
       end++;
     }
     const votes = { L: 0, R: 0 };
+    let evidence = false;
     for (let i = start; i <= end; i++) {
       const view = views[i] as V;
-      votes[view.face as 'L' | 'R'] += view.confidence ?? 1;
+      const confidence = view.confidence ?? 1;
+      if (view.doorEnd) {
+        votes[sideFromDoorEnd(view.doorEnd)] += confidence;
+        evidence = true;
+      } else if (view.face === 'L' || view.face === 'R') {
+        votes[view.face] += GUESS_WEIGHT * confidence;
+      }
     }
     if (votes.L !== votes.R) {
       const side: Face = votes.L > votes.R ? 'L' : 'R';
       for (let i = start; i <= end; i++) views[i] = { ...(views[i] as V), face: side };
     }
+    if (!evidence) for (let i = start; i <= end; i++) guessed.add(i);
     start = end + 1;
   }
-  return views;
+  return { views, guessed };
 }

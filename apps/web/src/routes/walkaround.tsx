@@ -35,6 +35,8 @@ interface Candidate extends FrameCandidate {
   readonly view: FaceView;
   /** Seen corner-on: the two faces' outlines, from SAM 3.1's mask. */
   readonly split: CornerSplit | null;
+  /** Left or right was inferred without the doors in view: the checker should confirm it. */
+  readonly guessedSide: boolean;
 }
 
 interface Analysis {
@@ -119,12 +121,13 @@ export function WalkaroundScreen() {
         face: null,
         squareOn: false,
         corner: null,
+        doorEnd: null,
         clear: false,
         confidence: 0,
         note: '',
       };
       // One continuous view of a side is one side, whatever single frames say.
-      const views = harmonizeSides(
+      const { views, guessed } = harmonizeSides(
         picked.map((c, i) => ({ frame: c.frame, view: named[i] ?? unnamed })),
         tracking.frames,
       );
@@ -133,7 +136,7 @@ export function WalkaroundScreen() {
         const blob = blobs[i] as Blob;
         const view = views[i] ?? unnamed;
         const split = splits.get(c.frame) ?? null;
-        return { ...c, blob, view, split };
+        return { ...c, blob, view, split, guessedSide: guessed.has(i) };
       });
       const choices = chooseWalkaroundPhotos(candidates);
       const door = choices.find((c) => c.face === 'D');
@@ -339,6 +342,7 @@ function Results({
                     {(c.view.face || c.view.corner) && ` · ${Math.round(c.view.confidence * 100)}%`}
                   </p>
                   <p className="muted frame-note">{c.view.note}</p>
+                  {c.guessedSide && <p className="hint">{t('walk.sideGuessed')}</p>}
                   {editable &&
                     parts.map((part) => (
                       <label key={part} className="field compact">

@@ -25,8 +25,11 @@ export type StoredTracking = Omit<VideoTracking, 'cached'>;
 /** One model call looks at every chosen frame at once, so it can follow the walk. */
 export const MAX_WALKAROUND_FRAMES = 16;
 
-/** Frames are only looked at, never stored: this is plenty to tell the faces apart. */
-const VIEW_MAX_SIDE = 768;
+/**
+ * Frames are only looked at, never stored. Telling the door end from the
+ * front end at an angle needs small details (locking bars, hinges).
+ */
+const VIEW_MAX_SIDE = 1024;
 
 export interface VideoServiceDeps {
   readonly segmenter: Segmenter;

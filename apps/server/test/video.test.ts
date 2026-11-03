@@ -68,11 +68,20 @@ describe('VideoService', () => {
 
   it('names the face in every frame, downscaled, in one call', async () => {
     const classifier = new FakeFaceViewClassifier([
-      { face: 'D', squareOn: true, corner: null, clear: true, confidence: 0.9, note: 'doors' },
+      {
+        face: 'D',
+        squareOn: true,
+        corner: null,
+        doorEnd: null,
+        clear: true,
+        confidence: 0.9,
+        note: 'doors',
+      },
       {
         face: 'R',
         squareOn: true,
         corner: null,
+        doorEnd: null,
         clear: true,
         confidence: 0.8,
         note: 'side, doors on the left',
@@ -84,7 +93,7 @@ describe('VideoService', () => {
     expect(views.map((v) => v.face)).toEqual(['D', 'R']);
     expect(classifier.calls).toEqual([2]);
     const { width } = await sharp(classifier.frames[0]?.data).metadata();
-    expect(width).toBe(768);
+    expect(width).toBe(1024);
   });
 
   it('drops a corner whose faces cannot meet', async () => {
@@ -92,6 +101,7 @@ describe('VideoService', () => {
       face: null,
       squareOn: false,
       corner: { left, right },
+      doorEnd: null,
       clear: true,
       confidence: 0.8,
       note: 'corner',

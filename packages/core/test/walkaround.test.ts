@@ -7,6 +7,7 @@ import {
   harmonizeSides,
   isCornerPair,
   pickCandidateFrames,
+  sideFromDoorEnd,
   splitCornerView,
   squareness,
   viewAtFrame,
@@ -253,7 +254,12 @@ describe('harmonizeSides', () => {
       frame,
       split: corners.includes(frame) ? {} : null,
     }));
-  const side = (face: 'L' | 'R', confidence = 0.9) => ({ face, squareOn: true, confidence });
+  const side = (face: 'L' | 'R', confidence = 0.9) => ({
+    face,
+    squareOn: true,
+    confidence,
+    doorEnd: null as 'left' | 'right' | null,
+  });
 
   it('names one continuous view of a side the same, by weighted majority', () => {
     const views = harmonizeSides(
@@ -263,7 +269,7 @@ describe('harmonizeSides', () => {
         { frame: 30, view: side('L') },
       ],
       tracked(40),
-    );
+    ).views;
     expect(views.map((v) => v.face)).toEqual(['L', 'L', 'L']);
   });
 
@@ -274,7 +280,7 @@ describe('harmonizeSides', () => {
         { frame: 30, view: side('R') },
       ],
       tracked(40, [15]),
-    );
+    ).views;
     expect(views.map((v) => v.face)).toEqual(['L', 'R']);
   });
 
@@ -287,7 +293,7 @@ describe('harmonizeSides', () => {
           { frame: 30, view: side('R') },
         ],
         lost,
-      ).map((v) => v.face),
+      ).views.map((v) => v.face),
     ).toEqual(['L', 'R']);
     expect(
       harmonizeSides(
@@ -296,7 +302,39 @@ describe('harmonizeSides', () => {
           { frame: 30, view: side('R') },
         ],
         tracked(40),
-      ).map((v) => v.face),
+      ).views.map((v) => v.face),
     ).toEqual(['L', 'R']);
+  });
+
+  it('lets frames that show the door end decide, whatever the model named the side', () => {
+    // Doors at the right of the image: the left side, though the model said right.
+    const { views, guessed } = harmonizeSides(
+      [
+        { frame: 0, view: { ...side('R'), doorEnd: 'right' as const } },
+        { frame: 15, view: side('R') },
+        { frame: 30, view: side('R') },
+      ],
+      tracked(40),
+    );
+    expect(views.map((v) => v.face)).toEqual(['L', 'L', 'L']);
+    expect(guessed.size).toBe(0);
+  });
+
+  it('marks a side as guessed when no frame showed the door end', () => {
+    const { guessed } = harmonizeSides(
+      [
+        { frame: 0, view: side('L') },
+        { frame: 15, view: side('L') },
+      ],
+      tracked(20),
+    );
+    expect([...guessed]).toEqual([0, 1]);
+  });
+});
+
+describe('sideFromDoorEnd', () => {
+  it('follows the convention: doors on the right of the image mean the left side', () => {
+    expect(sideFromDoorEnd('right')).toBe('L');
+    expect(sideFromDoorEnd('left')).toBe('R');
   });
 });

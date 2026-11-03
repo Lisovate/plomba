@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { type MetaApiError, MetaClient } from '../src/adapters/meta/client.ts';
-import { MuseSparkFaceViewClassifier } from '../src/adapters/meta/muse-spark.ts';
+import { doorEndFromEnds, MuseSparkFaceViewClassifier } from '../src/adapters/meta/muse-spark.ts';
 import { parseSegmentation } from '../src/adapters/meta/sam.ts';
 import { askStructured } from '../src/adapters/meta/structured.ts';
 import { silentLogger } from './fakes.ts';
@@ -214,6 +214,7 @@ describe('MuseSparkFaceViewClassifier', () => {
           face: 'L',
           squareOn: true,
           corner: null,
+          ends: { left: 'unknown', right: 'unknown' },
           clear: true,
           confidence: 0.9,
           note: String(next++),
@@ -236,5 +237,15 @@ describe('MuseSparkFaceViewClassifier', () => {
     expect(imagesPerRequest).toEqual([6, 6]);
     expect(views).toHaveLength(12);
     expect(new Set(views.map((v) => v.note)).size).toBe(12);
+  });
+});
+
+describe('doorEndFromEnds', () => {
+  it('places the door end from either end, and ignores contradictions', () => {
+    expect(doorEndFromEnds({ left: 'unknown', right: 'doors' })).toBe('right');
+    expect(doorEndFromEnds({ left: 'front', right: 'unknown' })).toBe('right');
+    expect(doorEndFromEnds({ left: 'doors', right: 'front' })).toBe('left');
+    expect(doorEndFromEnds({ left: 'doors', right: 'doors' })).toBeNull();
+    expect(doorEndFromEnds({ left: 'unknown', right: 'unknown' })).toBeNull();
   });
 });

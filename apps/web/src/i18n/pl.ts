@@ -243,6 +243,8 @@ export const pl: Messages = {
   'walk.sampleCredit': 'Przykładowy klip:',
   'walk.blankFrames':
     'Ta przeglądarka zwróciła puste klatki nagrania, więc nie da się rozpoznać ścian. Spróbuj ponownie albo użyj innej przeglądarki.',
+  'walk.sideGuessed':
+    'Lewa czy prawa to przypuszczenie: drzwi nie są widoczne. Sprawdź, po której stronie są.',
   'walk.video': 'Wideo (MP4 lub MOV)',
   'walk.analyse': 'Przeanalizuj obchód',
   'walk.step.tracking': 'SAM 3.1 śledzi kontener w każdej klatce…',

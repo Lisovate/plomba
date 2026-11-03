@@ -165,6 +165,12 @@ export const FaceViewSchema = z.object({
   clear: z.boolean(),
   /** Seen corner-on with both faces whole: the face left of the near edge and the face right of it. */
   corner: z.object({ left: FaceSchema, right: FaceSchema }).nullable(),
+  /**
+   * For a long side: at which end of the image the door end is, from what is
+   * visible (doors or hinges at an angle, a reefer unit at the other end);
+   * null when nothing shows it. Left and right are decided from this in code.
+   */
+  doorEnd: z.enum(['left', 'right']).nullable(),
   /** The model's own confidence in `face`, 0–1. */
   confidence: z.number().min(0).max(1),
   /** A few words on what is in view, from the model. */

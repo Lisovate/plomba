@@ -157,6 +157,7 @@ interface Outcome {
   readonly wrong: number;
   readonly missed: number;
   readonly sideSwaps: number;
+  readonly guessedSides: number;
   readonly impossibleCorners: number;
   readonly doors: string;
   readonly seconds: number;
@@ -174,6 +175,7 @@ for (const label of labels) {
     const picked = pickCandidateFrames(tracking.frames, size, { minGap: fps, max: 12 });
     let choices: PhotoChoice[] = [];
     let impossibleCorners = 0;
+    let guessedSides = 0;
     let doors = '—';
     if (picked.length > 0) {
       const frames = grab(
@@ -181,7 +183,7 @@ for (const label of labels) {
         picked.map((c) => c.frame),
       );
       const { views: named } = await video.faces(frames);
-      const views = harmonizeSides(
+      const { views, guessed } = harmonizeSides(
         picked.map((c, i) => ({ frame: c.frame, view: named[i] as (typeof named)[number] })),
         tracking.frames,
       );
@@ -194,8 +196,9 @@ for (const label of labels) {
       if (values.verbose) {
         for (const [i, v] of views.entries()) {
           const corner = v.corner ? ` corner ${v.corner.left}|${v.corner.right}` : '';
+          const doors = v.doorEnd ? ` doors-${v.doorEnd}` : '';
           console.error(
-            `  frame ${picked[i]?.frame}: ${v.face ?? '-'}${v.squareOn ? ' square-on' : ''}${corner}${v.clear ? '' : ' unclear'} ${Math.round(v.confidence * 100)}% "${v.note}"`,
+            `  frame ${picked[i]?.frame}: ${v.face ?? '-'}${v.squareOn ? ' square-on' : ''}${corner}${doors}${v.clear ? '' : ' unclear'} ${Math.round(v.confidence * 100)}% "${v.note}"`,
           );
         }
       }
@@ -203,6 +206,7 @@ for (const label of labels) {
         (v) => v.corner && !isCornerPair(v.corner.left, v.corner.right),
       ).length;
       choices = chooseWalkaroundPhotos(candidates);
+      guessedSides = choices.filter((c) => c.part === 'whole' && guessed.has(c.index)).length;
       const door = choices.find((c) => c.face === 'D');
       const doorFrame = door ? frames[door.index] : undefined;
       if (doorFrame) {
@@ -236,6 +240,7 @@ for (const label of labels) {
       wrong: found.length - right,
       missed: expected.filter((e) => !found.some((f) => matches(f, e))).length,
       sideSwaps,
+      guessedSides,
       impossibleCorners,
       doors,
       seconds: (performance.now() - started) / 1000,
@@ -247,15 +252,15 @@ for (const label of labels) {
 const sum = (key: keyof Outcome) => outcomes.reduce((s, o) => s + Number(o[key]), 0);
 const rows = outcomes.map(
   (o) =>
-    `| ${o.file} | ${o.tracked} | ${o.candidates} | ${o.photos || '—'} | ${o.expected || '—'} | ${o.right} | ${o.wrong} | ${o.missed} | ${o.sideSwaps} | ${o.doors} | ${o.seconds.toFixed(0)} s |`,
+    `| ${o.file} | ${o.tracked} | ${o.candidates} | ${o.photos || '—'} | ${o.expected || '—'} | ${o.right} | ${o.wrong} | ${o.missed} | ${o.sideSwaps} | ${o.guessedSides} | ${o.doors} | ${o.seconds.toFixed(0)} s |`,
 );
 const report = `Model: ${config.meta.visionModel}, ${outcomes.length} clip runs
 
-| Clip | Tracked | Candidates | Photos chosen | Expected | Right | Wrong | Missed | L/R swapped | Doors | Time |
-|---|---|---|---|---|---|---|---|---|---|---|
+| Clip | Tracked | Candidates | Photos chosen | Expected | Right | Wrong | Missed | L/R swapped | Side guessed | Doors | Time |
+|---|---|---|---|---|---|---|---|---|---|---|---|
 ${rows.join('\n')}
 
-**Faces chosen:** ${sum('right')} right, ${sum('wrong')} wrong (of which ${sum('sideSwaps')} left/right swapped), ${sum('missed')} expected faces missed. Impossible corner pairs dropped: ${sum('impossibleCorners')}.`;
+**Faces chosen:** ${sum('right')} right, ${sum('wrong')} wrong (of which ${sum('sideSwaps')} left/right swapped), ${sum('missed')} expected faces missed. Sides chosen without the doors in view (flagged to the checker): ${sum('guessedSides')}. Impossible corner pairs dropped: ${sum('impossibleCorners')}.`;
 console.log(`\n${report}`);
 const out = join(
   clipsDir,

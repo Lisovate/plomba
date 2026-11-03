@@ -242,10 +242,18 @@ For each frame give:
 - frame: its 1-based position in the list;
 - face: D, F, L, R, T or null;
 - squareOn: true when the whole face is in view and seen roughly square-on, not at a steep angle;
+- ends: for a long side (L or R), look at each end of the side separately and say what that end of the container is, from what you can actually see there:
+  - "doors": the end face seen at an angle shows doors with vertical locking bars, handles or hinges; or door hinges show along the side's edge;
+  - "front": the end face is a plain corrugated wall, or has a refrigeration unit (always at the front end);
+  - "unknown": the end isn't visible or doesn't show which it is.
+  Use "unknown" for both ends of any face other than a long side. Don't guess: left and right are worked out from this;
 - corner: when the frame shows two faces meeting at a vertical edge of the container, both wholly in view, the face left of that edge and the face right of it; otherwise null. Seen from outside, the face on the right always follows the one on the left going round the container: (D, R), (R, F), (F, L) or (L, D). So doors left of the edge means the right side (R) is on the right;
 - clear: false when the image is blurred, or when anything in the foreground overlaps the container in the image, however small: a finger, hand, person, vehicle or pole. True only when the face is sharp and unobstructed;
 - confidence: 0–1 for the face;
 - note: a few words on what is in view.`;
+
+/** What one end of a long side shows. */
+const END_KINDS = ['doors', 'front', 'unknown'] as const;
 
 const VIEW_SCHEMA = {
   type: 'object',
@@ -257,7 +265,7 @@ const VIEW_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['frame', 'face', 'squareOn', 'corner', 'clear', 'confidence', 'note'],
+        required: ['frame', 'face', 'squareOn', 'corner', 'ends', 'clear', 'confidence', 'note'],
         properties: {
           frame: { type: 'integer' },
           face: { type: ['string', 'null'], enum: [...FACES, null] },
@@ -271,6 +279,15 @@ const VIEW_SCHEMA = {
               right: { type: 'string', enum: [...FACES] },
             },
           },
+          ends: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['left', 'right'],
+            properties: {
+              left: { type: 'string', enum: [...END_KINDS] },
+              right: { type: 'string', enum: [...END_KINDS] },
+            },
+          },
           clear: { type: 'boolean' },
           confidence: { type: 'number' },
           note: { type: 'string' },
@@ -281,8 +298,27 @@ const VIEW_SCHEMA = {
 } as const;
 
 const ViewsAnswerSchema = z.object({
-  views: z.array(FaceViewSchema.extend({ frame: z.number().int() })),
+  views: z.array(
+    FaceViewSchema.omit({ doorEnd: true }).extend({
+      frame: z.number().int(),
+      ends: z.object({ left: z.enum(END_KINDS), right: z.enum(END_KINDS) }),
+    }),
+  ),
 });
+
+type EndKind = (typeof END_KINDS)[number];
+
+/**
+ * Where the door end is, from what the model saw at each end of a side: the
+ * doors at one end, or the front at the other. Contradictions (doors at both
+ * ends, or the front at both) count as nothing seen.
+ */
+export function doorEndFromEnds(ends: { left: EndKind; right: EndKind }): 'left' | 'right' | null {
+  const doorsLeft = ends.left === 'doors' || ends.right === 'front';
+  const doorsRight = ends.right === 'doors' || ends.left === 'front';
+  if (doorsLeft === doorsRight) return null;
+  return doorsLeft ? 'left' : 'right';
+}
 
 export class MuseSparkFaceViewClassifier implements FaceViewClassifier {
   readonly #client: MetaClient;
@@ -326,13 +362,19 @@ export class MuseSparkFaceViewClassifier implements FaceViewClassifier {
       ViewsAnswerSchema,
     );
     // Align by the model's own frame numbers; a frame it skipped shows no face.
-    const byFrame = new Map(views.map(({ frame, ...view }) => [frame, view]));
+    const byFrame = new Map(
+      views.map(({ frame, ends, ...view }) => [
+        frame,
+        { ...view, doorEnd: view.face === 'L' || view.face === 'R' ? doorEndFromEnds(ends) : null },
+      ]),
+    );
     return frames.map(
       (_, i) =>
         byFrame.get(i + 1) ?? {
           face: null,
           squareOn: false,
           corner: null,
+          doorEnd: null,
           clear: false,
           confidence: 0,
           note: 'Not answered',

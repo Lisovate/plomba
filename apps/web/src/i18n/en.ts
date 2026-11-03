@@ -240,6 +240,8 @@ export const en = {
   'walk.sampleCredit': 'Sample clip:',
   'walk.blankFrames':
     "This browser returned blank frames from the clip, so the faces can't be named. Try again, or use another browser.",
+  'walk.sideGuessed':
+    "Left or right is a guess: the doors aren't in view. Check which end they are at.",
   'walk.video': 'Video (MP4 or MOV)',
   'walk.analyse': 'Analyse the walk-around',
   'walk.step.tracking': 'SAM 3.1 is tracking the container through every frame…',
