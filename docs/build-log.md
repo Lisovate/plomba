@@ -124,6 +124,13 @@ A dated record of what was built and when. The newest entry is at the bottom.
   - Muse Spark names the faces either side of the edge, checked by the rule that the right-hand face follows the left-hand one round the container.
   - On a CC BY clip of a 40 ft container, 169 of 180 frames split, and one corner frame registered the end and the long side.
 - **Clear frames first.** Muse Spark also flags frames where the face is blurred or something stands in front of it; they count half when choosing photos. The rule had to name small obstructions: at first Spark noted "finger in foreground" and still called the frame clear.
+- **The whole vision pipeline on open weights.** With `META_VISION_*` pointed at Muse Spark Open (Baseten), a walk-around on the rusty CC BY clip named the left side, registered it, and proposed the real corrosion (`LX68 CO PAA`, `LX56 CO PAA`). Spoken notes coded 20 of 20, as on Muse Spark 1.3. Baseten takes at most 8 images per request, so the face classifier now sends long walk-arounds in balanced runs.
+- **Code review of the day's work** found five real defects, all fixed:
+  - the frame rate was guessed from SAM's last frame, which shifted grabbed frames; it is now read from the MP4/MOV boxes;
+  - the passport could date damage "between" handovers when an earlier record showed damage on the same spot, or from records without coverage data;
+  - a broken chain or unloaded history read as "no damage" or "at this handover";
+  - a corner frame could also be chosen whole, out of sight;
+  - an earlier analysis could overwrite a newer one.
 - **The EIR says where each damage was first recorded,** or for new damage, the last handover that photographed the spot clean.
 - **The demo installation** runs behind HTTPS on the author's server, with an access code. It holds one container's story from openly licensed footage: rust recorded at gate-in, then drawn as a ghost on a different photo at gate-out. A one-line operator notice (`PLOMBA_NOTICE`) labels it as a demo and credits the footage.
 - **README:** screenshots, a pipeline diagram, findings about the models, and the limits. The home screen explains the steps on a first visit. Fonts are named before `system-ui`, which resolved to a monospace font on a Linux desktop.

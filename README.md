@@ -58,7 +58,7 @@ Measured on openly licensed data, details in [docs/evaluation.md](docs/evaluatio
 
 - **Muse Spark misreads worn numbers confidently.** The check digit catches it, but "repairing" a misread until the check digit passes was wrong 12 times out of 15. So only reads that pass as read are accepted. On 96 real crops: 61.5% verified with no input, and **0 wrong numbers accepted**.
 - **Enlarging small photos doubled accuracy** (32% → 62% verified and right), at the same cost.
-- **Open weights are as safe, just less convenient.** Muse Spark Open verified 54% of the same crops, again with 0 wrong numbers accepted.
+- **Open weights are as safe, just less convenient.** Muse Spark Open verified 54% of the same crops, again with 0 wrong numbers accepted. Every Muse Spark vision job (reading, naming faces, finding damage, coding spoken damage) also ran end to end on Muse Spark Open. One difference: it takes at most 8 images per request, so long walk-arounds go in runs.
 - **Spoken damage codes reliably when the checker names the place:** 20 of 20 typed Polish and English notes coded exactly to CEDEX, on Muse Spark and on Muse Spark Open.
 - **SAM 3.1 can't find damage by name** (`dent`, `damage` return nothing; `hole` finds bolt holes), **but it outlines damage precisely from a box.** So Muse Spark finds and codes, and SAM 3.1 outlines.
 - **SAM 3.1 video tracking works as an AR anchor without AR hardware:** 450 frames in 26 s, with object IDs stable enough to keep the container's coordinates on it through a walk.
