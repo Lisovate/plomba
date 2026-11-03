@@ -139,6 +139,14 @@ A dated record of what was built and when. The newest entry is at the bottom.
 - **The demo installation** runs behind HTTPS on the author's server, with an access code. It holds one container's story from openly licensed footage: rust recorded at gate-in, then drawn as a ghost on a different photo at gate-out. A one-line operator notice (`PLOMBA_NOTICE`) labels it as a demo and credits the footage.
 - **README:** screenshots, a pipeline diagram, findings about the models, and the limits. The home screen explains the steps on a first visit. Fonts are named before `system-ui`, which resolved to a monospace font on a Linux desktop.
 
+- **Tested as an iPhone.** The app ran in WebKit (Safari's engine) with iPhone emulation through the whole handover: the install hint, reading the doors, a rail handover, photos, a drawn mark, a walk-around from a sample clip, sealing, the EIR, and decoding an AAC note as an iPhone records it.
+  - It found that in Safari every frame cut from a walk-around came out black: WebKit paints only a video that is in the page, and a seeked frame only once it has been presented. Fixed, with a clear message if a browser still returns blank frames.
+  - The end-to-end test in CI now runs on an iPhone (WebKit) as well as on Android.
+- **Walk-around evaluation** (`scripts/eval-walkaround.ts`): the walk-around services on labelled clips, scoring the faces chosen and left/right swaps.
+  - It caught a regression: frames split into runs of 6 for Baseten's 8-image limit made the runs contradict each other. All frames now go in one call wherever the endpoint allows (`META_VISION_MAX_IMAGES`).
+  - **Left and right are decided in code.** Muse Spark says what each end of a side shows (doors, the front, or nothing telling), and code applies the convention. A side with no frame showing the doors is flagged for the checker to confirm.
+  - On three clips with hand-checked sides, three runs each: 8 of 9 right, 6 of them honestly flagged as guesses. A prompt cue about trailer axles and landing legs made it worse (6 of 9) and was dropped.
+
 **Findings:**
 - **Naming faces from a walk-around** (test clips used locally only, not stored or published):
   - On a drone clip of a 20 ft container, Muse Spark named the long side (95%) and called every corner-on frame "no single face".
