@@ -2,6 +2,7 @@ import type {
   FaceView,
   HandoverDetail,
   IdentifyResult,
+  Photo,
   SampleClip,
   VideoTracking,
 } from '@plomba/contracts';
@@ -28,6 +29,7 @@ import { type FrameView, VideoAr } from '../components/video-ar.tsx';
 import { useI18n } from '../i18n/index.tsx';
 import { prepareUpload } from '../lib/image.ts';
 import { BlankFramesError, frameTime, grabFrames, probeVideo } from '../lib/video-frames.ts';
+import { addFrames, type FrameSteps } from '../lib/walkaround-upload.ts';
 
 /** Frames sent to Muse Spark in one call; the server accepts up to 16. */
 const MAX_FRAMES = 12;
@@ -469,8 +471,8 @@ function AddToHandover({
   const queryClient = useQueryClient();
   const [findDamage, setFindDamage] = useState(true);
   const [progress, setProgress] = useState('');
-  // Photos already added, so a retry after a failure doesn't add them twice.
-  const done = useRef(new Set<string>());
+  // How far each chosen frame got, kept across retries (see addFrames).
+  const steps = useRef<FrameSteps>(new Map());
   const chosen = useMemo(
     () =>
       [...use]
@@ -487,25 +489,33 @@ function AddToHandover({
   );
 
   const add = useMutation({
-    mutationFn: async () => {
-      for (const [i, { key, face, part, candidate }] of chosen.entries()) {
-        if (done.current.has(key)) continue;
-        const faceName = t(`faceTitle.${face}`);
-        setProgress(t('walk.adding', { n: i + 1, total: chosen.length, face: faceName }));
-        let photo = await api.uploadPhoto(handoverId, face, await prepareUpload(candidate.blob));
-        // One face of a corner view: its outline comes from the split, not from the whole container.
-        const quad = part === 'whole' ? null : candidate.split?.[part];
-        if (quad) {
-          const corners = scaleQuad(quad, photo.width / analysis.size.width);
-          photo = await api.updateCorners(handoverId, photo.id, corners);
-        }
-        if (findDamage && photo.corners) {
-          setProgress(t('walk.lookingForDamage', { face: faceName }));
-          await api.proposeDamage(handoverId, photo.id);
-        }
-        done.current.add(key);
-      }
-    },
+    mutationFn: () =>
+      addFrames(
+        handoverId,
+        chosen.map(({ key, face, part, candidate }) => ({
+          key,
+          face,
+          image: () => prepareUpload(candidate.blob),
+          // One face of a corner view: its outline comes from the split, not from the whole container.
+          outline: (photo: Photo) => {
+            const quad = part === 'whole' ? null : candidate.split?.[part];
+            return quad ? scaleQuad(quad, photo.width / analysis.size.width) : null;
+          },
+        })),
+        {
+          api,
+          steps: steps.current,
+          findDamage,
+          onProgress: (stage, index, frame) => {
+            const face = t(`faceTitle.${frame.face}`);
+            setProgress(
+              stage === 'upload'
+                ? t('walk.adding', { n: index + 1, total: chosen.length, face })
+                : t('walk.lookingForDamage', { face }),
+            );
+          },
+        },
+      ),
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.handover(handoverId) }),
     onSuccess: () => navigate(`/handovers/${handoverId}`),
   });
