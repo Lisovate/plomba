@@ -97,14 +97,14 @@ export const SOLUTIONS: readonly Solution[] = [
     integration: {
       intro: 'Plomba sends what your claims and equipment systems need as each handover is sealed.',
       steps: [
-        'Subscribe to the `handover.sealed` webhook, then fetch the sealed record and its photos over the REST API.',
+        'Receive the `handover.sealed` webhook: it carries the marks and, for each damage, the last handover that photographed the spot clean.',
         'Take CODECO gate messages into your EDI flow next to the ones you already receive.',
         'For a handover with new damage, ask for a claim draft over the same API.',
       ],
       example: {
         folder: 'examples/shipping-line-claims-desk',
         description:
-          'A claims desk that receives sealed handovers and collects the evidence for new damage.',
+          'A claims desk that checks each signed delivery and opens a claim for damage that appeared on a leg, addressed to whoever had the container.',
       },
     },
   },
@@ -161,13 +161,13 @@ export const SOLUTIONS: readonly Solution[] = [
     integration: {
       intro: 'Each container on the train becomes a sealed handover your systems can pick up.',
       steps: [
-        'Receive a `handover.sealed` webhook as each container is checked, and fetch the record, with its wagon number, over the REST API.',
+        'Send the wagon list before the train arrives: every container and wagon number is checked digit by digit, and a gate-in handover opens for each container with its wagon and seals.',
         'Send CODECO gate messages with the rail transport leg to the shipping line or operator.',
-        'Match the sealed handovers to the train in your own planning system.',
+        'Receive a `handover.sealed` webhook as each container is checked, with its wagon number.',
       ],
       example: {
         folder: 'examples/rail-operator-train-arrival',
-        description: 'A train arrives: each container is checked and matched to its wagon.',
+        description: "Turns a train's wagon list into gate-in handovers before the train arrives.",
       },
     },
   },
@@ -230,7 +230,8 @@ export const SOLUTIONS: readonly Solution[] = [
       ],
       example: {
         folder: 'examples/trucking-driver-receipt',
-        description: "The driver's receipt, delivered when the handover is sealed.",
+        description:
+          "Finds a truck's sealed handover and prints the driver's receipt, with the record's hash checked.",
       },
     },
   },
@@ -293,7 +294,8 @@ export const SOLUTIONS: readonly Solution[] = [
       ],
       example: {
         folder: 'examples/leasing-fleet-condition',
-        description: 'A fleet condition view built from sealed handovers.',
+        description:
+          'A fleet condition report by owner code, and the damage that appeared between on-hire and off-hire.',
       },
     },
   },

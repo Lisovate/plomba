@@ -41,7 +41,7 @@ const CHANNELS: readonly Channel[] = [
     id: 'webhooks',
     icon: 'webhook',
     name: 'Signed webhooks',
-    summary: '`handover.sealed`, signed with HMAC-SHA256.',
+    summary: 'Started and sealed handovers, signed with HMAC-SHA256.',
   },
   {
     id: 'codeco',
@@ -72,7 +72,16 @@ function overview(): Html {
 }
 
 const ENDPOINTS: readonly [method: string, path: string, purpose: string][] = [
-  ['GET', '/api/containers/{number}', "A container's sealed history, with the hash chain verified"],
+  [
+    'GET',
+    '/api/containers?owner={code}',
+    'The fleet of an owner code, most recently handed over first',
+  ],
+  [
+    'GET',
+    '/api/containers/{number}',
+    "A container's sealed history and damage passport, with the hash chain verified",
+  ],
   ['POST', '/api/handovers', 'Start a handover'],
   ['GET', '/api/handovers/{id}', 'A handover with its photos and marks'],
   ['GET', '/api/handovers/{id}/codeco', 'The CODECO message for a sealed handover'],
@@ -123,15 +132,16 @@ function webhooks(): Html {
         eyebrow: 'Signed webhooks',
         title: 'Hear about each handover as it is sealed',
         intro: prose(
-          'Register an HTTPS endpoint and Plomba sends it a `handover.sealed` event whenever a handover is sealed, so your claims, fleet or transport system can fetch the record straight away.',
+          'Give the installation your HTTPS endpoint and Plomba posts `handover.started` and `handover.sealed` events to it. The sealed event carries the marks and, for each damage, the last handover that photographed the spot clean, so a claims, fleet or transport system can act without asking again. Other systems call the API with their own token.',
         ),
       })}
       <div>
         ${codeBlock('Plomba-Signature: t=<unix>,v1=<hex>', 'The signature header on each delivery')}
         <ul class="definition-list">
           <li><code>t</code> is when the delivery was signed, as Unix time. Reject old deliveries so a captured one can't be replayed.</li>
-          <li><code>v1</code> is an HMAC-SHA256 signature in hex, made with your endpoint's secret. Check it, in constant time, before you trust the body.</li>
-          <li>Each example in <a href="${repoFolder('examples')}"><code>examples/</code></a> shows how to verify a delivery.</li>
+          <li><code>v1</code> is the HMAC-SHA256, in hex, of <code>&lt;t&gt;.&lt;raw body&gt;</code>, keyed with the webhook secret. Check it, in constant time, before you parse the body.</li>
+          <li>Any 2xx answer means received. Anything else is retried after 1 s, 10 s and 60 s, with the same <code>Plomba-Delivery</code> id, so duplicates are easy to skip.</li>
+          <li>The claims desk in <a href="${repoFolder('examples')}"><code>examples/</code></a> verifies deliveries this way, and its tests use real signed deliveries.</li>
         </ul>
       </div>
     </div>`,
@@ -273,7 +283,7 @@ export const integrations: Page = {
   path: '/integrations/',
   title: 'Integrations: REST API, signed webhooks, EDIFACT CODECO and EIR · Plomba',
   description:
-    'Connect Plomba to your systems: a REST API described in OpenAPI, signed handover.sealed webhooks, EDIFACT CODECO D.95B gate messages and the EIR as a PDF.',
+    'Connect Plomba to your systems: a REST API described in OpenAPI, signed webhooks, EDIFACT CODECO D.95B gate messages and the EIR as a PDF.',
   body: () => html`${pageHero({
     eyebrow: 'Integrations',
     title: 'Fits the systems you already run',
