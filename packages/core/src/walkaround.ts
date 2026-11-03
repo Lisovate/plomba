@@ -83,15 +83,30 @@ export function frameScore(
   size: FrameSize,
   options: Pick<CandidateOptions, 'margin' | 'minArea'> = {},
 ): number {
-  const margin = (options.margin ?? 0.01) * Math.min(size.width, size.height);
-  const inside = corners.every(
-    (p) =>
-      p.x >= margin && p.y >= margin && p.x <= size.width - margin && p.y <= size.height - margin,
-  );
-  if (!inside) return 0;
+  if (!insideFrame(corners, size, options.margin)) return 0;
   const share = quadArea(corners) / (size.width * size.height);
   if (share < (options.minArea ?? 0.1)) return 0;
   return Math.min(1, share) * squareness(corners) ** 2;
+}
+
+/** True when every point is inside the frame, clear of its edges by `margin` (a share of the shorter side). */
+export function insideFrame(points: readonly Point[], size: FrameSize, margin = 0.01): boolean {
+  const m = margin * Math.min(size.width, size.height);
+  return points.every(
+    (p) => p.x >= m && p.y >= m && p.x <= size.width - m && p.y <= size.height - m,
+  );
+}
+
+/**
+ * A corner split is usable only when its near edge is in the frame: if the
+ * frame cuts off the near edge's top or foot, both faces' outlines would be
+ * guessed.
+ */
+export function usableSplit(
+  split: CornerSplit | null | undefined,
+  size: FrameSize,
+): CornerSplit | null {
+  return split && insideFrame([...split.left, ...split.right], size) ? split : null;
 }
 
 /**
@@ -260,14 +275,15 @@ export function chooseWalkaroundPhotos(
     part: 'whole' as const,
     face,
   }));
-  const parts = new Map<Face, { choice: PhotoChoice; area: number }>();
+  // Each face's largest part in a corner view, with blurred or covered frames counting half.
+  const parts = new Map<Face, { choice: PhotoChoice; weighted: number }>();
   candidates.forEach(({ view, split }, index) => {
-    if (!view.corner || !split || view.clear === false) return;
+    if (!view.corner || !split) return;
     for (const part of ['left', 'right'] as const) {
       const face = view.corner[part];
-      const area = quadArea(split[part]);
-      if (whole.has(face) || (parts.get(face)?.area ?? 0) >= area) continue;
-      parts.set(face, { choice: { index, part, face }, area });
+      const weighted = quadArea(split[part]) * (view.clear === false ? UNCLEAR_WEIGHT : 1);
+      if (whole.has(face) || (parts.get(face)?.weighted ?? 0) >= weighted) continue;
+      parts.set(face, { choice: { index, part, face }, weighted });
     }
   });
   return [...choices, ...[...parts.values()].map((p) => p.choice)];

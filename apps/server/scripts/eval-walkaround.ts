@@ -28,6 +28,7 @@ import {
   isCornerPair,
   type PhotoChoice,
   pickCandidateFrames,
+  usableSplit,
 } from '@plomba/core';
 import { pino } from 'pino';
 import { MetaClient } from '../src/adapters/meta/client.ts';
@@ -187,7 +188,7 @@ for (const label of labels) {
         picked.map((c, i) => ({ frame: c.frame, view: named[i] as (typeof named)[number] })),
         tracking.frames,
       );
-      const splits = new Map(tracking.frames.map((f) => [f.frame, f.split ?? null]));
+      const splits = new Map(tracking.frames.map((f) => [f.frame, usableSplit(f.split, size)]));
       const candidates = picked.map((c, i) => ({
         ...c,
         view: views[i] ?? { face: null, squareOn: false },

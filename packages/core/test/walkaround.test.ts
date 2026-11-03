@@ -10,6 +10,7 @@ import {
   sideFromDoorEnd,
   splitCornerView,
   squareness,
+  usableSplit,
   viewAtFrame,
 } from '../src/walkaround.ts';
 
@@ -336,5 +337,38 @@ describe('sideFromDoorEnd', () => {
   it('follows the convention: doors on the right of the image mean the left side', () => {
     expect(sideFromDoorEnd('right')).toBe('L');
     expect(sideFromDoorEnd('left')).toBe('R');
+  });
+});
+
+describe('usableSplit', () => {
+  const size = { width: 1280, height: 720 };
+  const split = {
+    left: rect(100, 100, 400, 600),
+    right: rect(400, 100, 1100, 600),
+  };
+
+  it('keeps a split whose near edge is in the frame', () => {
+    expect(usableSplit(split, size)).toBe(split);
+  });
+
+  it('drops a split whose near edge the frame cuts off', () => {
+    const cut = { ...split, left: rect(100, 100, 400, 720) };
+    expect(usableSplit(cut, size)).toBeNull();
+    expect(usableSplit(null, size)).toBeNull();
+  });
+});
+
+describe('chooseWalkaroundPhotos with someone in front of a corner', () => {
+  it('still uses the corner, at half weight', () => {
+    const split = { left: rect(100, 100, 300, 500), right: rect(300, 100, 1100, 500) };
+    const choices = chooseWalkaroundPhotos([
+      {
+        frame: 0,
+        score: 0.5,
+        view: { face: null, squareOn: false, clear: false, corner: { left: 'D', right: 'R' } },
+        split,
+      },
+    ]);
+    expect(choices.map((c) => c.face).sort()).toEqual(['D', 'R']);
   });
 });

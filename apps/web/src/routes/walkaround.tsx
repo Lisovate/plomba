@@ -15,6 +15,7 @@ import {
   type PhotoChoice,
   pickCandidateFrames,
   type Quad,
+  usableSplit,
   viewAtFrame,
 } from '@plomba/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -131,7 +132,8 @@ export function WalkaroundScreen() {
         picked.map((c, i) => ({ frame: c.frame, view: named[i] ?? unnamed })),
         tracking.frames,
       );
-      const splits = new Map(tracking.frames.map((f) => [f.frame, f.split ?? null]));
+      // A split whose near edge the frame cuts off would guess both faces' outlines.
+      const splits = new Map(tracking.frames.map((f) => [f.frame, usableSplit(f.split, size)]));
       const candidates = picked.map((c, i) => {
         const blob = blobs[i] as Blob;
         const view = views[i] ?? unnamed;
