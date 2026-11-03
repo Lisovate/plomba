@@ -1,6 +1,6 @@
 # Architecture
 
-First written 2026-10-26 as a plan; rewritten 2026-10-28 when development moved from a native iPhone app to an installable web app. Sections marked **(planned)** aren't built yet. What's built, and when, is in [build-log.md](build-log.md).
+First written 2026-10-26 as a plan; rewritten 2026-10-28 when development moved from a native iPhone app to an installable web app; updated 2026-11-03 with walk-around videos, the damage passport and the open-weights model. Sections marked **(planned)** aren't built yet. What's built, and when, is in [build-log.md](build-log.md).
 
 ## Components
 
@@ -13,8 +13,9 @@ Phone (iPhone or Android): Plomba PWA in the browser or installed to the home sc
                               ├─ SQLite database + content-addressed photo store
                               ├─ hash-chained handover history
                               └─ serves the built web app
-On-premises option: reading and damage detection on Muse Glimmer (open weights) through any
-OpenAI-compatible Chat Completions server (e.g. Ollama), configured as a separate vision endpoint
+Open-weights option: reading, face naming and damage detection on Muse Spark Open or Muse Glimmer
+through any OpenAI-compatible Chat Completions server (Baseten, Ollama, vLLM), configured as a
+separate vision endpoint
 ```
 
 One process serves the API and the web app, so a company can run Plomba as one container on its own machine ([self-hosting.md](self-hosting.md)).
@@ -55,6 +56,8 @@ Node 24 runs the TypeScript sources directly (type stripping), so the server has
 | Read the number, size/type, seals and placards | Muse Spark 1.3, structured output | Photo of the doors, downscaled to 1600 px | JSON, transcribed as painted | Built |
 | Choose between valid repairs of a misread number | Muse Spark 1.3, structured output | Same photo and 2+ candidate numbers | The matching candidate, or none | Built |
 | Find the face's corners | SAM 3.1, prompt `shipping container` | Photo of one face | Mask; its extreme points give the four corners | Built |
+| Track the container through a walk-around | SAM 3.1 video, prompt `shipping container` | MP4/MOV uploaded through the Files API | The container's mask in every frame, with a stable object ID | Built |
+| Name the face in each chosen frame | Muse Spark 1.3, several images in one structured-output call | Up to 12 frames of the walk-around, in clip order, at 768 px | Per frame: the face (or none), square-on or not, confidence, a note | Built |
 | Privacy | SAM 3.1, prompts `face`, `license plate` | Every face photo | Boxes, blurred before the photo is stored | Built |
 | Find and code damage | Muse Spark 1.3, structured output | Registered face photo | Rough boxes with CEDEX damage and component codes, a description and a confidence | Built |
 | Outline damage | SAM 3.1, one box prompt per finding | Same photo and Spark's boxes | Precise masks, mapped onto the face in metres as proposed marks | Built |
@@ -62,7 +65,7 @@ Node 24 runs the TypeScript sources directly (type stripping), so the server has
 | Voice commands, disputes by speaker | Muse Voice Transcribe, streaming and diarisation | Live audio | Commands; statements labelled by speaker | Planned |
 | Compare and close | Deterministic code | Previous and current handover | EIR report, CODECO message | Built |
 | Draft a claim | Muse Spark 1.3, tool calling + structured output | Photos of the new damage; tools for the comparison and the container's history | A claim letter whose items and evidence are verified against the sealed records | Built |
-| On-premises vision | Muse Glimmer through Chat Completions (Ollama, llama.cpp, vLLM) | As the two Muse Spark vision rows | The same JSON, from a model on the company's own hardware | Path built and tested against the Meta API; not yet run on Glimmer |
+| Open-weights vision | Muse Spark Open (`meta-models/muse-spark-open-1026` on Baseten) or Muse Glimmer, through Chat Completions | As the Muse Spark vision rows | The same JSON, from open weights that a company can host itself | Muse Spark Open measured on identification ([evaluation.md](evaluation.md)); Glimmer not run yet |
 | Test cases | Muse Image 1.0, image edits | A clean container photo and an instruction ("add a dent…") | Labelled synthetic damage for robustness tests, never counted in accuracy (`scripts/synthetic-damage.ts`) | Built |
 
 ### Identification is a verifiable loop
@@ -97,10 +100,7 @@ A container moves between cities, so Plomba stores every mark in the container's
 - **A mark is a rectangle in metres on a face**, drawn by the checker on the photo and mapped through the inverse homography.
 - **The next handover draws the same marks on its own photos.** Any photo of that face, from any phone, gets them through its own homography. These are the dashed "ghosts" the checker confirms as still there, changed or repaired.
 - **Why not live AR:** Safari on iPhone has no WebXR, so world-tracked AR isn't available to a web app on iPhone. Overlays on photos work the same on iPhone and Android.
-  - **AR on recorded video:** a walk-around clip (MP4/MOV from a phone or glasses) is uploaded through the Files API, and SAM 3.1 tracks the container through every frame in one request.
-    - The app follows the most prominent container by its stable object ID, and plays the clip with the CEDEX sections and the damage drawn on the face frame by frame (`requestVideoFrameCallback`).
-    - Results are cached by the clip's SHA-256, and the clip itself isn't stored.
-    - The desktop simulation (`/simulate`) uses this path.
+  - **AR on recorded video:** see [walk-around videos](#walk-around-videos) below.
   - **Live ghosts:** when the checker opens the camera on a face with previous marks, the app sends a 768 px frame about every 1.5 s to `POST /api/handovers/:id/frames`. SAM 3.1 finds the face there, the frame is not stored, and the marks are drawn over the live preview. Between registrations the overlay doesn't track movement; ARKit-style tracking would need a native app.
   - A native ARKit app remains an option if live tracking turns out to matter.
 
@@ -116,6 +116,25 @@ The server computes the ISO 9897 (CEDEX) location code from a mark's position (`
   - One section is written `<n>N`, the whole length `XX`.
 
 **Assumption to verify:** that side sections are counted from the door end. IICL numbers side posts, roof bows and cross-members that way, but the section rule isn't stated in the free sources.
+
+## Walk-around videos
+
+A checker can record one slow walk around the container, on a phone or Meta AI glasses, instead of taking a photo of each face (`/handovers/:id/walkaround`).
+
+1. **SAM 3.1 tracks the container through every frame** in one request (`POST /api/videos/track`). The clip goes up through the Files API; the result (the four corners per frame) is cached by the clip's SHA-256, and the clip itself isn't stored.
+   - The app follows the most prominent container by its stable object ID, so the overlay never jumps to a neighbour.
+2. **Plomba picks candidate frames** (`pickCandidateFrames` in core). A frame scores 0 when the outline touches the frame edge (a cut-off face can't be registered) or covers less than 10% of it. Otherwise it scores its share of the frame times its squareness squared; squareness is 1 minus the mean |cos| of the outline's corner angles. The best frames are taken greedily at least a second apart, up to 12.
+3. **The browser cuts those frames out** of the clip (a hidden video element and a canvas), so the server needs no video decoder.
+4. **Muse Spark names the face in each frame** in a single call with all the frames in clip order (`POST /api/videos/faces`), so it can follow the walk.
+   - The prompt carries the conventions: facing a side from outside, the door end on the right means the left side.
+   - It also carries the clues: faces follow each other around the container, and containers on a truck or wagon are loaded doors to the rear.
+   - On a 40 ft side whose ends were out of view, adding the loading clue raised Spark's confidence from 75% to 90%, with the right answer both times.
+5. **The best frame of the door end is read** like a door photo, and the number is compared with the handover's container.
+6. **The checker confirms** the face of each frame (or changes it), and the chosen frames go through the photo pipeline: SAM 3.1 registration, blurring, coverage and, optionally, damage proposals.
+
+While the clip plays, the overlay follows the face in view: the face of the nearest named frame within 1.5 s, with its CEDEX sections, the previous handover's damage and this handover's marks (`requestVideoFrameCallback`). While the camera turns a corner only the container's outline is drawn.
+
+**Limits:** a face must be whole in some frame. Close-range clips, where the top corners are always out of view, give no candidate frames, and the app asks for a recording from further back. A clip with cuts can lose the tracked object ID at a cut.
 
 ## Damage proposals
 
@@ -151,6 +170,16 @@ Live, on a container with one old hole and one new dent, Muse Spark called both 
 - **Closing a handover seals it.** The handover, its marks and its photos' hashes are serialised as canonical JSON (sorted keys). The record's hash covers the previous sealed record's hash and the record. Records chain per container.
 - **Verification.** `GET /api/containers/:number` re-hashes the whole chain and reports where it breaks, e.g. after a record is edited directly in the database.
 - **Concurrency.** Sealing uses optimistic concurrency, backed by a unique index on (container, sequence). A partial unique index allows only one open handover per container.
+
+## The damage passport
+
+The container page shows every damage on a map of the container's faces (each long side next to the end it meets, then the roof), coloured by the sealed handover that first recorded it (`damageHistory` in core).
+
+- **Built only from the sealed records,** and only while the hash chain verifies. A tampered chain gives no damage history at all.
+- **Damage is followed through the handovers** by the link each confirming mark keeps to the earlier mark (`previousMarkId`): first recorded, still there, changed, repaired.
+- **"Not there at" is evidence, not assumption.** For each damage, Plomba walks back from the handover that first recorded it to the latest earlier handover whose photos covered every CEDEX cell under the damage (from the sealed record's `notInspected`). The damage happened between those two handovers, so a dispute narrows to the legs and holders in between.
+  - Handovers in between that had no photo of the spot are listed, because the damage may predate them.
+  - When no earlier handover photographed the spot, the passport says it was already there at the first sealed handover.
 
 ## Data model
 
@@ -191,9 +220,9 @@ Migrations live in `apps/server/src/adapters/sqlite/migrations.ts` and are appli
   - generated only for sealed handovers.
 - **EIR (equipment interchange receipt):** a printable page in the web app; Print → Save as PDF gives the document the parties keep.
 
-## Meta AI glasses (planned)
+## Meta AI glasses
 
-Meta's Wearables Device Access Toolkit is a native iOS/Android SDK, so a web app can't stream from the glasses. A walk-around video recorded on the glasses can instead be uploaded into the same pipeline, as keyframes per face. Anything shown from this path is labelled as recorded on glasses.
+Meta's Wearables Device Access Toolkit is a native iOS/Android SDK, so a web app can't stream from the glasses. A walk-around recorded on the glasses is uploaded instead, through the [walk-around video](#walk-around-videos) pipeline. Live streaming from the glasses would need a native app.
 
 ## Security and privacy
 

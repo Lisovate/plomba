@@ -97,3 +97,32 @@ A dated record of what was built and when. The newest entry is at the bottom.
 - **Video tracking on a real inspection clip** (a YouTube video, used locally for testing only; not stored or published).
   - A 40 ft container sliding off a tilt trailer, side-on: SAM 3.1 tracked all 302 frames, and the CEDEX grid and the earlier damage stayed on the side as it tilted and levelled.
   - **Finding:** a close-up of the door end failed. The face didn't fit in the frame, and registering from the container's outline needs all four corners of the face in view. Close-ups will need another anchor (corner castings, locking bars, markings).
+
+## 2026-11-03 (Tue): Day 8
+
+**Built:**
+- **Walk-around video → face photos.** One clip from a phone or Meta AI glasses becomes the handover's photos.
+  - SAM 3.1 tracks the container through every frame.
+  - Plomba scores each frame: zero when the face is cut off by the frame edge; otherwise its size times how square-on it is. It picks up to 12 frames at least a second apart.
+  - The browser cuts the frames out of the clip, so the server needs no video decoder.
+  - Muse Spark names the face in every frame in one call, with the frames in clip order, and reads the doors; the number is compared with the handover's.
+  - The checker confirms, and the frames go through the photo pipeline (registration, blurring, coverage, damage proposals).
+  - While the clip plays, the overlay follows the face in view. This replaces the desktop simulation page.
+- **Damage passport** on the container page.
+  - Every damage on a map of the faces, coloured by the sealed handover that first recorded it.
+  - For each damage, the latest earlier handover whose photos covered that spot and didn't record it: the damage happened between the two. Handovers with no photo of the spot are listed.
+  - Built only from the sealed records, and only while the hash chain verifies.
+- **Open weights, measured.** The identification eval now reads markings through the configured vision endpoint. On Muse Spark Open (`meta-models/muse-spark-open-1026`, open weights, hosted on Baseten), 54.2% of the 96 TRUDI crops were verified and right, with no silent errors, against 61.5% for Muse Spark 1.3 ([evaluation.md](evaluation.md)).
+
+**Findings:**
+- **Naming faces from a walk-around** (test clips used locally only, not stored or published):
+  - On a drone clip of a 20 ft container, Muse Spark named the long side (95%) and called every corner-on frame "no single face".
+  - On a 40 ft container on a trailer (side and door end in separate clips), it named the left side and the doors correctly.
+  - With the ends of the side out of view, the clue that containers ride doors to the rear raised its confidence from 75% to 90%.
+- **Close-range clips give no usable frames.** When the camera stays a few metres from a 40 ft container, the top corners never come into view, and a face can't be registered from a partial outline. The app now says so and asks for a recording from further back. Registering partial faces (from corner castings or markings) is the next step.
+- **Test footage:** 26 clips cut for local testing, a few from YouTube videos their uploaders marked CC BY. Openly licensed walk-around footage of a single container is still scarce on Wikimedia Commons.
+
+**Next (day 9, the last):**
+- deploy the demo instance behind HTTPS with an access code, and test on a real phone;
+- record the 3-minute demo video;
+- final README pass and submission.

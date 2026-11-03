@@ -35,6 +35,28 @@ Run with: `node --env-file=.env apps/server/scripts/eval-identify.ts <TRUDI text
 
 **Uncertainty:** with 0 errors in 59 verified reads, the "rule of three" puts the true silent-error rate below about 5% at 95% confidence. More data is needed to claim less.
 
+### Open weights: Muse Spark Open (2026-11-03)
+
+The same 96 crops, the same service and settings (enlarged to ≥ 1024 px), with the markings read by **Muse Spark Open** (`meta-models/muse-spark-open-1026`, open weights, hosted on Baseten) through the Chat Completions path that a self-hosted model would use (`META_VISION_*`).
+
+| | Muse Spark 1.3 (Meta Model API, 2026-10-28) | **Muse Spark Open (open weights)** |
+|---|---|---|
+| Raw read exactly right | 61.5% | 54.2% |
+| Unreadable | 19.8% | 31.3% |
+| **Verified and right** | 61.5% | **54.2%** |
+| **Silent errors** | **0 of 59** | **0 of 52** |
+| Latency p50 / p90 | 2.4 s / 9.2 s | 4.4 s / 9.4 s |
+
+Run with the vision endpoint pointed at the open model, e.g.:
+
+```sh
+META_VISION_BASE_URL=https://inference.baseten.co/v1 META_VISION_API_STYLE=chat-completions \
+META_VISION_API_KEY_FILE=~/.config/plomba/baseten.key META_VISION_MODEL=meta-models/muse-spark-open-1026 \
+node --env-file=.env apps/server/scripts/eval-identify.ts <TRUDI text_recognition/ground/test>
+```
+
+**Finding:** the open model reads less (more crops come back unreadable), but what it accepts is as safe. The check digit keeps silent errors at zero on both, so a company can run identification on open weights and lose only convenience (more numbers typed or tapped), not correctness.
+
 ### Findings and the decisions they drove
 
 1. **Enlarging small photos before reading doubles accuracy.** Tight or distant shots are scaled up to a long side of at least 1024 px, so the model sees more pixels per character. Verified-and-right rose from 32.3% to 61.5% at the same cost. This is now the default (`DEFAULT_MIN_LONG_SIDE`).

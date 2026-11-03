@@ -29,30 +29,36 @@ It's open source (Apache-2.0) and built to be self-hosted: a terminal, depot or 
 ## Devices
 
 - **Phone (iPhone or Android):** the main device, through the installable web app. Camera, overlays, review and confirmation.
-- **Meta AI glasses (planned):** hands-free capture. A walk-around recorded on the glasses is uploaded into the same pipeline. The glasses toolkit is a native SDK, so live streaming would need a native app.
+- **Meta AI glasses:** hands-free capture. A walk-around recorded on the glasses (or a phone) is uploaded, and Plomba turns it into the handover's face photos. The glasses toolkit is a native SDK, so live streaming would need a native app.
 
 ## Meta models
 
 | Model | Job in Plomba |
 |---|---|
-| **SAM 3.1** | Outline the container to register each photo to its face; find faces and number plates to blur; propose damage outlines |
-| **Muse Spark** | Read the container number, seal and placards (checked by the ISO 6346 check digit); suggest damage codes; run the agent that compares handovers and drafts the EIR, EDI message and claim |
+| **SAM 3.1** | Outline the container to register each photo to its face; track it through walk-around videos; find faces and number plates to blur; outline damage |
+| **Muse Spark** | Read the container number, seal and placards (checked by the ISO 6346 check digit); name the face in each walk-around frame; find and code damage; run the agent that drafts the claim, verified against the sealed records |
 | **Muse Voice Transcribe** | Spoken notes and commands in Polish and English; statements labelled by speaker when a handover is disputed |
-| **Muse Glimmer** (open weights) | An offline and on-premise mode for terminals without reliable connectivity |
+| **Muse Spark Open, Muse Glimmer** (open weights) | The same vision jobs on open weights a company can host itself. Muse Spark Open is measured: no wrong number accepted ([evaluation](docs/evaluation.md)) |
 | **Muse Image** | Synthetic test cases of rare damage, labelled as synthetic and never counted in reported accuracy |
 
 ## Status
 
-**2026-10-28: Day 2.** Working end to end against the Meta Model API:
+**2026-11-03.** Working end to end against the Meta Model API:
 
 - **Identify:** Muse Spark reads the doors, and only a read that passes the ISO 6346 check digit is accepted. Look-alike repairs are suggestions the checker taps; on 96 real crops, 62% were verified with no input and none of the verified reads was wrong ([evaluation](docs/evaluation.md)).
-- **Locate:** each face is photographed and registered from SAM 3.1's outline of the container. Damage marks are stored in metres on the container and coded to CEDEX locations, and the CEDEX sections photographed are tracked.
+- **Walk-around video:** one clip from a phone or Meta AI glasses becomes the handover's face photos.
+  - SAM 3.1 tracks the container through every frame, and Plomba picks the frames where one face is whole and square-on.
+  - Muse Spark names each face (left or right, from the walk and the loading direction) and reads the doors. The checker confirms.
+  - The clip plays back with the container's CEDEX sections and the last handover's damage drawn on it, frame by frame.
+- **Locate:** each face photo is registered from SAM 3.1's outline of the container. Damage marks are stored in metres on the container and coded to CEDEX locations, and the CEDEX sections photographed are tracked.
 - **Last handover:** the previous handover's marks are drawn on new photos and over the live camera, and confirmed as still there, changed or repaired.
 - **New damage:** Muse Spark finds and codes it, and SAM 3.1 outlines it; the checker confirms each proposal. Notes can be dictated in Polish or English (Muse Voice Transcribe).
 - **Close:** the handover is sealed into a hash-chained history, with an EIR to print or save as PDF, an EDIFACT CODECO message, and a claim drafted by a Muse Spark agent whose evidence is checked against the sealed records.
+- **Damage passport:** every damage on a map of the container, coloured by the handover that first recorded it, with the last earlier handover that photographed the spot and didn't record it. The damage happened between the two. Built only from the sealed, hash-verified records.
 - **Privacy:** faces and number plates are blurred before photos are stored.
-- **Self-hosting:** an installable web app in English and Polish, one Docker image, an optional access code, and a path for running the vision model on Muse Glimmer on your own hardware (built and tested against Meta's API; not yet run on Glimmer itself).
-- **Tests:** 123 unit and integration tests and a browser end-to-end test, run in CI.
+- **Open weights:** the vision jobs run on any OpenAI-compatible endpoint. On Muse Spark Open, identification verified 54% of the crops with no wrong number accepted.
+- **Self-hosting:** an installable web app in English and Polish, one Docker image, and an optional access code.
+- **Tests:** 146 unit and integration tests and a browser end-to-end test, run in CI.
 
 Progress is recorded day by day in [docs/build-log.md](docs/build-log.md).
 
