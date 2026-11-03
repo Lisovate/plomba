@@ -314,6 +314,7 @@ export class HandoverService {
     input: { face: Face; data: Uint8Array; capturedAt?: string },
   ): Promise<Photo> {
     this.#openHandover(handoverId);
+    const capturedAt = input.capturedAt === undefined ? undefined : captureTime(input.capturedAt);
     const image = await normaliseImage(input.data);
     const [privacyRegions, corners] = await Promise.all([
       findPrivacyRegions(this.#d.segmenter, image),
@@ -335,7 +336,7 @@ export class HandoverService {
         corners,
         cornersSource: corners ? 'detected' : null,
         redactedRegions: privacyRegions.length,
-        capturedAt: input.capturedAt ?? this.#now(),
+        capturedAt: capturedAt ?? this.#now(),
       });
     });
     return this.#photo(handoverId, id);
@@ -703,6 +704,25 @@ function vehicleIdentifier(input: StartHandover): string | null {
     });
   }
   return wagon.value;
+}
+
+/**
+ * When the phone says the photo was taken, in UTC. Checked before the image is
+ * processed: a stored photo with an unreadable time would make its handover
+ * fail its own response schema.
+ */
+function captureTime(value: string): string {
+  if (!z.iso.datetime({ offset: true }).safeParse(value).success) {
+    throw new ValidationError(
+      'capturedAt must be an ISO 8601 date-time, e.g. 2026-11-03T14:05:11Z',
+      {
+        issues: [
+          { path: 'capturedAt', message: 'Expected an ISO 8601 date-time with a time zone' },
+        ],
+      },
+    );
+  }
+  return new Date(value).toISOString();
 }
 
 function decodeHandoverCursor(cursor: string): z.infer<typeof HandoverCursorSchema> {

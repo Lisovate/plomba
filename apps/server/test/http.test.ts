@@ -94,6 +94,41 @@ describe('HTTP API', () => {
     });
   });
 
+  it('refuses a photo whose capture time is not a date, and stores capture times in UTC', async () => {
+    const app = testApp();
+    const post = (path: string, body: unknown) =>
+      app.request(path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    await post('/api/containers', { number: 'CSQU3054383', sizeTypeCode: '42G1' });
+    const started = await post('/api/handovers', {
+      containerNumber: 'CSQU3054383',
+      direction: 'in',
+      place: 'Gdynia',
+      checker: 'PL',
+    });
+    const { id } = (await started.json()) as { id: string };
+    const upload = async (capturedAt: string) => {
+      const form = new FormData();
+      form.set('face', 'D');
+      form.set('capturedAt', capturedAt);
+      form.set('image', new File([(await makePhoto()) as Uint8Array<ArrayBuffer>], 'd.jpg'));
+      return app.request(`/api/handovers/${id}/photos`, { method: 'POST', body: form });
+    };
+
+    expect((await upload('not-a-date')).status).toBe(400);
+    const photo = await upload('2026-11-03T15:05:11+01:00');
+    expect(photo.status).toBe(201);
+    expect(((await photo.json()) as { capturedAt: string }).capturedAt).toBe(
+      '2026-11-03T14:05:11.000Z',
+    );
+    const detail = await app.request(`/api/handovers/${id}`);
+    expect(detail.status).toBe(200);
+    expect(((await detail.json()) as { photos: unknown[] }).photos).toHaveLength(1);
+  });
+
   it('transcribes a spoken note', async () => {
     const form = new FormData();
     form.set('audio', new File([makeWav() as Uint8Array<ArrayBuffer>], 'note.wav'));
