@@ -112,6 +112,7 @@ npm run dev:web         # app on http://localhost:5173
 - [docs/evaluation.md](docs/evaluation.md): measured accuracy on openly licensed data
 - [docs/self-hosting.md](docs/self-hosting.md): running Plomba on your own machine
 - [docs/integrations.md](docs/integrations.md): the API (OpenAPI), API tokens, signed webhooks, CODECO, and examples for shipping lines, rail operators, trucking companies and lessors
+- [examples/README.md](examples/README.md): four runnable integrations (a claims desk, train arrivals, a driver's receipt, a lessor's fleet and off-hire reports), tested against a real Plomba server
 - [docs/build-log.md](docs/build-log.md): dated log of what was built and when
 - [CONTRIBUTING.md](CONTRIBUTING.md): checks before committing, secrets, data and privacy rules
 
