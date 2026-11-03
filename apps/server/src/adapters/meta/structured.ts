@@ -12,15 +12,15 @@ export interface StructuredCall {
   readonly reasoningEffort: 'minimal' | 'low' | 'medium' | 'high';
   readonly instructions: string;
   readonly prompt: string;
-  /** One photo, or several in the order the prompt refers to them. */
-  readonly image: ImageInput | readonly ImageInput[];
+  /** One photo, several in the order the prompt refers to them, or none for a text-only question. */
+  readonly image?: ImageInput | readonly ImageInput[];
   readonly schemaName: string;
   /** JSON schema sent to the model (strict mode). */
   readonly schema: Record<string, unknown>;
 }
 
 /**
- * Asks a vision model a question about one image and gets JSON back, checked
+ * Asks a model a question, usually about images, and gets JSON back, checked
  * twice: by the API against the JSON schema, and here against a zod schema.
  */
 export async function askStructured<T>(
@@ -48,6 +48,7 @@ export async function askStructured<T>(
 }
 
 function images(call: StructuredCall): readonly ImageInput[] {
+  if (call.image === undefined) return [];
   return Array.isArray(call.image) ? call.image : [call.image as ImageInput];
 }
 

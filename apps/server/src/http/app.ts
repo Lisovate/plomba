@@ -23,6 +23,7 @@ import type { ClaimService } from '../services/claims.ts';
 import type { HandoverService } from '../services/handovers.ts';
 import type { IdentifyService } from '../services/identify.ts';
 import type { SpeechService } from '../services/speech.ts';
+import type { SpokenDamageService } from '../services/spoken-damage.ts';
 import type { VideoService } from '../services/video.ts';
 import { installAccessControl } from './access.ts';
 
@@ -30,6 +31,7 @@ export interface AppDeps {
   readonly identify: IdentifyService;
   readonly handovers: HandoverService;
   readonly speech: SpeechService;
+  readonly spokenDamage: SpokenDamageService;
   readonly claims: ClaimService;
   readonly video: VideoService;
   readonly media: MediaStore;
@@ -115,7 +117,7 @@ export function createApp(deps: AppDeps): Hono {
 
 function api(deps: AppDeps): Hono {
   const api = new Hono();
-  const { identify, handovers, speech, claims, video } = deps;
+  const { identify, handovers, speech, spokenDamage, claims, video } = deps;
   const uploadLimit = bodyLimit({
     maxSize: MAX_UPLOAD_BYTES,
     onError: () => {
@@ -206,6 +208,22 @@ function api(deps: AppDeps): Hono {
   api.post('/handovers/:id/frames', uploadLimit, async (c) => {
     const { image } = await readUpload(c);
     return c.json(await handovers.registerFrame(c.req.param('id'), image));
+  });
+
+  // A spoken description of damage: the recording (WAV) and the face in view.
+  api.post('/handovers/:id/spoken-damage', uploadLimit, async (c) => {
+    const form = await c.req.parseBody().catch(() => {
+      throw new ValidationError('Expected multipart/form-data');
+    });
+    const face = FaceSchema.safeParse(form.face);
+    if (!face.success)
+      throw new ValidationError('Send the face in view as "face" (D, R, F, L or T)');
+    const audio = form.audio;
+    if (!(audio instanceof File) || audio.size === 0) {
+      throw new ValidationError('Attach the recording as the "audio" field');
+    }
+    const data = new Uint8Array(await audio.arrayBuffer());
+    return c.json(await spokenDamage.record(c.req.param('id'), face.data, data));
   });
 
   api.put('/handovers/:id/photos/:photoId/corners', async (c) => {

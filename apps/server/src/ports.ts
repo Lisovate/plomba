@@ -14,7 +14,16 @@ import type {
   MarkStatus,
   Photo,
 } from '@plomba/contracts';
-import type { ComponentCode, DamageCode, Face, FaceRect, Point, Quad } from '@plomba/core';
+import type {
+  ComponentCode,
+  ContainerDimensions,
+  DamageCode,
+  Face,
+  FaceRect,
+  Point,
+  Quad,
+  SectionLocation,
+} from '@plomba/core';
 import type { z } from 'zod';
 
 // Models -------------------------------------------------------------------
@@ -93,6 +102,25 @@ export interface Segmenter {
 export interface FaceViewClassifier {
   /** One view per frame, in the order given; frames are in clip order. */
   classify(frames: readonly ImageInput[]): Promise<FaceView[]>;
+}
+
+/** Damage described in words, located the way a CEDEX code locates it. */
+export interface SpokenDamage {
+  readonly face: Face;
+  /** The sections named, or `null` when the checker didn't say where. */
+  readonly location: SectionLocation | null;
+  readonly damageCode: DamageCode;
+  readonly componentCode: ComponentCode | null;
+  /** What the checker said about it, in their words and language. */
+  readonly note: string;
+}
+
+/** Turns a checker's spoken note into coded damage (Muse Spark). */
+export interface DamageNoteParser {
+  parse(
+    text: string,
+    context: { readonly face: Face; readonly dimensions: ContainerDimensions },
+  ): Promise<SpokenDamage[]>;
 }
 
 export interface DamageFinding {

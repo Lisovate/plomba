@@ -161,6 +161,52 @@ export function locationCode(
   return `${face}${partCode(face, rect, dimensions)}${sections}` as LocationCode;
 }
 
+/** A place on a face named the way a location code names it: a range of sections and a half. */
+export interface SectionLocation {
+  /** First and last section, numbered as in the code: from 1 at the door end (sides, roof), or 1–4 left to right as seen from the door end (ends). The tenth section of a 40 ft side is 10. */
+  readonly from: number;
+  readonly to: number;
+  /** Upper or lower half of a side or end, left or right half of the roof; `null` for the full height. */
+  readonly half: 'upper' | 'lower' | 'left' | 'right' | null;
+}
+
+/**
+ * The rectangle a section range covers on a face: the inverse of
+ * `locationCode`, for damage described in words ("left side, section 3,
+ * lower half") rather than drawn. Throws `RangeError` for sections the face
+ * doesn't have, or a half that doesn't apply to it.
+ */
+export function sectionRect(
+  face: Face,
+  dimensions: ContainerDimensions,
+  location: SectionLocation,
+): FaceRect {
+  const boundaries = sectionBoundaries(face, dimensions);
+  const count = boundaries.length - 1;
+  const { from, to, half } = location;
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < from || to > count) {
+    throw new RangeError(`Face ${face} has sections 1 to ${count}`);
+  }
+  const roof = face === 'T';
+  if (half && (half === 'left' || half === 'right') !== roof) {
+    throw new RangeError(
+      roof ? 'The roof has left and right halves' : `Face ${face} has upper and lower halves`,
+    );
+  }
+  const { width, height } = faceSize(face, dimensions);
+  // A micrometre inside the boundaries, so rounding on the mirrored faces can't
+  // move an edge into the neighbouring section.
+  const inset = 1e-6;
+  const start = (boundaries[from - 1] ?? 0) + inset;
+  const end = (boundaries[to] ?? width) - inset;
+  // Sections run against u on the left side and the front end (see sectionAxisSpan).
+  const [u0, u1] = face === 'L' || face === 'F' ? [width - end, width - start] : [start, end];
+  // On the roof, v runs from the right side (0) to the left side.
+  const upperHalf = half === 'upper' || half === 'left';
+  const [v0, v1] = half === null ? [0, height] : upperHalf ? [height / 2, height] : [0, height / 2];
+  return { u0, v0, u1, v1 };
+}
+
 export interface FaceCell {
   readonly code: LocationCode;
   readonly rect: FaceRect;

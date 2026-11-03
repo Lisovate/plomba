@@ -12,6 +12,7 @@ import { pino } from 'pino';
 import { MetaClient } from './adapters/meta/client.ts';
 import {
   MuseSparkDamageDetector,
+  MuseSparkDamageNoteParser,
   MuseSparkFaceViewClassifier,
   MuseSparkMarkingsReader,
 } from './adapters/meta/muse-spark.ts';
@@ -33,6 +34,7 @@ import { ClaimService } from './services/claims.ts';
 import { HandoverService } from './services/handovers.ts';
 import { IdentifyService } from './services/identify.ts';
 import { SpeechService } from './services/speech.ts';
+import { SpokenDamageService } from './services/spoken-damage.ts';
 import { VideoService } from './services/video.ts';
 
 function main(): void {
@@ -80,19 +82,28 @@ function main(): void {
     photos: new SqlitePhotoRepository(db),
     marks: new SqliteMarkRepository(db),
   };
+  const handovers = new HandoverService({
+    ...repositories,
+    media,
+    segmenter,
+    detector,
+    transaction: createTransactionRunner(db),
+    clock: { now: () => new Date() },
+    newId: randomUUID,
+    ediSenderId: config.ediSenderId,
+  });
+  const speech = new SpeechService(transcriber);
+  // Structured output like the vision jobs, so it runs on the same (possibly open-weights) endpoint.
+  const noteParser = new MuseSparkDamageNoteParser(visionClient, {
+    ...spark,
+    api: vision.apiStyle,
+  });
+
   const app = createApp({
     identify: new IdentifyService(reader),
-    handovers: new HandoverService({
-      ...repositories,
-      media,
-      segmenter,
-      detector,
-      transaction: createTransactionRunner(db),
-      clock: { now: () => new Date() },
-      newId: randomUUID,
-      ediSenderId: config.ediSenderId,
-    }),
-    speech: new SpeechService(transcriber),
+    handovers,
+    speech,
+    spokenDamage: new SpokenDamageService({ speech, parser: noteParser, handovers }),
     claims: new ClaimService({ ...repositories, media, agent: new MuseSparkAgent(meta, spark) }),
     video: new VideoService({
       segmenter,

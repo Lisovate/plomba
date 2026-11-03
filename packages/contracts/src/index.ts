@@ -218,6 +218,16 @@ export const UpdateMarkSchema = z
 /** Damage the models proposed on one photo, stored as marks with source `proposed`. */
 export const ProposalsSchema = z.array(MarkSchema);
 
+/** What a spoken damage note became, as proposals for the checker to confirm. */
+export const SpokenDamageResultSchema = z.object({
+  /** What Muse Voice Transcribe heard. */
+  transcript: z.string(),
+  /** One proposed mark per damage placed on the container. */
+  marks: z.array(MarkSchema),
+  /** Damage described without a place the container has, in the checker's words. */
+  unplaced: z.array(z.string()),
+});
+
 export const HandoverDetailSchema = z.object({
   handover: HandoverSchema,
   container: ContainerSchema,
@@ -384,6 +394,7 @@ export type ClaimCheck = z.infer<typeof ClaimCheckSchema>;
 export type Session = z.infer<typeof SessionSchema>;
 export type FrameRegistration = z.infer<typeof FrameRegistrationSchema>;
 export type VideoTracking = z.infer<typeof VideoTrackingSchema>;
+export type SpokenDamageResult = z.infer<typeof SpokenDamageResultSchema>;
 export type Instance = z.infer<typeof InstanceSchema>;
 export type FaceView = z.infer<typeof FaceViewSchema>;
 export type FaceViews = z.infer<typeof FaceViewsSchema>;

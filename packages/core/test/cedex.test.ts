@@ -5,6 +5,7 @@ import {
   isDamageCode,
   locationCode,
   longSectionCount,
+  sectionRect,
 } from '../src/cedex.ts';
 import { faceSize, rectOverlap } from '../src/faces.ts';
 import { parseSizeType } from '../src/size-type.ts';
@@ -156,5 +157,35 @@ describe('coverage', () => {
     expect(faceCoverage('R', forty, [{ ...fullFrame, corners: null }, fullFrame]).missing).toEqual(
       [],
     );
+  });
+});
+
+describe('sectionRect', () => {
+  it('is the inverse of locationCode on every face', () => {
+    const cases = [
+      ['L', { from: 3, to: 3, half: 'lower' }, 'LB3N'],
+      ['R', { from: 1, to: 2, half: 'upper' }, 'RT12'],
+      ['L', { from: 9, to: 10, half: null }, 'LX90'],
+      ['T', { from: 4, to: 4, half: 'left' }, 'TL4N'],
+      ['D', { from: 2, to: 3, half: 'lower' }, 'DB23'],
+      ['F', { from: 1, to: 1, half: 'upper' }, 'FT1N'],
+      ['R', { from: 1, to: 10, half: null }, 'RXXX'],
+    ] as const;
+    for (const [face, location, code] of cases) {
+      expect(locationCode(face, sectionRect(face, forty, location), forty)).toBe(code);
+    }
+  });
+
+  it('counts the left side and the front end against their u axis', () => {
+    // Section 1 is at the door end, which is on the viewer's right on the left side.
+    const rect = sectionRect('L', twenty, { from: 1, to: 1, half: null });
+    expect(rect.u1).toBeCloseTo(faceSize('L', twenty).width, 5);
+  });
+
+  it('refuses sections or halves the face does not have', () => {
+    expect(() => sectionRect('L', twenty, { from: 6, to: 6, half: null })).toThrow(RangeError);
+    expect(() => sectionRect('D', forty, { from: 0, to: 1, half: null })).toThrow(RangeError);
+    expect(() => sectionRect('T', forty, { from: 1, to: 1, half: 'upper' })).toThrow(RangeError);
+    expect(() => sectionRect('R', forty, { from: 1, to: 1, half: 'left' })).toThrow(RangeError);
   });
 });

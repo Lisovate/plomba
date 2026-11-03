@@ -16,6 +16,7 @@ import type {
   AgentTask,
   DamageDetector,
   DamageFinding,
+  DamageNoteParser,
   FaceViewClassifier,
   ImageInput,
   MarkingsReader,
@@ -26,6 +27,7 @@ import type {
   Segmenter,
   SizedImage,
   SpeechTranscriber,
+  SpokenDamage,
   StoredMedia,
   TrackedFrame,
   VideoInput,
@@ -34,6 +36,7 @@ import { ClaimService } from '../src/services/claims.ts';
 import { HandoverService } from '../src/services/handovers.ts';
 import { IdentifyService } from '../src/services/identify.ts';
 import { SpeechService } from '../src/services/speech.ts';
+import { SpokenDamageService } from '../src/services/spoken-damage.ts';
 import { VideoService } from '../src/services/video.ts';
 
 export const silentLogger = pino({ level: 'silent' });
@@ -295,6 +298,21 @@ export class MemoryCache<T> implements ResultCache<T> {
   }
 }
 
+/** Returns scripted spoken-damage items and records the texts it was given. */
+export class FakeDamageNoteParser implements DamageNoteParser {
+  readonly texts: string[] = [];
+  readonly #items: readonly SpokenDamage[];
+
+  constructor(items: readonly SpokenDamage[] = []) {
+    this.#items = items;
+  }
+
+  async parse(text: string): Promise<SpokenDamage[]> {
+    this.texts.push(text);
+    return [...this.#items];
+  }
+}
+
 /** Answers with scripted views, one per frame, and records how many frames it saw. */
 export class FakeFaceViewClassifier implements FaceViewClassifier {
   readonly calls: number[] = [];
@@ -324,14 +342,21 @@ export function createTestApp(
     agent?: Agent;
     classifier?: FaceViewClassifier;
     notice?: string;
+    noteParser?: DamageNoteParser;
   } = {},
 ) {
   const context = createTestHandoverService();
   const { service, media, db, segmenter } = context;
+  const speech = new SpeechService(new FakeTranscriber());
   const app = createApp({
     identify: new IdentifyService(options.reader ?? new FakeReader(null)),
     handovers: service,
-    speech: new SpeechService(new FakeTranscriber()),
+    speech,
+    spokenDamage: new SpokenDamageService({
+      speech,
+      parser: options.noteParser ?? new FakeDamageNoteParser(),
+      handovers: service,
+    }),
     claims: new ClaimService({
       containers: new SqliteContainerRepository(db),
       handovers: new SqliteHandoverRepository(db),

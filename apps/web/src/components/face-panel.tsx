@@ -1,4 +1,4 @@
-import type { Container, Mark, Photo } from '@plomba/contracts';
+import type { Container, Mark, Photo, SpokenDamageResult } from '@plomba/contracts';
 import { type Face, type FaceRect, locationCode, type Quad } from '@plomba/core';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -9,6 +9,7 @@ import { CameraCapture } from './camera-capture.tsx';
 import { defaultCorners, FaceOverlay, type OverlayMode } from './face-overlay.tsx';
 import { LiveGhost } from './live-ghost.tsx';
 import { MarkForm } from './mark-form.tsx';
+import { RecordButton } from './record-button.tsx';
 import { ErrorNotice, Spinner } from './ui.tsx';
 
 interface FacePanelProps {
@@ -39,6 +40,8 @@ export function FacePanel(props: FacePanelProps) {
   const [mode, setMode] = useState<OverlayMode>('view');
   const [draftCorners, setDraftCorners] = useState<Quad | null>(null);
   const [pendingRect, setPendingRect] = useState<FaceRect | null>(null);
+  const [spoken, setSpoken] = useState<SpokenDamageResult | null>(null);
+  const [spokenError, setSpokenError] = useState<unknown>(null);
   const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.handover(handoverId) });
 
   const upload = useMutation({
@@ -169,6 +172,20 @@ export function FacePanel(props: FacePanelProps) {
             : t('handover.noneFound')}
         </p>
       )}
+      {spoken && (
+        <div className="notice">
+          <p>“{spoken.transcript}”</p>
+          <p>
+            {spoken.marks.length > 0
+              ? t('handover.found', { count: spoken.marks.length })
+              : t('handover.spokenNone')}
+          </p>
+          {spoken.unplaced.length > 0 && (
+            <p className="muted">{t('handover.unplaced', { items: spoken.unplaced.join('; ') })}</p>
+          )}
+        </div>
+      )}
+      {spokenError !== null && <ErrorNotice error={spokenError} />}
       {(saveCorners.isError || addMark.isError || propose.isError) && (
         <ErrorNotice error={saveCorners.error ?? addMark.error ?? propose.error} />
       )}
@@ -214,6 +231,20 @@ export function FacePanel(props: FacePanelProps) {
               >
                 {t('handover.addMark')}
               </button>
+              <RecordButton
+                label={t('handover.speakDamage')}
+                working={t('handover.speaking')}
+                process={(wav) => api.speakDamage(handoverId, face, wav)}
+                onDone={async (result) => {
+                  setSpoken(result);
+                  setSpokenError(null);
+                  await refresh();
+                }}
+                onError={(error) => {
+                  setSpoken(null);
+                  setSpokenError(error);
+                }}
+              />
               <button type="button" className="secondary" onClick={() => setMode('corners')}>
                 {t('handover.adjust')}
               </button>

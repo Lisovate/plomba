@@ -101,6 +101,11 @@ export const en = {
   'handover.cornersMissing': 'The container outline was not found. Drag the corners into place.',
   'handover.addMark': 'Mark damage',
   'handover.addMarkHint': 'Drag a box around the damage.',
+  'handover.speakDamage': 'Say the damage',
+  'handover.speaking': 'Muse Voice is listening; Muse Spark is coding the damage…',
+  'handover.spokenNone':
+    'No damage with a place on the container was heard. Say, for example: “dent, left side, section 3, lower half”.',
+  'handover.unplaced': 'Say where (face and section) for: {items}',
   'handover.findDamage': 'Find damage',
   'handover.finding': 'Muse Spark is looking for damage; SAM 3.1 is outlining it…',
   'handover.found': 'Proposed: {count}. Confirm or reject each one below.',
@@ -157,7 +162,7 @@ export const en = {
   'report.downloadCodeco': 'Download CODECO',
 
   'dictate.start': 'Dictate a note',
-  'dictate.stop': 'Stop and transcribe',
+  'dictate.stop': 'Stop recording',
   'dictate.working': 'Muse Voice is transcribing…',
   'dictate.denied': 'The microphone is not available.',
   'claim.title': 'Damage claim',

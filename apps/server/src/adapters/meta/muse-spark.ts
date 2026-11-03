@@ -9,15 +9,25 @@ import {
   type MarkingsRead,
   MarkingsReadSchema,
 } from '@plomba/contracts';
-import { COMPONENT_CODES, DAMAGE_CODES, FACES } from '@plomba/core';
+import {
+  COMPONENT_CODES,
+  type ContainerDimensions,
+  DAMAGE_CODES,
+  FACE_NAMES,
+  FACES,
+  type Face,
+  longSectionCount,
+} from '@plomba/core';
 import { z } from 'zod';
 import type {
   DamageDetector,
   DamageFinding,
+  DamageNoteParser,
   FaceViewClassifier,
   ImageInput,
   MarkingsReader,
   SizedImage,
+  SpokenDamage,
 } from '../../ports.ts';
 import type { MetaClient } from './client.ts';
 import { type ApiStyle, askStructured } from './structured.ts';
@@ -290,5 +300,110 @@ export class MuseSparkFaceViewClassifier implements FaceViewClassifier {
       (_, i) =>
         byFrame.get(i + 1) ?? { face: null, squareOn: false, confidence: 0, note: 'Not answered' },
     );
+  }
+}
+
+// Damage described aloud -----------------------------------------------------
+
+function noteInstructions(face: Face, dimensions: ContainerDimensions): string {
+  const sections = longSectionCount(dimensions);
+  return `You turn a container checker's spoken note into damage items for an equipment interchange receipt, coded to ISO 9897 (CEDEX). The note is in Polish or English and comes from speech recognition, so words can be misheard.
+
+The checker is at the ${FACE_NAMES[face].toLowerCase()} (${face}) of a ${sections === 10 ? 40 : 20} ft container. Faces: D door end; F front end, opposite the doors; L left side and R right side, as seen from the door end looking towards the front; T roof.
+
+Sections, as in CEDEX location codes:
+- sides and roof: 1 to ${sections}, counted from the door end;
+- door end and front end: 1 to 4, left to right as seen from the door end (1 and 4 are the corner posts).
+Halves: upper or lower on the sides and ends; left or right on the roof.
+
+For each damage the checker describes, give:
+- face: the face they name, or ${face} if they don't name one;
+- location: the sections they name as from and to (one section: from = to), and the half (null if they don't say one or mean the full height); null if they don't say where at all;
+- damageCode and componentCode: CEDEX codes; componentCode null if unclear. Polish words: wgniecenie DT, dziura or otwór HO, rdza or korozja CO, wygięty BT, pęknięty CK, rozcięty CU, złamany BR, brak MS; panel or poszycie PAA, szyna or rama RLA, słupek narożny CPS, naroże CFG;
+- note: a short description in the checker's own words and language, with any size they give.
+
+Ignore anything that isn't about damage. Return no items if no damage is described.`;
+}
+
+const NOTE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['items'],
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['face', 'location', 'damageCode', 'componentCode', 'note'],
+        properties: {
+          face: { type: 'string', enum: [...FACES] },
+          location: {
+            type: ['object', 'null'],
+            additionalProperties: false,
+            required: ['from', 'to', 'half'],
+            properties: {
+              from: { type: 'integer' },
+              to: { type: 'integer' },
+              half: { type: ['string', 'null'], enum: ['upper', 'lower', 'left', 'right', null] },
+            },
+          },
+          damageCode: { type: 'string', enum: Object.keys(DAMAGE_CODES) },
+          componentCode: {
+            type: ['string', 'null'],
+            enum: [...Object.keys(COMPONENT_CODES), null],
+          },
+          note: { type: 'string' },
+        },
+      },
+    },
+  },
+} as const;
+
+const NoteItemsSchema = z.object({
+  items: z.array(
+    z.object({
+      face: z.enum(FACES),
+      location: z
+        .object({
+          from: z.number().int(),
+          to: z.number().int(),
+          half: z.enum(['upper', 'lower', 'left', 'right']).nullable(),
+        })
+        .nullable(),
+      damageCode: z.enum(Object.keys(DAMAGE_CODES) as [keyof typeof DAMAGE_CODES]),
+      componentCode: z
+        .enum(Object.keys(COMPONENT_CODES) as [keyof typeof COMPONENT_CODES])
+        .nullable(),
+      note: z.string(),
+    }),
+  ),
+});
+
+export class MuseSparkDamageNoteParser implements DamageNoteParser {
+  readonly #client: MetaClient;
+  readonly #options: MuseSparkOptions;
+
+  constructor(client: MetaClient, options: MuseSparkOptions) {
+    this.#client = client;
+    this.#options = options;
+  }
+
+  async parse(
+    text: string,
+    context: { readonly face: Face; readonly dimensions: ContainerDimensions },
+  ): Promise<SpokenDamage[]> {
+    const { items } = await askStructured(
+      this.#client,
+      {
+        ...this.#options,
+        instructions: noteInstructions(context.face, context.dimensions),
+        prompt: `The checker said: """${text}"""`,
+        schemaName: 'spoken_damage',
+        schema: NOTE_SCHEMA,
+      },
+      NoteItemsSchema,
+    );
+    return items;
   }
 }

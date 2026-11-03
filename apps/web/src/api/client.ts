@@ -26,6 +26,7 @@ import {
   ProposalsSchema,
   type RegisterContainer,
   SessionSchema,
+  SpokenDamageResultSchema,
   type StartHandoverInput,
   TranscriptionSchema,
   type UpdateMark,
@@ -148,6 +149,18 @@ export const api = {
       json('PUT', { corners }),
       PhotoSchema,
     ),
+
+  /** A spoken description of damage on the face in view, as proposals to confirm. */
+  speakDamage: (id: string, face: Face, audio: Blob) => {
+    const form = new FormData();
+    form.set('face', face);
+    form.set('audio', audio, 'damage.wav');
+    return request(
+      path`/api/handovers/${id}/spoken-damage`,
+      { method: 'POST', body: form },
+      SpokenDamageResultSchema,
+    );
+  },
 
   proposeDamage: (id: string, photoId: string) =>
     request(

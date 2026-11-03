@@ -102,6 +102,11 @@ export const pl: Messages = {
   'handover.cornersMissing': 'Nie znaleziono obrysu kontenera. Przeciągnij narożniki na miejsce.',
   'handover.addMark': 'Zaznacz uszkodzenie',
   'handover.addMarkHint': 'Obrysuj uszkodzenie prostokątem.',
+  'handover.speakDamage': 'Powiedz uszkodzenie',
+  'handover.speaking': 'Muse Voice słucha, Muse Spark koduje uszkodzenie…',
+  'handover.spokenNone':
+    'Nie usłyszano uszkodzenia z miejscem na kontenerze. Powiedz na przykład: „wgniecenie, lewy bok, sekcja trzecia, dół”.',
+  'handover.unplaced': 'Powiedz, gdzie (ściana i sekcja): {items}',
   'handover.findDamage': 'Znajdź uszkodzenia',
   'handover.finding': 'Muse Spark szuka uszkodzeń, SAM 3.1 je obrysowuje…',
   'handover.found': 'Propozycje: {count}. Potwierdź lub odrzuć każdą poniżej.',
@@ -158,7 +163,7 @@ export const pl: Messages = {
   'report.downloadCodeco': 'Pobierz CODECO',
 
   'dictate.start': 'Podyktuj uwagę',
-  'dictate.stop': 'Zakończ i przepisz',
+  'dictate.stop': 'Zakończ nagrywanie',
   'dictate.working': 'Muse Voice przepisuje…',
   'dictate.denied': 'Mikrofon jest niedostępny.',
   'claim.title': 'Reklamacja uszkodzeń',
