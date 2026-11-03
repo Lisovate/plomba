@@ -191,7 +191,7 @@ function moments(): Html {
         <p>The checker confirms, and the frames become the photos.</p>`,
       visual: device(IMAGES.walkaround, {
         caption:
-          'SAM 3.1 tracking the container: frame 22 of 180, the doors and the right side in view.',
+          'SAM 3.1 tracks the container through the clip; Muse Spark named the doors and the right side of this corner view.',
       }),
     }),
     feature({

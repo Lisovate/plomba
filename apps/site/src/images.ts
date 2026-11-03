@@ -2,7 +2,7 @@
  * Every image the site shows, in one place: swap a screenshot here and every
  * page that shows it follows. Files live in public/images.
  *
- * The screens are crops of docs/images/screens.jpg (scripts/make-images.ts).
+ * The screens are cut out of docs/images/screens.jpg (scripts/make-images.ts).
  * The photos inside them are CC BY 3.0 frames, credited by PHOTO_CREDITS.
  */
 
@@ -16,20 +16,20 @@ export interface Image {
 export const IMAGES = {
   walkaround: {
     src: '/images/screen-walkaround.jpg',
-    width: 461,
-    height: 997,
-    alt: 'Plomba on a phone, playing a walk-around video. SAM 3.1 tracks the container in frame 22 of 180 and outlines its doors and right side. Below are the frames chosen from the clip, each with the faces Muse Spark named.',
+    width: 559,
+    height: 1211,
+    alt: 'Plomba on a phone, playing a walk-around video. SAM 3.1 tracks the container through 180 frames, and Muse Spark has named the doors and right side of this corner view, outlined on the video. Below are the frames chosen from the clip, each with the faces Muse Spark named.',
   },
   handover: {
     src: '/images/screen-handover.jpg',
-    width: 461,
-    height: 997,
+    width: 559,
+    height: 1211,
     alt: 'A gate-out handover of container PLBU 400004 3 at Łódź inland terminal. A photo of the left side on a truck shows the corrosion recorded at the last handover, LX50 CO, drawn on the same spot.',
   },
   passport: {
     src: '/images/screen-passport.jpg',
-    width: 461,
-    height: 997,
+    width: 559,
+    height: 1211,
     alt: "A container's damage passport: a map of its faces with each damage coloured by the handover that first recorded it, then the handovers and each damage's history.",
   },
   social: {

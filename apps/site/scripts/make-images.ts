@@ -24,18 +24,37 @@ interface Region {
   readonly height: number;
 }
 
-/** Where each phone screen sits in the 1500 × 1057 source, found by its navy app bar. */
-const SCREENS: Readonly<Record<string, Region>> = {
-  'screen-walkaround': { left: 29, top: 29, width: 461, height: 997 },
-  'screen-handover': { left: 519, top: 29, width: 461, height: 997 },
-  'screen-passport': { left: 1010, top: 29, width: 461, height: 997 },
-};
+/**
+ * The README image is four phone screens (780 × 1688 each) in a row, with a
+ * 44 px margin around and between them, scaled to the image's width. The
+ * site shows the last three: the walk-around, a handover and the passport.
+ */
+const PANEL = { width: 780, height: 1688, gap: 44, count: 4 } as const;
+const SCREENS = ['screen-walkaround', 'screen-handover', 'screen-passport'] as const;
+const FIRST_SCREEN = 1;
+
+/** Where each phone screen sits in the source, inset a pixel to stay clear of the rounded corners' edge. */
+async function screenRegions(): Promise<Map<string, Region>> {
+  const { width = 0 } = await sharp(SOURCE).metadata();
+  const scale = width / (PANEL.count * PANEL.width + (PANEL.count + 1) * PANEL.gap);
+  const regions = new Map<string, Region>();
+  SCREENS.forEach((name, i) => {
+    const left = (PANEL.gap + (FIRST_SCREEN + i) * (PANEL.width + PANEL.gap)) * scale;
+    regions.set(name, {
+      left: Math.ceil(left),
+      top: Math.ceil(PANEL.gap * scale),
+      width: Math.floor(PANEL.width * scale) - 1,
+      height: Math.floor(PANEL.height * scale) - 1,
+    });
+  });
+  return regions;
+}
 
 const JPEG = { quality: 84, mozjpeg: true, progressive: true } as const;
 
 async function cropScreens(): Promise<Buffer[]> {
   const crops: Buffer[] = [];
-  for (const [name, region] of Object.entries(SCREENS)) {
+  for (const [name, region] of await screenRegions()) {
     const crop = await sharp(SOURCE).extract(region).jpeg(JPEG).toBuffer();
     await sharp(crop).toFile(`${OUT}${name}.jpg`);
     crops.push(crop);
@@ -48,7 +67,7 @@ async function socialImage(screens: readonly Buffer[]): Promise<void> {
   const width = 1200;
   const height = 630;
   const phoneHeight = 520;
-  const phoneWidth = Math.round((461 / 997) * phoneHeight);
+  const phoneWidth = Math.round((PANEL.width / PANEL.height) * phoneHeight);
   const gap = 20;
   const firstLeft = width - 64 - screens.length * phoneWidth - (screens.length - 1) * gap;
 

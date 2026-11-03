@@ -162,6 +162,10 @@ A dated record of what was built and when. The newest entry is at the bottom.
   A typed client parses every answer with the same zod schemas the server validates with. The tests run each example against the real HTTP API and real signed webhooks (52 tests). A sandbox serves the API with fake models, so anyone can try them without a Meta key.
 - **The app redesigned as a product:** a design system (tokens, buttons, pills, entity rows, a timeline, a stepper), a header with navigation and a bottom tab bar with the inspect button, a dashboard with the day's numbers, and a fleet screen. The walk-around screen shows its steps while SAM 3.1 and Muse Spark work, and every action has an icon.
 - **Live demo at https://app.plomba.lisovate.com**, with a certificate from Let's Encrypt.
+- **Product website** ([apps/site](../apps/site)) at https://plomba.lisovate.com: the problem, how a handover works, a page for each kind of company (shipping lines, rail and intermodal, trucking, owners and lessors, terminals and depots), the integrations, open source, and Plomba Cloud for companies that would rather not run it, with a waitlist.
+  - Static pages generated at build time from TypeScript, with no client framework. The diagrams on them (a damage passport, the sealed chain, a voice note coded to `LB3N DT`, a CODECO message) are computed with `@plomba/core`, so they show what the app itself produces.
+  - The waitlist works without JavaScript, is rate-limited, stores sign-ups in SQLite and exports them as CSV. No third-party scripts or fonts are loaded.
+  - An automated accessibility check (axe) found no problems at desktop or phone width.
 
 **Findings:**
 - **Naming faces from a walk-around** (test clips used locally only, not stored or published):

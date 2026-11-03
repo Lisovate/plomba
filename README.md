@@ -12,7 +12,7 @@ Plomba is an app for the checker doing the walk-around at a handover. It install
 
 It's open source (Apache-2.0) and built to be self-hosted: a terminal, depot or rail operator runs one container on its own machine and keeps its data ([self-hosting](docs/self-hosting.md)).
 
-**Try it:** a demo installation runs at https://app.plomba.lisovate.com (the access code is in the hackathon submission). Its handovers and places are simulated, and its photos are openly licensed (see [Credits](#credits)).
+**Try it:** a demo installation runs at https://app.plomba.lisovate.com (the access code is in the hackathon submission). The website, with the solutions for each kind of company and the hosted Plomba Cloud, is at https://plomba.lisovate.com. Its handovers and places are simulated, and its photos are openly licensed (see [Credits](#credits)).
 
 ## How a handover works
 

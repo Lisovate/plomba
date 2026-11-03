@@ -161,7 +161,7 @@ function siteFooter(): Html {
           (credit, i) =>
             html`${i > 0 ? ' and ' : ''}“<a href="${credit.url}">${credit.title}</a>” by ${credit.author}`,
         )},
-        both licensed <a href="${PHOTO_LICENCE.url}">${PHOTO_LICENCE.name}</a>. A passer-by in one frame is blurred, and the damage passport shows test data.
+        both licensed <a href="${PHOTO_LICENCE.url}">${PHOTO_LICENCE.name}</a>. People in the walk-around clip are blurred; the handovers and the damage passport show test data.
       </p>
     </div>
   </div>
