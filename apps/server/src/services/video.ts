@@ -7,7 +7,7 @@
 
 import { createHash } from 'node:crypto';
 import type { FaceViews, VideoTracking } from '@plomba/contracts';
-import type { Point, Quad } from '@plomba/core';
+import { isCornerPair, type Point, type Quad } from '@plomba/core';
 import { ValidationError } from '../errors.ts';
 import { normaliseImage } from '../media/images.ts';
 import type {
@@ -17,7 +17,7 @@ import type {
   TrackedFrame,
   VideoInput,
 } from '../ports.ts';
-import { CONTAINER_CONCEPT, containerCorners } from './vision.ts';
+import { CONTAINER_CONCEPT, containerOutline } from './vision.ts';
 
 export type StoredTracking = Omit<VideoTracking, 'cached'>;
 
@@ -56,8 +56,16 @@ export class VideoService {
     // container throughout, so the overlay never jumps to its neighbour.
     const id = mostProminentObject(tracked);
     const frames = tracked.flatMap(({ frame, objects }) => {
-      const corners: Quad | null = containerCorners(objects.filter((o) => o.id === id));
-      return corners ? [{ frame, corners: [...corners] as [Point, Point, Point, Point] }] : [];
+      const outline = containerOutline(objects.filter((o) => o.id === id));
+      if (!outline) return [];
+      const { corners, split } = outline;
+      return [
+        {
+          frame,
+          corners: tuple(corners),
+          split: split ? { left: tuple(split.left), right: tuple(split.right) } : null,
+        },
+      ];
     });
     const result: StoredTracking = {
       frameCount: (tracked.at(-1)?.frame ?? -1) + 1,
@@ -77,7 +85,15 @@ export class VideoService {
       throw new ValidationError(`Send 1 to ${MAX_WALKAROUND_FRAMES} frames`);
     }
     const images = await Promise.all(frames.map((frame) => normaliseImage(frame, VIEW_MAX_SIDE)));
-    return { views: await this.#classifier.classify(images) };
+    const views = await this.#classifier.classify(images);
+    // A pair that can't meet at a corner is a misreading; better no corner than a wrong one.
+    return {
+      views: views.map((view) =>
+        view.corner && !isCornerPair(view.corner.left, view.corner.right)
+          ? { ...view, corner: null }
+          : view,
+      ),
+    };
   }
 }
 
@@ -90,6 +106,11 @@ export function videoType(data: Uint8Array): VideoInput['mimeType'] {
     );
   }
   return text(8, 12) === 'qt  ' ? 'video/quicktime' : 'video/mp4';
+}
+
+/** A mutable copy, as the response schema's tuple type wants. */
+function tuple(quad: Quad): [Point, Point, Point, Point] {
+  return [...quad] as [Point, Point, Point, Point];
 }
 
 /** The object with the largest total box area over the clip. */

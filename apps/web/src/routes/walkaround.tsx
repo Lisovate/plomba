@@ -1,18 +1,22 @@
 import type { FaceView, HandoverDetail, IdentifyResult, VideoTracking } from '@plomba/contracts';
 import {
   bestFramePerFace,
+  type CornerSplit,
+  chooseWalkaroundPhotos,
   FACES,
   type Face,
   type FrameCandidate,
-  faceAtFrame,
+  type PhotoChoice,
   pickCandidateFrames,
+  type Quad,
+  viewAtFrame,
 } from '@plomba/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { api, queryKeys } from '../api/client.ts';
 import { Card, ContainerNumberText, ErrorNotice, Spinner } from '../components/ui.tsx';
-import { VideoAr } from '../components/video-ar.tsx';
+import { type FrameView, VideoAr } from '../components/video-ar.tsx';
 import { useI18n } from '../i18n/index.tsx';
 import { prepareUpload } from '../lib/image.ts';
 import { frameTime, grabFrames, probeVideo } from '../lib/video-frames.ts';
@@ -24,14 +28,36 @@ interface Candidate extends FrameCandidate {
   readonly blob: Blob;
   readonly url: string;
   readonly view: FaceView;
+  /** Seen corner-on: the two faces' outlines, from SAM 3.1's mask. */
+  readonly split: CornerSplit | null;
 }
 
 interface Analysis {
   readonly tracking: VideoTracking;
   readonly fps: number;
+  /** The clip's size in pixels: the frames' and the tracked outlines' coordinates. */
+  readonly size: { readonly width: number; readonly height: number };
   readonly candidates: readonly Candidate[];
   /** The door end's markings, read from the best door frame. */
   readonly doors: IdentifyResult | null;
+}
+
+type Part = PhotoChoice['part'];
+
+/** Which part of which frame becomes the photo of which face. */
+type Choices = ReadonlyMap<string, Face>;
+
+const choiceKey = (index: number, part: Part) => `${index}:${part}`;
+
+/** A quad in video pixels, in the pixels of the stored photo (which may be smaller). */
+function scaleQuad([a, b, c, d]: Quad, k: number): Quad {
+  const scale = (p: Quad[number]) => ({ x: p.x * k, y: p.y * k });
+  return [scale(a), scale(b), scale(c), scale(d)];
+}
+
+function parseKey(key: string): { index: number; part: Part } {
+  const [index, part] = key.split(':');
+  return { index: Number(index), part: part as Part };
 }
 
 type Step = 'tracking' | 'choosing' | 'naming' | 'reading';
@@ -53,7 +79,7 @@ export function WalkaroundScreen() {
   const detail = useQuery({ queryKey: queryKeys.handover(id), queryFn: () => api.handover(id) });
   const [clip, setClip] = useState<{ file: File; url: string } | null>(null);
   const [step, setStep] = useState<Step>('tracking');
-  const [use, setUse] = useState<ReadonlyMap<number, Face>>(new Map());
+  const [use, setUse] = useState<Choices>(new Map());
 
   const analyse = useMutation({
     mutationFn: async (chosen: { file: File; url: string }): Promise<Analysis> => {
@@ -67,38 +93,38 @@ export function WalkaroundScreen() {
         { width, height },
         { minGap: Math.max(1, Math.round(fps)), max: MAX_FRAMES },
       );
-      if (picked.length === 0) return { tracking, fps, candidates: [], doors: null };
+      const size = { width, height };
+      if (picked.length === 0) return { tracking, fps, size, candidates: [], doors: null };
       const blobs = await grabFrames(
         chosen.url,
         picked.map((c) => frameTime(c.frame, fps)),
       );
       setStep('naming');
       const { views } = await api.videoFaces(blobs);
+      const splits = new Map(tracking.frames.map((f) => [f.frame, f.split ?? null]));
       const candidates = picked.map((c, i) => {
         const blob = blobs[i] as Blob;
         const view = views[i] ?? {
           face: null,
           squareOn: false,
+          corner: null,
           clear: false,
           confidence: 0,
           note: '',
         };
-        return { ...c, blob, url: URL.createObjectURL(blob), view };
+        const split = splits.get(c.frame) ?? null;
+        return { ...c, blob, url: URL.createObjectURL(blob), view, split };
       });
       const door = bestFramePerFace(picked, views).get('D');
       const doorFrame = candidates.find((c) => c.frame === door?.frame);
       setStep('reading');
       const doors = doorFrame ? await api.identify(doorFrame.blob).catch(() => null) : null;
-      return { tracking, fps, candidates, doors };
+      return { tracking, fps, size, candidates, doors };
     },
     onSuccess: ({ candidates }) => {
-      const best = bestFramePerFace(
-        candidates,
-        candidates.map((c) => c.view),
-      );
       setUse(
         new Map(
-          [...best].map(([face, c]) => [candidates.findIndex((x) => x.frame === c.frame), face]),
+          chooseWalkaroundPhotos(candidates).map((c) => [choiceKey(c.index, c.part), c.face]),
         ),
       );
     },
@@ -119,15 +145,15 @@ export function WalkaroundScreen() {
     [clip],
   );
 
-  // The face drawn on each frame: what the checker assigned, else what Muse Spark saw square-on.
-  const faceAt = useCallback(
-    (frame: number): Face | null => {
+  // What is drawn on each frame: what the checker chose, else what Muse Spark saw.
+  const viewAt = useCallback(
+    (frame: number): FrameView | null => {
       if (!analysis) return null;
       const named = analysis.candidates.map((c, i) => ({
         frame: c.frame,
-        face: use.get(i) ?? (c.view.squareOn ? c.view.face : null),
+        view: frameView(c, i, use),
       }));
-      return faceAtFrame(named, frame, Math.round(analysis.fps * 1.5));
+      return viewAtFrame(named, frame, Math.round(analysis.fps * 1.5));
     },
     [analysis, use],
   );
@@ -164,7 +190,7 @@ export function WalkaroundScreen() {
           src={clip.url}
           tracking={analysis?.tracking}
           detail={detail.data}
-          faceAt={faceAt}
+          viewAt={viewAt}
         />
       )}
 
@@ -183,11 +209,11 @@ export function WalkaroundScreen() {
           analysis={analysis}
           detail={detail.data}
           use={use}
-          onUse={(index, face) =>
+          onUse={(key, face) =>
             setUse((current) => {
               const next = new Map(current);
-              if (face) next.set(index, face);
-              else next.delete(index);
+              if (face) next.set(key, face);
+              else next.delete(key);
               return next;
             })
           }
@@ -196,6 +222,16 @@ export function WalkaroundScreen() {
       )}
     </div>
   );
+}
+
+/** A candidate's faces for the overlay: the checker's choice, else Muse Spark's reading. */
+function frameView(c: Candidate, index: number, use: Choices): FrameView | null {
+  const whole = use.get(choiceKey(index, 'whole'));
+  if (whole) return { face: whole };
+  const left = use.get(choiceKey(index, 'left')) ?? c.view.corner?.left;
+  const right = use.get(choiceKey(index, 'right')) ?? c.view.corner?.right;
+  if (c.split && left && right) return { corner: { left, right } };
+  return c.view.squareOn && c.view.face ? { face: c.view.face } : null;
 }
 
 function Results({
@@ -207,14 +243,17 @@ function Results({
 }: {
   analysis: Analysis;
   detail: HandoverDetail;
-  use: ReadonlyMap<number, Face>;
-  onUse: (index: number, face: Face | null) => void;
+  use: Choices;
+  onUse: (key: string, face: Face | null) => void;
   editable: boolean;
 }) {
   const { t } = useI18n();
   const { tracking, candidates, doors } = analysis;
   const named = new Set(
-    candidates.flatMap((c) => (c.view.squareOn && c.view.face ? [c.view.face] : [])),
+    candidates.flatMap((c) => [
+      ...(c.view.squareOn && c.view.face ? [c.view.face] : []),
+      ...(c.split && c.view.corner ? [c.view.corner.left, c.view.corner.right] : []),
+    ]),
   );
 
   return (
@@ -236,33 +275,41 @@ function Results({
           <h2>{t('walk.frames')}</h2>
           <ul className="filmstrip">
             {candidates.map((c, i) => {
-              const face = use.get(i);
+              const parts: Part[] = c.split && c.view.corner ? ['left', 'right'] : ['whole'];
+              const used = parts.some((part) => use.has(choiceKey(i, part)));
               return (
-                <li key={c.frame} className={face ? 'frame used' : 'frame'}>
+                <li key={c.frame} className={used ? 'frame used' : 'frame'}>
                   <img src={c.url} alt={t('walk.frameAlt', { frame: c.frame + 1 })} />
                   <p className="frame-label">
-                    {c.view.face ? t(`faceTitle.${c.view.face}`) : t('walk.noFace')}
+                    {c.view.corner && c.split
+                      ? `${t(`faceTitle.${c.view.corner.left}`)} | ${t(`faceTitle.${c.view.corner.right}`)}`
+                      : c.view.face
+                        ? t(`faceTitle.${c.view.face}`)
+                        : t('walk.noFace')}
                     {c.view.face && !c.view.squareOn && ` · ${t('walk.angled')}`}
-                    {c.view.face && !c.view.clear && ` · ${t('walk.unclear')}`}
-                    {c.view.face && ` · ${Math.round(c.view.confidence * 100)}%`}
+                    {(c.view.face || c.view.corner) && !c.view.clear && ` · ${t('walk.unclear')}`}
+                    {(c.view.face || c.view.corner) && ` · ${Math.round(c.view.confidence * 100)}%`}
                   </p>
                   <p className="muted frame-note">{c.view.note}</p>
-                  {editable && (
-                    <label className="field compact">
-                      {t('walk.useAs')}
-                      <select
-                        value={face ?? ''}
-                        onChange={(e) => onUse(i, (e.target.value || null) as Face | null)}
-                      >
-                        <option value="">{t('walk.notUsed')}</option>
-                        {FACES.map((f) => (
-                          <option key={f} value={f}>
-                            {t(`faceTitle.${f}`)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
+                  {editable &&
+                    parts.map((part) => (
+                      <label key={part} className="field compact">
+                        {t(`walk.useAs.${part}`)}
+                        <select
+                          value={use.get(choiceKey(i, part)) ?? ''}
+                          onChange={(e) =>
+                            onUse(choiceKey(i, part), (e.target.value || null) as Face | null)
+                          }
+                        >
+                          <option value="">{t('walk.notUsed')}</option>
+                          {FACES.map((f) => (
+                            <option key={f} value={f}>
+                              {t(`faceTitle.${f}`)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
                 </li>
               );
             })}
@@ -299,7 +346,7 @@ function AddToHandover({
 }: {
   handoverId: string;
   analysis: Analysis;
-  use: ReadonlyMap<number, Face>;
+  use: Choices;
 }) {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -309,18 +356,29 @@ function AddToHandover({
   const chosen = useMemo(
     () =>
       [...use]
-        .map(([index, face]) => ({ face, candidate: analysis.candidates[index] }))
-        .filter((c): c is { face: Face; candidate: Candidate } => c.candidate !== undefined)
+        .map(([key, face]) => {
+          const { index, part } = parseKey(key);
+          return { face, part, candidate: analysis.candidates[index] };
+        })
+        .filter(
+          (c): c is { face: Face; part: Part; candidate: Candidate } => c.candidate !== undefined,
+        )
         .sort((a, b) => FACES.indexOf(a.face) - FACES.indexOf(b.face)),
     [use, analysis],
   );
 
   const add = useMutation({
     mutationFn: async () => {
-      for (const [i, { face, candidate }] of chosen.entries()) {
+      for (const [i, { face, part, candidate }] of chosen.entries()) {
         const faceName = t(`faceTitle.${face}`);
         setProgress(t('walk.adding', { n: i + 1, total: chosen.length, face: faceName }));
-        const photo = await api.uploadPhoto(handoverId, face, await prepareUpload(candidate.blob));
+        let photo = await api.uploadPhoto(handoverId, face, await prepareUpload(candidate.blob));
+        // One face of a corner view: its outline comes from the split, not from the whole container.
+        const quad = part === 'whole' ? null : candidate.split?.[part];
+        if (quad) {
+          const corners = scaleQuad(quad, photo.width / analysis.size.width);
+          photo = await api.updateCorners(handoverId, photo.id, corners);
+        }
         if (findDamage && photo.corners) {
           setProgress(t('walk.lookingForDamage', { face: faceName }));
           await api.proposeDamage(handoverId, photo.id);

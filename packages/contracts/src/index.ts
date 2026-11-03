@@ -142,7 +142,15 @@ export const UpdateCornersSchema = z.object({ corners: QuadSchema });
 export const VideoTrackingSchema = z.object({
   /** The highest tracked frame index plus one; with the clip's duration, its frame rate. */
   frameCount: z.number().int(),
-  frames: z.array(z.object({ frame: z.number().int(), corners: QuadSchema })),
+  frames: z.array(
+    z.object({
+      frame: z.number().int(),
+      /** The outer corners of the container's outline. */
+      corners: QuadSchema,
+      /** Seen corner-on: the two faces either side of the near edge. Absent in older results. */
+      split: z.object({ left: QuadSchema, right: QuadSchema }).nullable().optional(),
+    }),
+  ),
   /** True when the same clip was tracked before and the result came from the cache. */
   cached: z.boolean(),
 });
@@ -155,6 +163,8 @@ export const FaceViewSchema = z.object({
   squareOn: z.boolean(),
   /** True when the face is sharp and nothing stands in front of it (a hand, a person, a vehicle). */
   clear: z.boolean(),
+  /** Seen corner-on with both faces whole: the face left of the near edge and the face right of it. */
+  corner: z.object({ left: FaceSchema, right: FaceSchema }).nullable(),
   /** The model's own confidence in `face`, 0–1. */
   confidence: z.number().min(0).max(1),
   /** A few words on what is in view, from the model. */

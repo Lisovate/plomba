@@ -68,8 +68,15 @@ describe('VideoService', () => {
 
   it('names the face in every frame, downscaled, in one call', async () => {
     const classifier = new FakeFaceViewClassifier([
-      { face: 'D', squareOn: true, clear: true, confidence: 0.9, note: 'doors' },
-      { face: 'R', squareOn: true, clear: true, confidence: 0.8, note: 'side, doors on the left' },
+      { face: 'D', squareOn: true, corner: null, clear: true, confidence: 0.9, note: 'doors' },
+      {
+        face: 'R',
+        squareOn: true,
+        corner: null,
+        clear: true,
+        confidence: 0.8,
+        note: 'side, doors on the left',
+      },
     ]);
     const service = videoService(undefined, classifier);
     const frames = await Promise.all([jpeg(1920, 1080), jpeg(1920, 1080)]);
@@ -78,6 +85,27 @@ describe('VideoService', () => {
     expect(classifier.calls).toEqual([2]);
     const { width } = await sharp(classifier.frames[0]?.data).metadata();
     expect(width).toBe(768);
+  });
+
+  it('drops a corner whose faces cannot meet', async () => {
+    const corner = (left: 'D' | 'R' | 'F', right: 'D' | 'R' | 'F') => ({
+      face: null,
+      squareOn: false,
+      corner: { left, right },
+      clear: true,
+      confidence: 0.8,
+      note: 'corner',
+    });
+    const classifier = new FakeFaceViewClassifier([
+      corner('D', 'R'),
+      corner('R', 'D'),
+      corner('D', 'F'),
+    ]);
+    const frames = await Promise.all([jpeg(800, 450), jpeg(800, 450), jpeg(800, 450)]);
+    const { views } = await videoService(undefined, classifier).faces(
+      frames.map((f) => new Uint8Array(f)),
+    );
+    expect(views.map((v) => v.corner)).toEqual([{ left: 'D', right: 'R' }, null, null]);
   });
 
   it('refuses no frames or more than one call can look at', async () => {

@@ -332,6 +332,7 @@ export class FakeFaceViewClassifier implements FaceViewClassifier {
         this.#views[i] ?? {
           face: null,
           squareOn: false,
+          corner: null,
           clear: false,
           confidence: 0,
           note: 'nothing scripted',

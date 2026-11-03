@@ -1,9 +1,10 @@
-import type { HandoverDetail, VideoTracking } from '@plomba/contracts';
+import type { HandoverDetail, Mark, VideoTracking } from '@plomba/contracts';
 import {
   applyHomography,
   type Face,
   faceCells,
   faceToImage,
+  type Homography,
   type Point,
   projectFaceRect,
   type Quad,
@@ -17,8 +18,15 @@ const points = (shape: readonly Point[]) => shape.map((p) => `${p.x},${p.y}`).jo
 /** A tracked frame is used for up to this many frames after it, if later ones are missing. */
 const MAX_GAP = 3;
 
-/** The tracked corners for a frame: the latest tracked frame at or before it, if recent. */
-function cornersAt(tracking: VideoTracking, frame: number): Quad | null {
+type TrackedFrame = VideoTracking['frames'][number];
+
+/** What is in view at a frame: one face square-on, or the two faces of a corner. */
+export type FrameView =
+  | { readonly face: Face }
+  | { readonly corner: { readonly left: Face; readonly right: Face } };
+
+/** The tracked frame for a frame: the latest tracked frame at or before it, if recent. */
+function trackedAt(tracking: VideoTracking, frame: number): TrackedFrame | null {
   const { frames } = tracking;
   let low = 0;
   let high = frames.length - 1;
@@ -33,33 +41,41 @@ function cornersAt(tracking: VideoTracking, frame: number): Quad | null {
     }
   }
   const hit = frames[found];
-  return hit && frame - hit.frame <= MAX_GAP ? hit.corners : null;
+  return hit && frame - hit.frame <= MAX_GAP ? hit : null;
+}
+
+/** The faces to draw, each with the outline it occupies in the frame. */
+function facesInView(tracked: TrackedFrame, view: FrameView | null): { face: Face; quad: Quad }[] {
+  if (!view) return [];
+  if ('face' in view) return [{ face: view.face, quad: tracked.corners }];
+  if (!tracked.split) return [];
+  return [
+    { face: view.corner.left, quad: tracked.split.left },
+    { face: view.corner.right, quad: tracked.split.right },
+  ];
 }
 
 interface VideoArProps {
   readonly src: string;
   readonly tracking: VideoTracking | undefined;
   readonly detail: HandoverDetail;
-  /** The face in view at a frame, or `null` while the camera turns a corner. */
-  readonly faceAt: (frame: number) => Face | null;
-  /** Called with the video element, e.g. to capture the current frame. */
-  readonly onVideo?: (video: HTMLVideoElement | null) => void;
+  /** What is in view at a frame, or `null` where it isn't known. */
+  readonly viewAt: (frame: number) => FrameView | null;
 }
 
 /**
  * Plays a recorded clip with the container's coordinates drawn on it, frame
- * by frame from SAM 3.1's tracking: the CEDEX sections of the face in view,
- * the previous handover's damage (dashed) and this handover's damage. While
- * the camera turns a corner only the container's outline is drawn.
+ * by frame from SAM 3.1's tracking: the CEDEX sections of the faces in view,
+ * the previous handover's damage (dashed) and this handover's damage. Seen
+ * corner-on, both faces are drawn, each on its side of the near edge; where
+ * the faces aren't known, only the container's outline.
  */
-export function VideoAr({ src, tracking, detail, faceAt, onVideo }: VideoArProps) {
+export function VideoAr({ src, tracking, detail, viewAt }: VideoArProps) {
   const { t } = useI18n();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [frame, setFrame] = useState(0);
   const { dimensions } = detail.container;
-
-  useEffect(() => onVideo?.(videoRef.current), [onVideo]);
 
   // Follow the frame on screen: per presented frame where the browser supports it.
   useEffect(() => {
@@ -96,19 +112,18 @@ export function VideoAr({ src, tracking, detail, faceAt, onVideo }: VideoArProps
     };
   }, [tracking]);
 
-  const corners = tracking ? cornersAt(tracking, frame) : null;
-  const face = faceAt(frame);
-  const h = useMemo(() => {
-    if (!corners || !face) return null;
-    try {
-      return faceToImage(face, dimensions, corners);
-    } catch {
-      return null;
-    }
-  }, [corners, face, dimensions]);
-
-  const previous = detail.previousMarks.filter((m) => m.face === face);
-  const current = detail.marks.filter((m) => m.face === face && m.source !== 'rejected');
+  const tracked = tracking ? trackedAt(tracking, frame) : null;
+  const view = viewAt(frame);
+  const drawn = useMemo(() => {
+    if (!tracked) return [];
+    return facesInView(tracked, view).flatMap(({ face, quad }) => {
+      try {
+        return [{ face, quad, h: faceToImage(face, dimensions, quad) }];
+      } catch {
+        return [];
+      }
+    });
+  }, [tracked, view, dimensions]);
   const px = (size?.width ?? 854) / 600;
 
   return (
@@ -131,44 +146,24 @@ export function VideoAr({ src, tracking, detail, faceAt, onVideo }: VideoArProps
           preserveAspectRatio="xMidYMid meet"
           aria-hidden
         >
-          {corners && !h && (
-            <polygon points={points(corners)} className="face-outline faint" strokeWidth={2 * px} />
+          {tracked && drawn.length === 0 && (
+            <polygon
+              points={points(tracked.corners)}
+              className="face-outline faint"
+              strokeWidth={2 * px}
+            />
           )}
-          {h && corners && face && (
-            <>
-              {faceCells(face, dimensions).map((cell) => (
-                <polygon
-                  key={cell.code}
-                  points={points(projectFaceRect(h, cell.rect))}
-                  className="grid-cell"
-                  strokeWidth={1 * px}
-                />
-              ))}
-              <polygon points={points(corners)} className="face-outline" strokeWidth={2 * px} />
-              {[
-                ...previous.map((m) => ({ m, ghost: true })),
-                ...current.map((m) => ({ m, ghost: false })),
-              ].map(({ m, ghost }) => {
-                const anchor = applyHomography(h, { x: m.rect.u0, y: m.rect.v1 });
-                return (
-                  <g key={m.id} className={ghost ? 'mark-ghost' : 'mark'}>
-                    <polygon points={points(markShapeInImage(h, m))} strokeWidth={2 * px} />
-                    <text x={anchor.x} y={anchor.y - 3 * px} fontSize={11 * px}>
-                      {[m.locationCode, m.damageCode].filter(Boolean).join(' ')}
-                    </text>
-                  </g>
-                );
-              })}
-            </>
-          )}
+          {drawn.map(({ face, quad, h }) => (
+            <FaceLayer key={face} face={face} quad={quad} h={h} detail={detail} px={px} />
+          ))}
         </svg>
       )}
       <p className="live-status">
         {tracking
-          ? corners
+          ? tracked
             ? [
                 t('walk.frame', { frame: frame + 1, total: tracking.frameCount }),
-                face ? t(`faceTitle.${face}`) : null,
+                drawn.map((d) => t(`faceTitle.${d.face}`)).join(' | ') || null,
               ]
                 .filter(Boolean)
                 .join(' · ')
@@ -176,5 +171,52 @@ export function VideoAr({ src, tracking, detail, faceAt, onVideo }: VideoArProps
           : t('walk.label')}
       </p>
     </div>
+  );
+}
+
+/** One face's sections, outline and damage, drawn through its homography. */
+function FaceLayer({
+  face,
+  quad,
+  h,
+  detail,
+  px,
+}: {
+  face: Face;
+  quad: Quad;
+  h: Homography;
+  detail: HandoverDetail;
+  px: number;
+}) {
+  const { dimensions } = detail.container;
+  const marks: { mark: Mark; ghost: boolean }[] = [
+    ...detail.previousMarks.filter((m) => m.face === face).map((mark) => ({ mark, ghost: true })),
+    ...detail.marks
+      .filter((m) => m.face === face && m.source !== 'rejected')
+      .map((mark) => ({ mark, ghost: false })),
+  ];
+  return (
+    <g>
+      {faceCells(face, dimensions).map((cell) => (
+        <polygon
+          key={cell.code}
+          points={points(projectFaceRect(h, cell.rect))}
+          className="grid-cell"
+          strokeWidth={1 * px}
+        />
+      ))}
+      <polygon points={points(quad)} className="face-outline" strokeWidth={2 * px} />
+      {marks.map(({ mark, ghost }) => {
+        const anchor = applyHomography(h, { x: mark.rect.u0, y: mark.rect.v1 });
+        return (
+          <g key={mark.id} className={ghost ? 'mark-ghost' : 'mark'}>
+            <polygon points={points(markShapeInImage(h, mark))} strokeWidth={2 * px} />
+            <text x={anchor.x} y={anchor.y - 3 * px} fontSize={11 * px}>
+              {[mark.locationCode, mark.damageCode].filter(Boolean).join(' ')}
+            </text>
+          </g>
+        );
+      })}
+    </g>
   );
 }

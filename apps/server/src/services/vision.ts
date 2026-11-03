@@ -3,7 +3,16 @@
  * corners in a photo, and finding what must be blurred.
  */
 
-import { DegenerateGeometryError, type Point, type Quad, quadFromPoints } from '@plomba/core';
+import {
+  type CornerSplit,
+  convexHull,
+  DegenerateGeometryError,
+  type Point,
+  type Quad,
+  quadArea,
+  quadFromPoints,
+  splitCornerView,
+} from '@plomba/core';
 import type { ImageInput, PixelBox, SegmentedObject, Segmenter } from '../ports.ts';
 
 /** The concept that outlines the container. Tested against the alternatives in docs/build-log.md. */
@@ -51,17 +60,6 @@ function maskArea(object: SegmentedObject): number {
   return (count * (bounds.right - bounds.left) * (bounds.bottom - bounds.top)) / (width * height);
 }
 
-/** Shoelace area of a quadrilateral. */
-export function quadArea(quad: Quad): number {
-  let twice = 0;
-  for (let i = 0; i < 4; i++) {
-    const a = quad[i] as Point;
-    const b = quad[(i + 1) % 4] as Point;
-    twice += a.x * b.y - b.x * a.y;
-  }
-  return Math.abs(twice) / 2;
-}
-
 /**
  * Finds the corners of the container face that fills a roughly head-on photo.
  * Returns `null` when nothing convincing is found; the checker then places the
@@ -77,14 +75,26 @@ export async function detectFaceCorners(
 
 /** The corners of the most prominent container among the objects SAM found. */
 export function containerCorners(objects: readonly SegmentedObject[]): Quad | null {
+  return containerOutline(objects)?.corners ?? null;
+}
+
+/**
+ * The most prominent container's outer corners and, when it's seen
+ * corner-on, its two faces (see `splitCornerView`).
+ */
+export function containerOutline(
+  objects: readonly SegmentedObject[],
+): { corners: Quad; split: CornerSplit | null } | null {
   let best: { object: SegmentedObject; score: number } | undefined;
   for (const object of objects) {
     const score = maskArea(object) * (object.confidence ?? 1);
     if (!best || score > best.score) best = { object, score };
   }
   if (!best) return null;
+  const boundary = maskBoundary(best.object);
   try {
-    return quadFromPoints(maskBoundary(best.object));
+    const corners = quadFromPoints(boundary);
+    return { corners, split: splitCornerView(convexHull(boundary), corners) };
   } catch (error) {
     if (error instanceof DegenerateGeometryError) return null;
     throw error;

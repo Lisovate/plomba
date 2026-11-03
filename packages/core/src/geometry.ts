@@ -196,3 +196,14 @@ export function convexHull(input: Iterable<Point>): Point[] {
   }
   return [...lower.slice(0, -1), ...upper.slice(0, -1)];
 }
+
+/** Shoelace area of a quadrilateral, in square pixels. */
+export function quadArea(quad: Quad): number {
+  let twice = 0;
+  for (let i = 0; i < 4; i++) {
+    const a = quad[i] as Point;
+    const b = quad[(i + 1) % 4] as Point;
+    twice += a.x * b.y - b.x * a.y;
+  }
+  return Math.abs(twice) / 2;
+}

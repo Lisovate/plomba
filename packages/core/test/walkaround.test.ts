@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { Quad } from '../src/geometry.ts';
 import {
   bestFramePerFace,
-  faceAtFrame,
+  chooseWalkaroundPhotos,
   frameScore,
+  isCornerPair,
   pickCandidateFrames,
+  splitCornerView,
   squareness,
+  viewAtFrame,
 } from '../src/walkaround.ts';
 
 const size = { width: 1280, height: 720 };
@@ -116,18 +119,99 @@ describe('bestFramePerFace', () => {
   });
 });
 
-describe('faceAtFrame', () => {
+describe('viewAtFrame', () => {
   const named = [
-    { frame: 10, face: 'D' as const },
-    { frame: 40, face: 'R' as const },
+    { frame: 10, view: 'D' },
+    { frame: 40, view: 'R' },
   ];
 
   it('uses the nearest named frame within reach', () => {
-    expect(faceAtFrame(named, 12, 10)).toBe('D');
-    expect(faceAtFrame(named, 33, 10)).toBe('R');
+    expect(viewAtFrame(named, 12, 10)).toBe('D');
+    expect(viewAtFrame(named, 33, 10)).toBe('R');
   });
 
   it('is null between faces, where the camera turns a corner', () => {
-    expect(faceAtFrame(named, 25, 10)).toBeNull();
+    expect(viewAtFrame(named, 25, 10)).toBeNull();
+  });
+});
+
+describe('splitCornerView', () => {
+  // A container seen corner-on from eye level: the near edge at x = 400 is
+  // taller than the outer edges at x = 100 and x = 1100.
+  const tl = { x: 100, y: 200 };
+  const tn = { x: 400, y: 160 };
+  const tr = { x: 1100, y: 230 };
+  const br = { x: 1100, y: 470 };
+  const bn = { x: 400, y: 560 };
+  const bl = { x: 100, y: 500 };
+  const hexagon = [tl, tn, tr, br, bn, bl];
+
+  it('splits the outline at the near vertical edge', () => {
+    const split = splitCornerView(hexagon, [tl, tr, br, bl]);
+    expect(split?.left).toEqual([tl, tn, bn, bl]);
+    expect(split?.right).toEqual([tn, tr, br, bn]);
+  });
+
+  it('leaves a face seen square-on whole', () => {
+    expect(splitCornerView([tl, tr, br, bl], [tl, tr, br, bl])).toBeNull();
+  });
+
+  it('refuses a view from above, where the top of the outline is the roof', () => {
+    // The roof's far corner peaks at x = 900, nowhere near the foot of the near edge.
+    const roofPeak = { x: 900, y: 120 };
+    const fromAbove = [tl, roofPeak, tr, br, bn, bl];
+    expect(splitCornerView(fromAbove, [tl, tr, br, bl])).toBeNull();
+  });
+
+  it('refuses a split that leaves a sliver of a face', () => {
+    const nearEnd = [tl, { x: 130, y: 160 }, tr, br, { x: 130, y: 560 }, bl];
+    expect(splitCornerView(nearEnd, [tl, tr, br, bl])).toBeNull();
+  });
+});
+
+describe('isCornerPair', () => {
+  it('accepts the faces either side of each vertical corner, left then right', () => {
+    expect(isCornerPair('D', 'R')).toBe(true);
+    expect(isCornerPair('R', 'F')).toBe(true);
+    expect(isCornerPair('F', 'L')).toBe(true);
+    expect(isCornerPair('L', 'D')).toBe(true);
+  });
+
+  it('refuses the same pair the wrong way round, opposite faces and the roof', () => {
+    expect(isCornerPair('R', 'D')).toBe(false);
+    expect(isCornerPair('D', 'F')).toBe(false);
+    expect(isCornerPair('T', 'D')).toBe(false);
+  });
+});
+
+describe('chooseWalkaroundPhotos', () => {
+  const quad = (x0: number, x1: number): Quad => rect(x0, 100, x1, 500);
+  const split = { left: quad(100, 300), right: quad(300, 1100) };
+
+  it('takes a corner view for the faces no square-on frame shows', () => {
+    const choices = chooseWalkaroundPhotos([
+      { frame: 0, score: 0.5, view: { face: 'R', squareOn: true }, split: null },
+      {
+        frame: 20,
+        score: 0.4,
+        view: { face: null, squareOn: false, corner: { left: 'D', right: 'R' } },
+        split,
+      },
+    ]);
+    expect(choices).toEqual([
+      { index: 0, part: 'whole', face: 'R' },
+      { index: 1, part: 'left', face: 'D' },
+    ]);
+  });
+
+  it('prefers the corner view where the face is largest', () => {
+    const wider = { left: quad(100, 700), right: quad(700, 1100) };
+    const corner = { face: null, squareOn: false, corner: { left: 'D', right: 'R' } } as const;
+    const choices = chooseWalkaroundPhotos([
+      { frame: 0, score: 0.4, view: corner, split },
+      { frame: 20, score: 0.4, view: corner, split: wider },
+    ]);
+    expect(choices).toContainEqual({ index: 1, part: 'left', face: 'D' });
+    expect(choices).toContainEqual({ index: 0, part: 'right', face: 'R' });
   });
 });

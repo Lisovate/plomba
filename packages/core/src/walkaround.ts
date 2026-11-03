@@ -6,7 +6,7 @@
  */
 
 import type { Face } from './faces.ts';
-import type { Point, Quad } from './geometry.ts';
+import { type Point, type Quad, quadArea } from './geometry.ts';
 
 export interface TrackedOutline {
   /** Zero-based frame index in the clip. */
@@ -34,6 +34,8 @@ export interface FaceView {
   readonly squareOn: boolean;
   /** False when the face is blurred or partly covered (a hand, a person). Missing counts as clear. */
   readonly clear?: boolean;
+  /** Seen corner-on: the faces either side of the near edge. */
+  readonly corner?: { readonly left: Face; readonly right: Face } | null;
 }
 
 /** How much a blurred or covered frame counts against a clear one. */
@@ -66,17 +68,6 @@ export function squareness(quad: Quad): number {
   return Math.max(0, 1 - deviation / 4);
 }
 
-/** Shoelace area of a quadrilateral. */
-function area(quad: Quad): number {
-  let twice = 0;
-  for (let i = 0; i < 4; i++) {
-    const a = quad[i] as Point;
-    const b = quad[(i + 1) % 4] as Point;
-    twice += a.x * b.y - b.x * a.y;
-  }
-  return Math.abs(twice) / 2;
-}
-
 /**
  * How good a frame is as a face photo: 0 when the outline touches the frame
  * edge (the face is cut off, so it can't be registered) or is too small;
@@ -93,7 +84,7 @@ export function frameScore(
       p.x >= margin && p.y >= margin && p.x <= size.width - margin && p.y <= size.height - margin,
   );
   if (!inside) return 0;
-  const share = area(corners) / (size.width * size.height);
+  const share = quadArea(corners) / (size.width * size.height);
   if (share < (options.minArea ?? 0.1)) return 0;
   return Math.min(1, share) * squareness(corners) ** 2;
 }
@@ -142,21 +133,131 @@ export function bestFramePerFace(
 }
 
 /**
- * The face in view at a frame: the face of the nearest named candidate, if
- * it's within `maxDistance` frames. Used to draw the right face's sections
- * while the clip plays.
+ * What is in view at a frame: the view of the nearest named frame, if it's
+ * within `maxDistance` frames. Used to draw the right faces while the clip
+ * plays.
  */
-export function faceAtFrame(
-  named: readonly { readonly frame: number; readonly face: Face | null }[],
+export function viewAtFrame<T>(
+  named: readonly { readonly frame: number; readonly view: T | null }[],
   frame: number,
   maxDistance: number,
-): Face | null {
-  let nearest: { distance: number; face: Face | null } | undefined;
+): T | null {
+  let nearest: { distance: number; view: T | null } | undefined;
   for (const item of named) {
     const distance = Math.abs(item.frame - frame);
     if (distance <= maxDistance && (!nearest || distance < nearest.distance)) {
-      nearest = { distance, face: item.face };
+      nearest = { distance, view: item.view };
     }
   }
-  return nearest?.face ?? null;
+  return nearest?.view ?? null;
+}
+
+/** A container seen corner-on: the two faces either side of the near vertical edge. */
+export interface CornerSplit {
+  readonly left: Quad;
+  readonly right: Quad;
+}
+
+/** Signed distance of `p` from the line through `a` and `b`, positive on the side the image y axis points (below). */
+function belowLine(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  return ((p.x - a.x) * dy - (p.y - a.y) * dx) / -Math.hypot(dx, dy);
+}
+
+/**
+ * Splits a container's outline seen corner-on, from about eye level, into
+ * its two faces. The near vertical edge is the closest part of the
+ * container, so it looks taller than the outer edges: its foot stands out
+ * below the line between the outer bottom corners, and its top out above the
+ * line between the outer top corners, at the same x.
+ *
+ * Returns `null` for a single face seen square-on (nothing stands out), when
+ * the top doesn't line up with the foot (seen from above, the top of the
+ * outline is the roof's far edge), or when either face would be a sliver.
+ *
+ * @param outline points of the outline, e.g. its convex hull
+ * @param corners the outline's outer corners (`quadFromPoints`)
+ */
+export function splitCornerView(outline: readonly Point[], corners: Quad): CornerSplit | null {
+  const [tl, tr, br, bl] = corners;
+  const width = (tr.x - tl.x + (br.x - bl.x)) / 2;
+  const height = (bl.y - tl.y + (br.y - tr.y)) / 2;
+  if (width <= 0 || height <= 0) return null;
+
+  let foot: { point: Point; bulge: number } | undefined;
+  let top: { point: Point; bulge: number } | undefined;
+  for (const p of outline) {
+    const footBulge = belowLine(p, bl, br);
+    if (p.x > bl.x && p.x < br.x && (!foot || footBulge > foot.bulge))
+      foot = { point: p, bulge: footBulge };
+    const topBulge = -belowLine(p, tl, tr);
+    if (p.x > tl.x && p.x < tr.x && (!top || topBulge > top.bulge))
+      top = { point: p, bulge: topBulge };
+  }
+  if (!foot || !top) return null;
+  // The foot stands out more than the top whenever the eye is below the roof.
+  if (foot.bulge < 0.03 * height || top.bulge < 0.005 * height) return null;
+  if (Math.abs(foot.point.x - top.point.x) > 0.06 * width) return null;
+  const edge = (foot.point.x + top.point.x) / 2;
+  if (edge - (tl.x + bl.x) / 2 < 0.1 * width || (tr.x + br.x) / 2 - edge < 0.1 * width) return null;
+
+  return {
+    left: [tl, top.point, foot.point, bl],
+    right: [top.point, tr, br, foot.point],
+  };
+}
+
+/** The faces around the container, each followed by the one to its right when seen from outside. */
+const AROUND: readonly Face[] = ['D', 'R', 'F', 'L'];
+
+/**
+ * True when `left` and `right` can be the faces either side of a vertical
+ * corner seen from outside: going round the container, the right-hand face
+ * always follows the left-hand one (doors, right side, front, left side).
+ */
+export function isCornerPair(left: Face, right: Face): boolean {
+  const i = AROUND.indexOf(left);
+  return i >= 0 && AROUND[(i + 1) % AROUND.length] === right;
+}
+
+/** A frame, or one face of a corner view, kept as a photo of a face. */
+export interface PhotoChoice {
+  /** Index into the candidates. */
+  readonly index: number;
+  readonly part: 'whole' | 'left' | 'right';
+  readonly face: Face;
+}
+
+/**
+ * The photos to keep from a walk-around: for each face, the best frame that
+ * shows it whole and square-on (`bestFramePerFace`); for a face no such frame
+ * shows, the corner view where that face's part is largest.
+ */
+export function chooseWalkaroundPhotos(
+  candidates: readonly (FrameCandidate & {
+    readonly view: FaceView;
+    readonly split: CornerSplit | null;
+  })[],
+): PhotoChoice[] {
+  const whole = bestFramePerFace(
+    candidates,
+    candidates.map((c) => c.view),
+  );
+  const choices: PhotoChoice[] = [...whole].map(([face, best]) => ({
+    index: candidates.findIndex((c) => c.frame === best.frame),
+    part: 'whole' as const,
+    face,
+  }));
+  const parts = new Map<Face, { choice: PhotoChoice; area: number }>();
+  candidates.forEach(({ view, split }, index) => {
+    if (!view.corner || !split || view.clear === false) return;
+    for (const part of ['left', 'right'] as const) {
+      const face = view.corner[part];
+      const area = quadArea(split[part]);
+      if (whole.has(face) || (parts.get(face)?.area ?? 0) >= area) continue;
+      parts.set(face, { choice: { index, part, face }, area });
+    }
+  });
+  return [...choices, ...[...parts.values()].map((p) => p.choice)];
 }

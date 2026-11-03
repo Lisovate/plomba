@@ -242,6 +242,7 @@ For each frame give:
 - frame: its 1-based position in the list;
 - face: D, F, L, R, T or null;
 - squareOn: true when the whole face is in view and seen roughly square-on, not at a steep angle;
+- corner: when the frame shows two faces meeting at a vertical edge of the container, both wholly in view, the face left of that edge and the face right of it; otherwise null. Seen from outside, the face on the right always follows the one on the left going round the container: (D, R), (R, F), (F, L) or (L, D). So doors left of the edge means the right side (R) is on the right;
 - clear: false when the image is blurred, or when anything in the foreground overlaps the container in the image, however small: a finger, hand, person, vehicle or pole. True only when the face is sharp and unobstructed;
 - confidence: 0–1 for the face;
 - note: a few words on what is in view.`;
@@ -256,11 +257,20 @@ const VIEW_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['frame', 'face', 'squareOn', 'clear', 'confidence', 'note'],
+        required: ['frame', 'face', 'squareOn', 'corner', 'clear', 'confidence', 'note'],
         properties: {
           frame: { type: 'integer' },
           face: { type: ['string', 'null'], enum: [...FACES, null] },
           squareOn: { type: 'boolean' },
+          corner: {
+            type: ['object', 'null'],
+            additionalProperties: false,
+            required: ['left', 'right'],
+            properties: {
+              left: { type: 'string', enum: [...FACES] },
+              right: { type: 'string', enum: [...FACES] },
+            },
+          },
           clear: { type: 'boolean' },
           confidence: { type: 'number' },
           note: { type: 'string' },
@@ -303,6 +313,7 @@ export class MuseSparkFaceViewClassifier implements FaceViewClassifier {
         byFrame.get(i + 1) ?? {
           face: null,
           squareOn: false,
+          corner: null,
           clear: false,
           confidence: 0,
           note: 'Not answered',
