@@ -40,6 +40,8 @@ const EnvSchema = z
     PLOMBA_ACCESS_CODE: z.string().min(8).optional(),
     /** This installation's ID in EDIFACT messages (UNB sender, NAD+MS), as agreed with partners. */
     EDI_SENDER_ID: z.string().min(1).max(35).default('PLOMBA'),
+    /** A line shown at the foot of every screen, e.g. "Demo data" or credits for the photos. */
+    PLOMBA_NOTICE: z.string().trim().min(1).max(500).optional(),
   })
   .refine((env) => env.META_API_KEY || env.META_API_KEY_FILE, {
     message: 'Set META_API_KEY_FILE (preferred) or META_API_KEY',
@@ -54,6 +56,8 @@ export interface Config {
   readonly webDistDir: string | undefined;
   readonly ediSenderId: string;
   readonly accessCode: string | undefined;
+  /** A line shown at the foot of every screen. */
+  readonly notice: string | undefined;
   readonly meta: {
     readonly baseUrl: string;
     readonly apiKey: string;
@@ -113,6 +117,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     webDistDir: e.WEB_DIST_DIR ? resolve(expandHome(e.WEB_DIST_DIR)) : undefined,
     ediSenderId: e.EDI_SENDER_ID,
     accessCode: e.PLOMBA_ACCESS_CODE,
+    notice: e.PLOMBA_NOTICE,
     meta: {
       baseUrl: e.META_API_BASE_URL.replace(/\/+$/, ''),
       apiKey,

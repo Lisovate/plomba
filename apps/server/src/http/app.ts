@@ -38,6 +38,8 @@ export interface AppDeps {
   readonly webDistDir?: string | undefined;
   /** When set, API and media requests need a session obtained with this code. */
   readonly accessCode?: string | undefined;
+  /** The operator's notice for the foot of every screen. */
+  readonly notice?: string | undefined;
 }
 
 /** Phones produce 3–12 MB photos; leave room for multipart overhead. */
@@ -122,6 +124,8 @@ function api(deps: AppDeps): Hono {
   });
 
   api.get('/health', (c) => c.json({ status: 'ok' }));
+
+  api.get('/instance', (c) => c.json({ notice: deps.notice ?? null }));
 
   // Walk-around clips from a phone: up to a few minutes of 1080p.
   const videoLimit = bodyLimit({

@@ -59,6 +59,7 @@ All settings are environment variables.
 | `META_SPEECH_MODEL` | `muse-voice-transcribe-1.0` | Transcribes spoken notes |
 | `PLOMBA_ACCESS_CODE` | — | If set (8+ characters), each device enters this code once and gets a 30-day session cookie; without it the API and photos answer 401. Leave unset behind single sign-on |
 | `EDI_SENDER_ID` | `PLOMBA` | This installation's ID in EDIFACT messages (UNB sender, NAD+MS) |
+| `PLOMBA_NOTICE` | — | One line shown at the foot of every screen, before and after the access code, e.g. "Demo data" or credits for the photos |
 | `META_VISION_BASE_URL` | — | A separate endpoint for reading markings and finding damage (see below) |
 | `META_VISION_API_STYLE` | `responses` | `responses`, or `chat-completions` for OpenAI-compatible servers |
 | `META_VISION_API_KEY_FILE` / `META_VISION_API_KEY` | — | That endpoint's own key, if it needs one |

@@ -3,6 +3,7 @@ import type { Messages } from './en.ts';
 export const pl: Messages = {
   'app.tagline': 'Cyfrowa plomba na stanie kontenera przy każdym przekazaniu',
   'app.language': 'Language: English',
+  'app.openSource': 'Plomba to otwarte oprogramowanie (Apache-2.0):',
 
   'common.retry': 'Spróbuj ponownie',
   'common.cancel': 'Anuluj',

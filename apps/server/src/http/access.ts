@@ -18,7 +18,7 @@ const WRONG_CODE_DELAY_MS = 750;
 const digest = (value: string) => createHash('sha256').update(value).digest();
 
 /** Requests that never need a session. */
-const PUBLIC_PATHS = new Set(['/api/health', '/api/session']);
+const PUBLIC_PATHS = new Set(['/api/health', '/api/session', '/api/instance']);
 
 /** Adds the session routes and protects /api and /media. Without a code, everything stays open. */
 export function installAccessControl(app: Hono, accessCode: string | undefined): void {

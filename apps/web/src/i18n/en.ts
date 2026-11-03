@@ -2,6 +2,7 @@
 export const en = {
   'app.tagline': "A digital seal on a container's condition at every handover",
   'app.language': 'Język: polski',
+  'app.openSource': 'Plomba is open source (Apache-2.0):',
 
   'common.retry': 'Try again',
   'common.cancel': 'Cancel',

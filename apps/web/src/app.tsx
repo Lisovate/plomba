@@ -1,7 +1,13 @@
-import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  MutationCache,
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+  useQuery,
+} from '@tanstack/react-query';
 import { createBrowserRouter, Link, Outlet, useRouteError } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { ApiError, queryKeys } from './api/client.ts';
+import { ApiError, api, queryKeys } from './api/client.ts';
 import { AccessGate } from './components/access-gate.tsx';
 import { ErrorNotice, useOnline } from './components/ui.tsx';
 import { I18nProvider, useI18n } from './i18n/index.tsx';
@@ -56,7 +62,29 @@ function Shell() {
           <Outlet />
         </AccessGate>
       </main>
+      <Footer />
     </>
+  );
+}
+
+/** The operator's notice, if any, and where the source code is. */
+function Footer() {
+  const { t } = useI18n();
+  const instance = useQuery({
+    queryKey: queryKeys.instance,
+    queryFn: api.instance,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  return (
+    <footer className="app-footer no-print">
+      {instance.data?.notice && <p>{instance.data.notice}</p>}
+      <p>
+        {t('app.openSource')}{' '}
+        <a href="https://github.com/Lisovate/plomba" target="_blank" rel="noreferrer">
+          github.com/Lisovate/plomba
+        </a>
+      </p>
+    </footer>
   );
 }
 

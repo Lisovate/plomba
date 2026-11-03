@@ -103,6 +103,7 @@ function main(): void {
     logger,
     webDistDir: config.webDistDir,
     accessCode: config.accessCode,
+    notice: config.notice,
   });
 
   const server = serve({ fetch: app.fetch, hostname: config.host, port: config.port }, (info) => {

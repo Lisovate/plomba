@@ -18,6 +18,8 @@ services:
       # Without single sign-on in front, set an access code (8+ characters).
       PLOMBA_ACCESS_CODE: ${PLOMBA_ACCESS_CODE:-}
       EDI_SENDER_ID: ${EDI_SENDER_ID:-PLOMBA}
+      # A line at the foot of every screen, e.g. "Demo data" or photo credits.
+      PLOMBA_NOTICE: ${PLOMBA_NOTICE:-}
       # META_API_BASE_URL: https://api.meta.ai/v1
       # LOG_LEVEL: info
     secrets:

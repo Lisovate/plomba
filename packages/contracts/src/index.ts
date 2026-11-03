@@ -337,6 +337,12 @@ export const SessionSchema = z.object({
 
 export const LoginSchema = z.object({ code: z.string().min(1).max(200) });
 
+/** What the operator says about this installation, shown to everyone (no session needed). */
+export const InstanceSchema = z.object({
+  /** One line for the foot of every screen, e.g. "Demo data" or photo credits. */
+  notice: z.string().nullable(),
+});
+
 // Errors -------------------------------------------------------------------
 
 /** RFC 9457 problem details. */
@@ -378,6 +384,7 @@ export type ClaimCheck = z.infer<typeof ClaimCheckSchema>;
 export type Session = z.infer<typeof SessionSchema>;
 export type FrameRegistration = z.infer<typeof FrameRegistrationSchema>;
 export type VideoTracking = z.infer<typeof VideoTrackingSchema>;
+export type Instance = z.infer<typeof InstanceSchema>;
 export type FaceView = z.infer<typeof FaceViewSchema>;
 export type FaceViews = z.infer<typeof FaceViewsSchema>;
 

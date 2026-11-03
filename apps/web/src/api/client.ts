@@ -18,6 +18,7 @@ import {
   HandoverListSchema,
   HandoverSchema,
   IdentifyResultSchema,
+  InstanceSchema,
   MarkSchema,
   PhotoSchema,
   type Problem,
@@ -80,6 +81,8 @@ const path = (strings: TemplateStringsArray, ...params: string[]) =>
 
 export const api = {
   session: () => request('/api/session', {}, SessionSchema),
+
+  instance: () => request('/api/instance', {}, InstanceSchema),
 
   login: async (code: string) => {
     const response = await fetch('/api/session', json('POST', { code }));
@@ -168,6 +171,7 @@ export const api = {
 
 export const queryKeys = {
   session: ['session'] as const,
+  instance: ['instance'] as const,
   recent: ['handovers'] as const,
   handover: (id: string) => ['handovers', id] as const,
   container: (number: string) => ['containers', number] as const,

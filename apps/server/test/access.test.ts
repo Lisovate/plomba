@@ -32,6 +32,19 @@ describe('access control', () => {
     });
   });
 
+  it("shows the operator's notice to everyone, before the access code", async () => {
+    const { app: guarded } = createTestApp({
+      accessCode: 'correct horse battery',
+      notice: 'Demo data. Photos: Cowboy Steve Builds, CC BY 3.0.',
+    });
+    const response = await guarded.request('/api/instance');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      notice: 'Demo data. Photos: Cowboy Steve Builds, CC BY 3.0.',
+    });
+    expect(await (await app().request('/api/instance')).json()).toEqual({ notice: null });
+  });
+
   it('rejects a wrong code', async () => {
     const response = await app('correct horse battery').request('/api/session', login('guess'));
     expect(response.status).toBe(401);

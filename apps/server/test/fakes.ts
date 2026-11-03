@@ -323,6 +323,7 @@ export function createTestApp(
     accessCode?: string;
     agent?: Agent;
     classifier?: FaceViewClassifier;
+    notice?: string;
   } = {},
 ) {
   const context = createTestHandoverService();
@@ -347,6 +348,7 @@ export function createTestApp(
     media,
     logger: silentLogger,
     accessCode: options.accessCode,
+    notice: options.notice,
   });
   return { ...context, app };
 }
