@@ -153,6 +153,13 @@ A dated record of what was built and when. The newest entry is at the bottom.
   - API tokens for other systems, one per system, compared in constant time.
   - A fleet list by owner code (`GET /api/containers?owner=PLBU`).
   - OpenAPI 3.1 generated from the same zod schemas the server validates with, at `GET /api/openapi.json`.
+- **Integration examples** ([examples/](../examples)), one for each kind of company around a handover, each using only the API, a token and signed webhooks:
+  - a shipping line's claims desk that opens a claim when a sealed handover records new damage, addressed to whoever had the container on that leg;
+  - a rail operator that turns a train's wagon list (checked digit by digit) into gate-in handovers before the train arrives;
+  - a trucking company that gives the driver the receipt and its hash;
+  - a lessor's fleet condition report, and the damage that appeared between on-hire and off-hire.
+
+  A typed client parses every answer with the same zod schemas the server validates with. The tests run each example against the real HTTP API and real signed webhooks (52 tests). A sandbox serves the API with fake models, so anyone can try them without a Meta key.
 - **The app redesigned as a product:** a design system (tokens, buttons, pills, entity rows, a timeline, a stepper), a header with navigation and a bottom tab bar with the inspect button, a dashboard with the day's numbers, and a fleet screen. The walk-around screen shows its steps while SAM 3.1 and Muse Spark work, and every action has an icon.
 - **Live demo at https://app.plomba.lisovate.com**, with a certificate from Let's Encrypt.
 

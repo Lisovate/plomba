@@ -28,6 +28,8 @@ The full description is OpenAPI 3.1, generated from the same schemas the server 
 
   Give each system its own token, so one can be revoked without the others. Tokens are compared in constant time.
 
+  Tokens apply when the installation asks for an access code (`PLOMBA_ACCESS_CODE`). Without one, the API is open to anyone who can reach it, so keep such an installation on a private network.
+
 ## Webhooks
 
 Set where events go and the secret they're signed with:

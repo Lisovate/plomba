@@ -34,9 +34,9 @@ Any installation works, including `npm run dev:server` on your machine (see [doc
 
    ```sh
    PLOMBA_ACCESS_CODE=a-long-code-for-the-people-who-use-the-app
-   PLOMBA_API_TOKENS_FILE=~/.config/plomba/api-tokens
+   PLOMBA_API_TOKENS_FILE=/home/you/.config/plomba/api-tokens   # full paths: .env doesn't expand ~
    PLOMBA_WEBHOOK_URLS=http://localhost:8790/plomba     # the claims desk
-   PLOMBA_WEBHOOK_SECRET_FILE=~/.config/plomba/webhook-secret
+   PLOMBA_WEBHOOK_SECRET_FILE=/home/you/.config/plomba/webhook-secret
    PLOMBA_PUBLIC_URL=http://localhost:8787               # for the links in webhooks
    ```
 
