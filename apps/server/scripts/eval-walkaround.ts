@@ -19,7 +19,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import {
   chooseWalkaroundPhotos,
@@ -263,7 +263,7 @@ ${rows.join('\n')}
 **Faces chosen:** ${sum('right')} right, ${sum('wrong')} wrong (of which ${sum('sideSwaps')} left/right swapped), ${sum('missed')} expected faces missed. Sides chosen without the doors in view (flagged to the checker): ${sum('guessedSides')}. Impossible corner pairs dropped: ${sum('impossibleCorners')}.`;
 console.log(`\n${report}`);
 const out = join(
-  clipsDir,
+  dirname(labelsFile),
   `walkaround-results-${new Date().toISOString().slice(0, 16).replace(':', '')}.md`,
 );
 await writeFile(out, `${report}\n`);
