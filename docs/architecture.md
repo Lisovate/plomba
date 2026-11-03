@@ -133,9 +133,19 @@ A checker can record one slow walk around the container, on a phone or Meta AI g
 5. **The best frame of the door end is read** like a door photo, and the number is compared with the handover's container.
 6. **The checker confirms** the face of each frame (or changes it), and the chosen frames go through the photo pipeline: SAM 3.1 registration, blurring, coverage and, optionally, damage proposals.
 
+**Corner views give two faces.** Most frames of a walk-around show a corner, with two faces at once.
+- **Splitting the outline.** Seen from about eye level, the container's outline is a hexagon. The near vertical edge is the closest part, so it looks tallest: its foot stands out below the line between the outer bottom corners, and its top out above the line between the outer top corners, at the same x. `splitCornerView` (core) cuts the outline's convex hull there into the two faces' quads, for every tracked frame.
+  - It refuses a view from above, where the top of the outline is the roof's far edge and doesn't line up with the foot.
+  - It also refuses a split that would leave a sliver of a face.
+- **Naming the faces.** Muse Spark names the faces either side of the edge.
+  - Seen from outside, the right-hand face always follows the left-hand one round the container (doors, right side, front, left side), so impossible pairs are dropped (`isCornerPair`).
+  - Such a frame becomes two photos, each registered from its half of SAM 3.1's mask, and the player draws both faces.
+- **Choosing photos.** `chooseWalkaroundPhotos` keeps, for each face, the best clear square-on frame, or else the corner view where that face is largest.
+- **Measured:** on a CC BY clip of a 40 ft container being dragged across a field, 169 of 180 frames split. One corner frame registered the end and the long side, each with its CEDEX sections in perspective.
+
 While the clip plays, the overlay follows the face in view: the face of the nearest named frame within 1.5 s, with its CEDEX sections, the previous handover's damage and this handover's marks (`requestVideoFrameCallback`). While the camera turns a corner only the container's outline is drawn.
 
-**Limits:** a face must be whole in some frame. Close-range clips, where the top corners are always out of view, give no candidate frames, and the app asks for a recording from further back. A clip with cuts can lose the tracked object ID at a cut.
+**Limits:** a face must be whole in some frame, square-on or at a corner. Close-range clips, where the top corners are always out of view, give no candidate frames, and the app asks for a recording from further back. A clip with cuts can lose the tracked object ID at a cut.
 
 ## Damage proposals
 

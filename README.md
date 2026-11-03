@@ -19,7 +19,7 @@ It's open source (Apache-2.0) and built to be self-hosted: a terminal, depot or 
 1. **Identify.** Point the phone at the doors. Muse Spark reads the container number, and the ISO 6346 check digit verifies it. Only a read that passes is accepted; anything else is a suggestion the checker taps. The container's history loads.
 2. **Photograph, or record one walk-around.**
    - Each face photo is registered from SAM 3.1's outline of the container: four corners, a homography, and the photo is mapped onto the face in metres.
-   - Or the checker records one walk around the container, on a phone or Meta AI glasses. SAM 3.1 tracks the container through every frame, Plomba picks the frames where one face is whole and square-on, and Muse Spark names each face. The checker confirms, and the frames become the photos.
+   - Or the checker records one walk around the container, on a phone or Meta AI glasses. SAM 3.1 tracks the container through every frame. Plomba picks the frames where a face is whole, and splits corner views into their two faces. Muse Spark names each face and flags frames that are blurred or blocked. The checker confirms, and the frames become the photos.
 3. **See the last handover.** Damage recorded at the previous handover is drawn on the same spot of the new photos, and over the live camera. The checker marks each item still there, changed or repaired.
 4. **Record new damage.** Muse Spark finds and codes it (CEDEX damage and component codes), and SAM 3.1 outlines it. Or the checker just says it, hands-free: "wgniecenie, lewy bok, sekcja trzecia, na dole" becomes a coded proposal on that section (Muse Voice Transcribe, then Muse Spark). The checker confirms each proposal, and the location code comes from where the mark sits on the container. Faces and number plates are blurred before anything is stored.
 5. **Seal.** The handover is hash-chained into the container's history. Out come:
@@ -61,12 +61,13 @@ Measured on openly licensed data, details in [docs/evaluation.md](docs/evaluatio
 - **Open weights are as safe, just less convenient.** Muse Spark Open verified 54% of the same crops, again with 0 wrong numbers accepted.
 - **SAM 3.1 can't find damage by name** (`dent`, `damage` return nothing; `hole` finds bolt holes), **but it outlines damage precisely from a box.** So Muse Spark finds and codes, and SAM 3.1 outlines.
 - **SAM 3.1 video tracking works as an AR anchor without AR hardware:** 450 frames in 26 s, with object IDs stable enough to keep the container's coordinates on it through a walk.
-- **Muse Spark can tell left from right on a container** when it sees the walk-around frames in order, and it's helped by domain clues: containers ride doors to the rear.
+- **Muse Spark can tell left from right on a container** when it sees the walk-around frames in order, and it's helped by domain clues: containers ride doors to the rear. Geometry checks it: at a corner, the right-hand face always follows the left-hand one round the container.
+- **One SAM 3.1 mask of a container seen corner-on gives two registered faces:** the near edge stands out of the outline's hexagon. On a 40 ft clip, 169 of 180 frames split.
 - **For privacy, the prompt `face` beats `human face`** (6 of 7 faces, against 5), and every readable number plate was found.
 
 ## Status and limits
 
-Everything above works end to end against the Meta Model API, with 155 unit and integration tests and a browser end-to-end test in CI. Progress is logged day by day in [docs/build-log.md](docs/build-log.md).
+Everything above works end to end against the Meta Model API, with 165 unit and integration tests and a browser end-to-end test in CI. Progress is logged day by day in [docs/build-log.md](docs/build-log.md).
 
 **Not yet:**
 - **Live, world-tracked AR on iPhone:** Safari has no WebXR. Ghosts are drawn on photos, on recorded video and on the live camera, re-registered about every 1.5 s.

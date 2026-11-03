@@ -119,6 +119,12 @@ A dated record of what was built and when. The newest entry is at the bottom.
   - `sectionRect`, the inverse of the location code, turns the sections into a proposed mark for the checker to confirm.
   - Damage said without a place ("a hole somewhere on the roof") is reported back, not guessed.
   - Live: a synthetic Polish note was transcribed word for word and placed at `LB3N DT` in 7.3 s. Typed notes in Polish and English gave `LB3N DT`, `DB3N CO` and `LT90 DT RLA`.
+- **Corner views register two faces.**
+  - A container seen corner-on from about eye level has a hexagonal outline: the near edge stands out above and below the outer corners, at the same x. Plomba splits SAM 3.1's mask there into the two faces' quads.
+  - Muse Spark names the faces either side of the edge, checked by the rule that the right-hand face follows the left-hand one round the container.
+  - On a CC BY clip of a 40 ft container, 169 of 180 frames split, and one corner frame registered the end and the long side.
+- **Clear frames first.** Muse Spark also flags frames where the face is blurred or something stands in front of it; they count half when choosing photos. The rule had to name small obstructions: at first Spark noted "finger in foreground" and still called the frame clear.
+- **The EIR says where each damage was first recorded,** or for new damage, the last handover that photographed the spot clean.
 - **The demo installation** runs behind HTTPS on the author's server, with an access code. It holds one container's story from openly licensed footage: rust recorded at gate-in, then drawn as a ghost on a different photo at gate-out. A one-line operator notice (`PLOMBA_NOTICE`) labels it as a demo and credits the footage.
 - **README:** screenshots, a pipeline diagram, findings about the models, and the limits. The home screen explains the steps on a first visit. Fonts are named before `system-ui`, which resolved to a monospace font on a Linux desktop.
 
