@@ -241,7 +241,7 @@ export const pl: Messages = {
   'walk.step.naming': 'Muse Spark nazywa ścianę na każdej klatce…',
   'walk.step.reading': 'Muse Spark odczytuje drzwi…',
   'walk.summary':
-    'Kontener znaleziony w klatkach: {tracked} z {total} · wybrane klatki: {candidates} · ściany widoczne na wprost: {faces}',
+    'Kontener znaleziony w klatkach: {tracked} z {total} · wybrane klatki: {candidates} · widoczne ściany: {faces}',
   'walk.cached': 'śledzenie z pamięci podręcznej',
   'walk.noFrames':
     'Żadna klatka nie pokazuje całej ściany kontenera. Nagraj ponownie z większej odległości, tak by każda ściana mieściła się w kadrze.',

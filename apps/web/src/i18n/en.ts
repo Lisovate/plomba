@@ -239,7 +239,7 @@ export const en = {
   'walk.step.naming': 'Muse Spark is naming the face in each frame…',
   'walk.step.reading': 'Muse Spark is reading the doors…',
   'walk.summary':
-    'Container found in frames: {tracked} of {total} · frames chosen: {candidates} · faces seen square-on: {faces}',
+    'Container found in frames: {tracked} of {total} · frames chosen: {candidates} · faces seen: {faces}',
   'walk.cached': 'tracking from the cache',
   'walk.noFrames':
     'No frame shows a whole face of the container. Record again from further back, so that each face fits in the frame.',

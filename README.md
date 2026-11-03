@@ -2,7 +2,7 @@
 
 **A digital seal on a shipping container's condition at every handover.**
 
-![Plomba on a phone: a walk-around video with the container's CEDEX sections tracked by SAM 3.1; the damage recorded at the last handover drawn on the same spot of a new photo; the container's damage passport](docs/images/screens.jpg)
+![Plomba on a phone: a walk-around video where SAM 3.1 tracks the container and both faces of a corner carry their CEDEX sections; the damage recorded at the last handover drawn on the same spot of a new photo; the container's damage passport](docs/images/screens.jpg)
 
 *Plomba* is Polish for the seal on a container's doors, the tag that proves the box wasn't opened. Plomba does the same for the container's condition.
 
@@ -99,7 +99,11 @@ npm run dev:web         # app on http://localhost:5173
 
 ## Credits
 
-The photos in the screenshots above and in the demo installation are frames of "How to buy a shipping container in 10 minutes" by Cowboy Steve Builds (YouTube), licensed CC BY 3.0. The damage passport in the screenshot shows test data.
+The footage in the screenshots above and in the demo installation is openly licensed, CC BY 3.0:
+- "How to buy a shipping container in 10 minutes" by Cowboy Steve Builds (YouTube);
+- "40' reefer shipping container delivery and repositioning" by Life, Take 2 (YouTube).
+
+The damage passport in the screenshot shows test data, and a passer-by in one thumbnail is blurred.
 
 ## Licence
 
