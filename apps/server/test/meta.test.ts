@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { type MetaApiError, MetaClient } from '../src/adapters/meta/client.ts';
+import {
+  MAX_IMAGES_PER_CALL,
+  MuseSparkFaceViewClassifier,
+} from '../src/adapters/meta/muse-spark.ts';
 import { parseSegmentation } from '../src/adapters/meta/sam.ts';
 import { askStructured } from '../src/adapters/meta/structured.ts';
 import { silentLogger } from './fakes.ts';
@@ -186,5 +190,53 @@ describe('structured output over Chat Completions', () => {
       ],
       response_format: { type: 'json_schema', json_schema: { name: 'colour', strict: true } },
     });
+  });
+});
+
+describe('MuseSparkFaceViewClassifier', () => {
+  it('splits a long walk-around into runs the endpoint accepts, keeping the order', async () => {
+    const imagesPerRequest: number[] = [];
+    let next = 0;
+    const client = new MetaClient({
+      baseUrl: 'http://spark-open.local/v1',
+      apiKey: 'test',
+      timeoutMs: 1000,
+      logger: silentLogger,
+      fetch: async (_url, init) => {
+        const body = JSON.parse(String(init?.body)) as {
+          messages: { content: string | { type: string }[] }[];
+        };
+        const images = body.messages
+          .flatMap((m) => (typeof m.content === 'string' ? [] : m.content))
+          .filter((part) => part.type === 'image_url').length;
+        imagesPerRequest.push(images);
+        if (images > MAX_IMAGES_PER_CALL) return jsonResponse(400, { error: 'Too many images' });
+        // Each run's answer names its frames 1..n; the note says which frame it was overall.
+        const views = Array.from({ length: images }, (_, i) => ({
+          frame: i + 1,
+          face: 'L',
+          squareOn: true,
+          corner: null,
+          clear: true,
+          confidence: 0.9,
+          note: String(next++),
+        }));
+        return jsonResponse(200, {
+          choices: [{ message: { content: JSON.stringify({ views }) } }],
+        });
+      },
+    });
+    const classifier = new MuseSparkFaceViewClassifier(client, {
+      model: 'meta-models/muse-spark-open-1026',
+      reasoningEffort: 'low',
+      api: 'chat-completions',
+    });
+    const frame = { data: new Uint8Array([1]), mimeType: 'image/jpeg' as const };
+
+    const views = await classifier.classify(Array.from({ length: 12 }, () => frame));
+
+    expect(imagesPerRequest).toEqual([6, 6]);
+    expect(views).toHaveLength(12);
+    expect(new Set(views.map((v) => v.note)).size).toBe(12);
   });
 });
