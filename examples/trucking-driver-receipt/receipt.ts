@@ -22,33 +22,26 @@ import {
 } from '../shared/format.ts';
 import { type HandoverLinks, handoverLinks } from '../shared/links.ts';
 
-/** Registrations compare without spaces, dashes or case: `el4k217` is `EL 4K217`. */
-export function sameRegistration(a: string, b: string): boolean {
-  const plain = (s: string) => s.toUpperCase().replace(/[\s.-]/g, '');
-  return plain(a) === plain(b);
-}
-
-/**
- * The latest sealed handover of a truck: from the container's whole history
- * when the container is known, else from the installation's recent
- * handovers (the API has no search by vehicle).
- */
+/** The truck's most recently sealed handover, optionally restricted to one container. */
 export async function findLatestSealed(
   client: PlombaClient,
   search: { readonly truck: string; readonly container?: string },
 ): Promise<Handover | undefined> {
-  const candidates: readonly Handover[] = search.container
-    ? (await client.containerHistory(search.container)).handovers
-    : await client.recentHandovers();
-  return candidates
-    .filter(
-      (h) =>
-        h.seal !== null &&
-        h.transportMode !== 'rail' &&
-        h.vehicleId !== null &&
-        sameRegistration(h.vehicleId, search.truck),
-    )
-    .sort((a, b) => (b.closedAt ?? '').localeCompare(a.closedAt ?? ''))[0];
+  let latest: Handover | undefined;
+  for await (const handover of client.allHandovers({
+    vehicle: search.truck,
+    status: 'closed',
+    ...(search.container ? { container: search.container } : {}),
+  })) {
+    if (
+      handover.seal !== null &&
+      handover.transportMode !== 'rail' &&
+      (!latest || (handover.closedAt ?? '') > (latest.closedAt ?? ''))
+    ) {
+      latest = handover;
+    }
+  }
+  return latest;
 }
 
 export interface ReceiptDamage {

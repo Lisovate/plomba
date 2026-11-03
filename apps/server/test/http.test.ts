@@ -1,6 +1,13 @@
-import { FaceViewsSchema, IdentifyResultSchema, ProblemSchema } from '@plomba/contracts';
+import {
+  FaceViewsSchema,
+  HandoverListSchema,
+  IdentifyResultSchema,
+  ProblemSchema,
+  StartHandoverSchema,
+} from '@plomba/contracts';
 import { describe, expect, it } from 'vitest';
 import { createTestApp, FakeFaceViewClassifier, FakeReader, makePhoto, makeWav } from './fakes.ts';
+import { handoverSearchFixture } from './handover-search-fixture.ts';
 
 function testApp() {
   const reader = new FakeReader('LSOU1077379');
@@ -131,5 +138,119 @@ describe('HTTP API', () => {
   it('answers unknown API routes with 404 problem details', async () => {
     const response = await testApp().request('/api/nope');
     expect(response.status).toBe(404);
+  });
+});
+
+describe('HTTP handover search', () => {
+  it('preserves the bare request and carries its open-first order across pages', async () => {
+    const f = await handoverSearchFixture();
+    try {
+      f.service.registerContainer({ number: 'PLBU4000043' });
+      for (let i = 0; i < 27; i++) {
+        const handover = f.service.start(
+          StartHandoverSchema.parse({
+            containerNumber: 'PLBU4000043',
+            direction: 'in',
+            place: 'Gdynia',
+            checker: 'Gate checker',
+          }),
+        );
+        await f.service.close(handover.id, { acceptGaps: true });
+      }
+      const first = await f.app.request('/api/handovers');
+      const handovers = HandoverListSchema.parse(await first.json());
+      expect(handovers).toEqual(f.service.recent());
+      expect(handovers).toHaveLength(30);
+      expect(handovers.slice(0, 2).map((h) => h.id)).toEqual([f.wagon.id, f.openTruck.id]);
+      const next = first.headers.get('link')?.match(/<([^>]+)>/)?.[1];
+      if (!next) throw new Error('Missing next-page link');
+      const arrived = f.service.start(
+        StartHandoverSchema.parse({
+          containerNumber: 'PLBU4000043',
+          direction: 'in',
+          place: 'Gdynia',
+          checker: 'Gate checker',
+        }),
+      );
+      const second = await f.app.request(next);
+      const remaining = HandoverListSchema.parse(await second.json());
+      expect(remaining.map((h) => h.id)).toEqual([f.tiedB.id, f.tiedA.id, f.older.id]);
+      expect(second.headers.get('link')).toBeNull();
+      expect(new Set([...handovers, ...remaining].map((h) => h.id)).size).toBe(33);
+      expect(remaining.some((h) => h.id === arrived.id)).toBe(false);
+    } finally {
+      f.db.close();
+    }
+  });
+
+  it('keeps the array response and advertises the next page with all filters', async () => {
+    const f = await handoverSearchFixture();
+    try {
+      const query = new URLSearchParams({
+        vehicle: 'el 4k-217',
+        status: 'closed',
+        direction: 'out',
+        place: 'Gdynia',
+        limit: '1',
+      });
+      const first = await f.app.request(`/api/handovers?${query}`);
+      expect(first.status).toBe(200);
+      expect(HandoverListSchema.parse(await first.json()).map((h) => h.id)).toEqual([f.tiedB.id]);
+      const header = first.headers.get('link');
+      expect(header).toMatch(/^<\/api\/handovers\?[^>]+>; rel="next"$/);
+      const target = header?.match(/<([^>]+)>/)?.[1];
+      if (!target) throw new Error('Missing next-page link');
+      const next = new URL(target, 'http://localhost');
+      for (const [name, value] of query) expect(next.searchParams.get(name)).toBe(value);
+      expect(next.searchParams.get('cursor')).toBeTruthy();
+      expect(next.searchParams.getAll('cursor')).toHaveLength(1);
+      const second = await f.app.request(target);
+      expect(HandoverListSchema.parse(await second.json()).map((h) => h.id)).toEqual([f.older.id]);
+      expect(second.headers.get('link')).toBeNull();
+      const empty = await f.app.request('/api/handovers?vehicle=unknown');
+      expect(await empty.json()).toEqual([]);
+      expect(empty.headers.get('link')).toBeNull();
+      const container = await f.app.request('/api/handovers?container=csqu+305438-3&status=open');
+      expect(HandoverListSchema.parse(await container.json()).map((h) => h.id)).toEqual([
+        f.openTruck.id,
+      ]);
+    } finally {
+      f.db.close();
+    }
+  });
+
+  it.each([
+    ['status', 'sealed'],
+    ['direction', 'sideways'],
+    ['limit', '0'],
+    ['limit', '101'],
+    ['limit', '1.5'],
+    ['limit', 'bad'],
+    ['limit', ''],
+    ['cursor', ''],
+    ['cursor', '%%%'],
+    ['cursor', Buffer.from('{}').toString('base64url')],
+    [
+      'cursor',
+      Buffer.from(JSON.stringify({ startedAt: 'yesterday', id: 'bad' })).toString('base64url'),
+    ],
+    ['container', 'CSQU3054384'],
+    ['container', 'bad'],
+    ['vehicle', ' - '],
+    ['place', ''],
+  ])('returns a 400 problem for %s=%s', async (name, value) => {
+    const { app, db } = createTestApp();
+    try {
+      const response = await app.request(
+        `/api/handovers?${new URLSearchParams({ [name]: value })}`,
+      );
+      expect(response.status).toBe(400);
+      expect(response.headers.get('content-type')).toContain('application/problem+json');
+      const problem = ProblemSchema.parse(await response.json());
+      expect(problem.status).toBe(400);
+      expect(problem.issues?.map((issue) => issue.path)).toContain(name);
+    } finally {
+      db.close();
+    }
   });
 });

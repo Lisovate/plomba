@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { OPERATIONS } from '../src/http/openapi.ts';
+import { OPERATIONS, openApiDocument } from '../src/http/openapi.ts';
 import { createTestApp } from './fakes.ts';
 
 describe('GET /api/openapi.json', () => {
@@ -26,5 +26,32 @@ describe('GET /api/openapi.json', () => {
       (key) => !routes.has(key),
     );
     expect(missing).toEqual([]);
+  });
+
+  it('describes handover search validation and the next-page header', () => {
+    const doc = openApiDocument({ serverUrl: 'https://plomba.example.com' });
+    const operation = doc.paths['/handovers']?.get as {
+      parameters: { name: string; schema: Record<string, unknown> }[];
+      responses: Record<string, { headers?: Record<string, { description: string }> }>;
+    };
+    const parameters = Object.fromEntries(operation.parameters.map((p) => [p.name, p.schema]));
+    expect(Object.keys(parameters)).toEqual([
+      'vehicle',
+      'container',
+      'status',
+      'direction',
+      'place',
+      'limit',
+      'cursor',
+    ]);
+    expect(parameters.status).toMatchObject({ enum: ['open', 'closed'] });
+    expect(parameters.direction).toMatchObject({ enum: ['in', 'out'] });
+    expect(parameters.limit).toMatchObject({
+      type: 'integer',
+      minimum: 1,
+      maximum: 100,
+      default: 30,
+    });
+    expect(operation.responses['200']?.headers?.Link?.description).toContain('rel="next"');
   });
 });

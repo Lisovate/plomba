@@ -1,18 +1,19 @@
 import { readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { StartHandoverSchema } from '@plomba/contracts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Journey } from '../sandbox/journey.ts';
 import { CONTAINER, OTHER_TRUCK, OTHER_TRUCK_CONTAINER, TRUCK } from '../sandbox/journey.ts';
+import { PlombaClient } from '../shared/client.ts';
 import {
   buildReceipt,
   driverReceipt,
   findLatestSealed,
   receiptHtml,
   receiptText,
-  sameRegistration,
 } from '../trucking-driver-receipt/receipt.ts';
-import { type Installation, installationWithJourney, runCli } from './support.ts';
+import { type Installation, installation, installationWithJourney, runCli } from './support.ts';
 
 let plomba: Installation & { readonly journey: Journey };
 beforeAll(async () => {
@@ -21,29 +22,71 @@ beforeAll(async () => {
 afterAll(() => plomba.sandbox.close());
 
 describe('finding the handover', () => {
-  it('compares registrations without spaces, dashes or case', () => {
-    expect(sameRegistration('el4k217', 'EL 4K217')).toBe(true);
-    expect(sameRegistration('EL-4K-217', 'EL 4K217')).toBe(true);
-    expect(sameRegistration('EL 4K218', 'EL 4K217')).toBe(false);
-  });
-
   it("finds the truck's latest sealed handover, not its open one or another truck's", async () => {
     // EL 4K217 took PLBU 400004 3 out of Gdynia, brought it into Łódź (the latest sealed),
     // and has another container's gate in still open.
-    const found = await findLatestSealed(plomba.client, { truck: 'el 4k217' });
+    const found = await findLatestSealed(plomba.client, { truck: 'el-4k-217' });
     expect(found?.id).toBe(plomba.journey.handovers.lodzIn.id);
     expect((await findLatestSealed(plomba.client, { truck: OTHER_TRUCK }))?.id).toBe(
       plomba.journey.handovers.otherTruck.id,
     );
   });
 
-  it("searches the container's whole history when the container is given", async () => {
+  it('restricts the search to the container when given', async () => {
     const found = await findLatestSealed(plomba.client, { truck: TRUCK, container: CONTAINER });
     expect(found?.id).toBe(plomba.journey.handovers.lodzIn.id);
     expect(
       await findLatestSealed(plomba.client, { truck: TRUCK, container: OTHER_TRUCK_CONTAINER }),
     ).toBeUndefined();
     expect(await findLatestSealed(plomba.client, { truck: 'WX 00000' })).toBeUndefined();
+  });
+
+  it('finds a sealed handover older than the latest 30 without a container', async () => {
+    const older = await installation();
+    try {
+      const service = older.sandbox.handovers;
+      service.registerContainer({ number: CONTAINER });
+      const start = (vehicleId: string) =>
+        service.start(
+          StartHandoverSchema.parse({
+            containerNumber: CONTAINER,
+            direction: 'out',
+            place: 'Gdynia',
+            checker: 'Gate checker',
+            transportMode: 'road',
+            vehicleId,
+          }),
+        );
+      const target = await service.close(start(TRUCK).id, { acceptGaps: true });
+      for (let i = 0; i < 31; i++) await service.close(start(OTHER_TRUCK).id, { acceptGaps: true });
+      expect((await older.client.recentHandovers()).some((h) => h.id === target.id)).toBe(false);
+      expect((await findLatestSealed(older.client, { truck: 'el-4k217' }))?.id).toBe(target.id);
+      expect((await driverReceipt(older.client, { truck: TRUCK }))?.record).toMatchObject({
+        hash: target.seal?.hash,
+        verified: true,
+      });
+    } finally {
+      await older.sandbox.close();
+    }
+  });
+
+  it('checks every page and chooses by seal time, even when started earlier', async () => {
+    const earlier = plomba.journey.handovers.gdynia;
+    const later = plomba.journey.handovers.lodzIn;
+    const client = new PlombaClient({
+      baseUrl: plomba.sandbox.url,
+      fetch: async (input) => {
+        const url = new URL(String(input));
+        return url.searchParams.has('cursor')
+          ? Response.json([
+              { ...earlier, closedAt: '2099-01-01T00:00:00.000Z', markCount: 0, photoCount: 0 },
+            ])
+          : Response.json([{ ...later, markCount: 0, photoCount: 0 }], {
+              headers: { Link: '</api/handovers?cursor=next>; rel="next"' },
+            });
+      },
+    });
+    expect((await findLatestSealed(client, { truck: TRUCK }))?.id).toBe(earlier.id);
   });
 });
 
@@ -157,6 +200,6 @@ describe('the command line', () => {
       plomba.env,
     );
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('Give --container');
+    expect(result.stderr).toContain('No sealed handover with truck WX 00000.');
   });
 });

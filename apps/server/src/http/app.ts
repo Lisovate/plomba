@@ -220,7 +220,18 @@ function api(deps: AppDeps): Hono {
     return c.json(handovers.start(input), 201);
   });
 
-  api.get('/handovers', (c) => c.json(handovers.recent()));
+  api.get('/handovers', (c) => {
+    const page = handovers.search(
+      c.req.query(),
+      new URL(c.req.url).search ? 'newest' : 'open-first',
+    );
+    if (page.nextCursor) {
+      const next = new URL(c.req.url);
+      next.searchParams.set('cursor', page.nextCursor);
+      c.header('Link', `<${next.pathname}${next.search}>; rel="next"`);
+    }
+    return c.json(page.handovers);
+  });
 
   api.get('/handovers/:id', (c) => c.json(handovers.detail(c.req.param('id'))));
 

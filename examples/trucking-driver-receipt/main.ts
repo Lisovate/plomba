@@ -10,8 +10,8 @@ import { driverReceipt, receiptHtml, receiptText } from './receipt.ts';
 
 const USAGE = `Usage: node examples/trucking-driver-receipt/main.ts --truck <registration> [--container <number>] [--html <file>]
 
-  --truck       the truck's registration, e.g. "EL 4K217" (spaces and case don't matter)
-  --container   the container, to search its whole history rather than the recent handovers
+  --truck       the truck's registration, e.g. "EL 4K217" (spaces, hyphens and case don't matter)
+  --container   restrict the search to this container
   --html        write the receipt to this HTML file instead of printing it
 
 Environment: PLOMBA_URL (default http://localhost:8787), PLOMBA_API_TOKEN`;
@@ -33,7 +33,7 @@ runCli(USAGE, async () => {
     console.error(
       values.container
         ? `No sealed handover of ${values.container} with truck ${truck}.`
-        : `No sealed handover with truck ${truck} among the installation's recent handovers.\nGive --container to search that container's whole history.`,
+        : `No sealed handover with truck ${truck}.`,
     );
     return 1;
   }

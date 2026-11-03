@@ -13,6 +13,9 @@ import {
   FaceSchema,
   type Handover,
   type HandoverDetail,
+  type HandoverSearch,
+  HandoverSearchSchema,
+  HandoverStatusSchema,
   type HandoverSummary,
   type Mark,
   MarkStatusSchema,
@@ -102,6 +105,13 @@ const SEAL_ATTEMPTS = 3;
 
 /** Live frames only need the container's outline. */
 const LIVE_FRAME_MAX_SIDE = 768;
+
+const HandoverCursorSchema = z.strictObject({
+  startedAt: z.iso.datetime({ precision: 3 }),
+  id: z.uuid(),
+  /** Bare requests keep open handovers first; their cursors also carry that group. */
+  status: HandoverStatusSchema.optional(),
+});
 
 /** A proposal overlapping an existing mark this much is the same damage. */
 const DUPLICATE_OVERLAP = 0.5;
@@ -223,6 +233,58 @@ export class HandoverService {
 
   recent(limit = 30): HandoverSummary[] {
     return this.#d.handovers.listRecent(limit);
+  }
+
+  search(
+    options: HandoverSearch = {},
+    order: 'newest' | 'open-first' = 'newest',
+  ): {
+    handovers: HandoverSummary[];
+    nextCursor?: string;
+  } {
+    const parsed = HandoverSearchSchema.safeParse(options);
+    if (!parsed.success) {
+      throw new ValidationError('The search parameters are invalid', {
+        issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      });
+    }
+    const { cursor, limit, ...filters } = parsed.data;
+    if (filters.vehicle !== undefined) {
+      filters.vehicle = filters.vehicle.toUpperCase().replace(/[ -]/g, '');
+      if (!filters.vehicle) {
+        throw new ValidationError('vehicle must contain a registration or wagon number', {
+          issues: [{ path: 'vehicle', message: 'Expected a registration or wagon number' }],
+        });
+      }
+    }
+    if (filters.container !== undefined) {
+      const number = parseContainerNumber(filters.container);
+      if (!number.ok) {
+        throw new ValidationError(`${filters.container} is not a valid ISO 6346 container number`, {
+          issues: [{ path: 'container', message: number.error.code }],
+        });
+      }
+      filters.container = number.value.value;
+    }
+    const after = cursor === undefined ? undefined : decodeHandoverCursor(cursor);
+    const openFirst = after ? after.status !== undefined : order === 'open-first';
+    const found = this.#d.handovers.search({ ...filters, limit: limit + 1, after, openFirst });
+    const handovers = found.slice(0, limit);
+    const last = handovers.at(-1);
+    return {
+      handovers,
+      ...(found.length > limit && last
+        ? {
+            nextCursor: Buffer.from(
+              JSON.stringify({
+                startedAt: last.startedAt,
+                id: last.id,
+                ...(openFirst ? { status: last.status } : {}),
+              }),
+            ).toString('base64url'),
+          }
+        : {}),
+    };
   }
 
   detail(id: string): HandoverDetail {
@@ -640,4 +702,16 @@ function vehicleIdentifier(input: StartHandover): string | null {
     });
   }
   return wagon.value;
+}
+
+function decodeHandoverCursor(cursor: string): z.infer<typeof HandoverCursorSchema> {
+  try {
+    const decoded = Buffer.from(cursor, 'base64url');
+    if (decoded.toString('base64url') !== cursor) throw new Error('Invalid base64url');
+    return HandoverCursorSchema.parse(JSON.parse(decoded.toString('utf8')));
+  } catch {
+    throw new ValidationError('The handover cursor is invalid', {
+      issues: [{ path: 'cursor', message: 'Use the cursor from the next-page Link header' }],
+    });
+  }
 }

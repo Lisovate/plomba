@@ -84,6 +84,16 @@ export const DirectionSchema = z.enum(['in', 'out']);
 
 export const HandoverStatusSchema = z.enum(['open', 'closed']);
 
+export const HandoverSearchSchema = z.object({
+  vehicle: z.string().min(1).max(40).optional(),
+  container: z.string().min(1).max(40).optional(),
+  status: HandoverStatusSchema.optional(),
+  direction: DirectionSchema.optional(),
+  place: z.string().min(1).max(200).optional(),
+  limit: z.coerce.number<string | number>().int().min(1).max(100).default(30),
+  cursor: z.string().min(1).max(512).optional(),
+});
+
 /** How the container arrived or left: by truck or by rail wagon. */
 export const TransportModeSchema = z.enum(['road', 'rail']);
 
@@ -460,6 +470,7 @@ export type CreateMark = z.infer<typeof CreateMarkSchema>;
 export type UpdateMark = z.infer<typeof UpdateMarkSchema>;
 export type HandoverDetail = z.infer<typeof HandoverDetailSchema>;
 export type HandoverSummary = z.infer<typeof HandoverSummarySchema>;
+export type HandoverSearch = z.input<typeof HandoverSearchSchema>;
 export type ContainerSummary = z.infer<typeof ContainerSummarySchema>;
 export type ChainStatus = z.infer<typeof ChainStatusSchema>;
 export type ContainerHistory = z.infer<typeof ContainerHistorySchema>;

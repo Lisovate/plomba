@@ -249,10 +249,27 @@ export interface HandoverRepository {
   listForContainer(containerNumber: string): Handover[];
   /** Open handovers first, then the most recently started; with photo and mark counts. */
   listRecent(limit: number): HandoverSummary[];
+  /** Matching handovers, newest first, with photo and mark counts. */
+  search(options: HandoverSearchOptions): HandoverSummary[];
   /** The container's sealed records, oldest first. */
   chain(containerNumber: string): ChainLink[];
   /** Marks the handover closed and appends it to the chain. Throws `ConflictError` if the sequence is taken. */
   seal(id: string, sealed: SealedRecord): void;
+}
+
+export interface HandoverSearchOptions {
+  readonly vehicle?: string;
+  readonly container?: string;
+  readonly status?: Handover['status'];
+  readonly direction?: Handover['direction'];
+  readonly place?: string;
+  readonly limit: number;
+  readonly openFirst?: boolean;
+  readonly after?: {
+    readonly startedAt: string;
+    readonly id: string;
+    readonly status?: Handover['status'];
+  };
 }
 
 export interface NewPhoto {

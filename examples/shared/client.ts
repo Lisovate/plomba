@@ -27,6 +27,7 @@ import {
   HandoverDetailSchema,
   HandoverListSchema,
   HandoverSchema,
+  type HandoverSearch,
   type HandoverSummary,
   type Mark,
   MarkSchema,
@@ -89,6 +90,11 @@ interface RequestOptions {
   readonly form?: FormData;
 }
 
+export interface HandoverPage {
+  readonly handovers: HandoverSummary[];
+  readonly nextCursor?: string;
+}
+
 export class PlombaClient {
   /** The installation's address, without a trailing slash; links are built from it. */
   readonly baseUrl: string;
@@ -127,6 +133,29 @@ export class PlombaClient {
   /** The 30 most recent handovers of the installation, open ones first. */
   recentHandovers(): Promise<HandoverSummary[]> {
     return this.request('GET', '/handovers', HandoverListSchema);
+  }
+
+  /** One page of matching handovers, with the cursor for the next page when there is one. */
+  async searchHandovers(filters: HandoverSearch = {}): Promise<HandoverPage> {
+    const response = await this.#send('GET', '/handovers', {
+      query: { ...filters, limit: filters.limit ?? 30 },
+    });
+    const handovers = await this.#readJson(response, 'GET', '/handovers', HandoverListSchema);
+    const link = response.headers.get('link')?.match(/<([^>]+)>;\s*rel="next"/);
+    const nextCursor = link?.[1]
+      ? new URL(link[1], `${this.baseUrl}/api/handovers`).searchParams.get('cursor')
+      : null;
+    return { handovers, ...(nextCursor ? { nextCursor } : {}) };
+  }
+
+  /** Every matching handover, following cursors until the last page. */
+  async *allHandovers(filters: HandoverSearch = {}): AsyncGenerator<HandoverSummary> {
+    let cursor = filters.cursor;
+    do {
+      const page = await this.searchHandovers({ ...filters, cursor });
+      yield* page.handovers;
+      cursor = page.nextCursor;
+    } while (cursor !== undefined);
   }
 
   startHandover(input: StartHandoverInput): Promise<Handover> {
@@ -195,6 +224,15 @@ export class PlombaClient {
     options: RequestOptions = {},
   ): Promise<z.output<S>> {
     const response = await this.#send(method, path, options);
+    return this.#readJson(response, method, path, schema);
+  }
+
+  async #readJson<S extends z.ZodType>(
+    response: Response,
+    method: string,
+    path: string,
+    schema: S,
+  ): Promise<z.output<S>> {
     let body: unknown;
     try {
       body = await response.json();

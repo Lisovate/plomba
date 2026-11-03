@@ -85,4 +85,10 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE handovers ADD COLUMN transport_mode TEXT CHECK (transport_mode IN ('road', 'rail'));
   ALTER TABLE handovers ADD COLUMN vehicle_id TEXT;
   `,
+  // 2026-11-03: search by vehicle and page through handovers in start order.
+  `
+  CREATE INDEX handovers_by_start ON handovers(started_at DESC, id DESC);
+  CREATE INDEX handovers_by_vehicle
+    ON handovers(upper(replace(replace(vehicle_id, ' ', ''), '-', '')), started_at DESC, id DESC);
+  `,
 ];

@@ -14,11 +14,9 @@ It prints the receipt, or writes it as an HTML page to print, save as PDF or sen
 
 ## The flow
 
-1. Find the handover (`findLatestSealed`):
-   - with `--container`, from that container's whole history (`GET /api/containers/{number}`);
-   - otherwise from the installation's recent handovers (`GET /api/handovers`).
+1. Find the handover (`findLatestSealed`) with `GET /api/handovers?vehicle=<truck>&status=closed`. The API compares registrations without spaces, hyphens or case. `--container` adds a container filter; it is optional even for older handovers.
 
-   Keep the sealed road handovers whose vehicle is the truck (registrations compare without spaces, dashes or case) and take the latest. Open handovers don't count: their record can still change.
+   Follow every next-page `Link` through the client's `allHandovers` async iterator. Keep road handovers and take the most recently sealed one. The search is ordered by start time, so the latest seal may be on a later page. Open handovers don't count: their record can still change.
 2. Read the handover with its marks (`GET /api/handovers/{id}`) and the container's history.
 3. Build the receipt (`buildReceipt`): confirmed marks become the damage list. The record counts as verified only if the container's chain verifies and holds this hash at this position.
 4. Print it as text, or as HTML with `--html`. The exit code is 1 if no handover was found or the record didn't verify.
@@ -75,7 +73,6 @@ The dent is "new" here: the terminal recorded it at this gate. With the Gdynia r
 
 ## What a production version would add
 
-- **Search by vehicle in the API.** Plomba's API has no filter by vehicle, so without `--container` the search covers only the installation's 30 most recent handovers. A dispatcher's system would subscribe to `handover.sealed` webhooks and keep its own index by truck instead of searching.
 - **Delivery to the driver**: the HTML as a PDF by SMS or in the haulier's driver app, the moment the handover is sealed.
 - **The dispatcher's sign-on** to the haulier's own portal, and one Plomba API token per haulier.
 - **Independent verification.** The receipt trusts the server's chain check. Recomputing the hash outside Plomba would need the sealed record itself, which the API doesn't expose.

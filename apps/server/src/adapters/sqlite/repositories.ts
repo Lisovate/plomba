@@ -18,6 +18,7 @@ import type {
   ChainLink,
   ContainerRepository,
   HandoverRepository,
+  HandoverSearchOptions,
   MarkRepository,
   NewHandover,
   NewMark,
@@ -223,6 +224,51 @@ export class SqliteHandoverRepository implements HandoverRepository {
         )
         .all(limit) as Row[]
     ).map((row) => ({
+      ...toHandover(row),
+      markCount: num(row, 'mark_count'),
+      photoCount: num(row, 'photo_count'),
+    }));
+  }
+
+  search(options: HandoverSearchOptions): HandoverSummary[] {
+    const conditions: string[] = [];
+    const values: (string | number)[] = [];
+    if (options.vehicle !== undefined) {
+      conditions.push("upper(replace(replace(h.vehicle_id, ' ', ''), '-', '')) = ?");
+      values.push(options.vehicle);
+    }
+    for (const [column, value] of [
+      ['container_number', options.container],
+      ['status', options.status],
+      ['direction', options.direction],
+      ['place', options.place],
+    ] as const) {
+      if (value !== undefined) {
+        conditions.push(`h.${column} = ?`);
+        values.push(value);
+      }
+    }
+    if (options.after) {
+      if (options.openFirst) {
+        conditions.push("(h.status = 'open', h.started_at, h.id) < (?, ?, ?)");
+        values.push(options.after.status === 'open' ? 1 : 0);
+      } else {
+        conditions.push('(h.started_at, h.id) < (?, ?)');
+      }
+      values.push(options.after.startedAt, options.after.id);
+    }
+    const rows = this.#db
+      .prepare(
+        `SELECT h.*,
+           (SELECT count(*) FROM marks m WHERE m.handover_id = h.id AND m.source != 'rejected') AS mark_count,
+           (SELECT count(*) FROM photos p WHERE p.handover_id = h.id) AS photo_count
+         FROM handovers h
+         ${conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''}
+         ORDER BY ${options.openFirst ? "h.status = 'open' DESC, " : ''}h.started_at DESC, h.id DESC
+         LIMIT ?`,
+      )
+      .all(...values, options.limit) as Row[];
+    return rows.map((row) => ({
       ...toHandover(row),
       markCount: num(row, 'mark_count'),
       photoCount: num(row, 'photo_count'),

@@ -1,3 +1,4 @@
+import { StartHandoverSchema } from '@plomba/contracts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   PlombaApiError,
@@ -28,6 +29,77 @@ describe('CSV', () => {
     const csv = toCsv(rows);
     expect(csv).toContain('"a ""quoted"", field"\r\n');
     expect(parseCsv(csv).map((r) => r.fields)).toEqual(rows);
+  });
+});
+
+describe('the handover search client', () => {
+  it('reads a page, resumes from its cursor and iterates through all matching pages', async () => {
+    const plomba = await installation();
+    try {
+      const service = plomba.sandbox.handovers;
+      service.registerContainer({ number: 'PLBU4000043' });
+      const place = 'Łódź, gate & depot';
+      const handovers = [];
+      for (let i = 0; i < 5; i++) {
+        const handover = service.start(
+          StartHandoverSchema.parse({
+            containerNumber: 'PLBU4000043',
+            direction: 'out',
+            place,
+            checker: 'Gate checker',
+            vehicleId: i === 2 ? 'OTHER' : 'EL-4K217',
+            transportMode: 'road',
+          }),
+        );
+        handovers.push(await service.close(handover.id, { acceptGaps: true }));
+      }
+      const filters = {
+        vehicle: 'el 4k217',
+        container: 'plbu 400004 3',
+        status: 'closed' as const,
+        direction: 'out' as const,
+        place,
+        limit: 2,
+      };
+      const expected = handovers
+        .filter((h) => h.vehicleId !== 'OTHER')
+        .reverse()
+        .map((h) => h.id);
+      const first = await plomba.client.searchHandovers(filters);
+      expect(first.handovers.map((h) => h.id)).toEqual(expected.slice(0, 2));
+      expect(first.nextCursor).toBeTypeOf('string');
+      const second = await plomba.client.searchHandovers({ ...filters, cursor: first.nextCursor });
+      expect(second.handovers.map((h) => h.id)).toEqual(expected.slice(2));
+      expect(second.nextCursor).toBeUndefined();
+      const all = [];
+      for await (const handover of plomba.client.allHandovers(filters)) all.push(handover.id);
+      expect(all).toEqual(expected);
+      const remaining = [];
+      for await (const handover of plomba.client.allHandovers({
+        ...filters,
+        cursor: first.nextCursor,
+      }))
+        remaining.push(handover.id);
+      expect(remaining).toEqual(expected.slice(2));
+      expect(await plomba.client.searchHandovers({ vehicle: 'UNKNOWN' })).toEqual({
+        handovers: [],
+      });
+      await expect(plomba.client.searchHandovers({ cursor: 'invalid' })).rejects.toMatchObject({
+        status: 400,
+      });
+    } finally {
+      await plomba.sandbox.close();
+    }
+  });
+
+  it('validates search responses against the contracts', async () => {
+    const client = new PlombaClient({
+      baseUrl: 'https://plomba.example.com',
+      fetch: async () => Response.json([{ id: 'incomplete' }]),
+    });
+    await expect(client.searchHandovers({ vehicle: 'EL4K217' })).rejects.toBeInstanceOf(
+      PlombaContractError,
+    );
   });
 });
 

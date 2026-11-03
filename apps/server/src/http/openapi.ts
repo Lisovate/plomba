@@ -18,6 +18,7 @@ import {
   HandoverDetailSchema,
   HandoverListSchema,
   HandoverSchema,
+  HandoverSearchSchema,
   IdentifyResultSchema,
   InstanceSchema,
   LoginSchema,
@@ -53,6 +54,8 @@ export interface Operation {
   readonly summary: string;
   readonly tag: 'Containers' | 'Handovers' | 'Marks' | 'Video' | 'Models' | 'Session';
   readonly query?: Readonly<Record<string, string>>;
+  readonly querySchema?: z.ZodObject;
+  readonly responseHeaders?: Readonly<Record<string, string>>;
   readonly body?: z.ZodType | Multipart;
   /** The 2xx response: a schema, or a content type for non-JSON answers. */
   readonly response: z.ZodType | { readonly contentType: string };
@@ -131,8 +134,21 @@ export const OPERATIONS: readonly Operation[] = [
   {
     method: 'get',
     path: '/handovers',
-    summary: 'Recent handovers, open ones first',
+    summary: 'Search handovers, newest first; bare requests keep open handovers first',
     tag: 'Handovers',
+    query: {
+      vehicle: 'Truck plate or wagon number; spaces, hyphens and case are ignored',
+      container: 'ISO 6346 container number; normalised and check-digit validated',
+      status: 'open or closed',
+      direction: 'in or out',
+      place: 'Exact place name (case-sensitive)',
+      limit: 'Page size (1–100, default 30)',
+      cursor: 'Opaque cursor from the next-page Link header; invalid cursors return 400',
+    },
+    querySchema: HandoverSearchSchema,
+    responseHeaders: {
+      Link: 'When more results exist: <relative URL with cursor and the same filters>; rel="next" (RFC 8288). Absent on the last page.',
+    },
     response: HandoverListSchema,
   },
   {
@@ -304,7 +320,7 @@ const problem = {
 };
 
 /** The version of this API description; bumped when the API changes. */
-export const API_VERSION = '1.0.0';
+export const API_VERSION = '1.1.0';
 
 export function openApiDocument(options: { readonly serverUrl: string }) {
   const paths: Record<string, Record<string, unknown>> = {};
@@ -321,7 +337,9 @@ export function openApiDocument(options: { readonly serverUrl: string }) {
         in: 'query',
         required: false,
         description,
-        schema: { type: 'string' },
+        schema: op.querySchema?.shape[name]
+          ? json(op.querySchema.shape[name], 'input')
+          : { type: 'string' },
       })),
     ];
     const content = responseContent(op.response);
@@ -332,7 +350,20 @@ export function openApiDocument(options: { readonly serverUrl: string }) {
       ...(parameters.length > 0 ? { parameters } : {}),
       ...(op.body ? { requestBody: requestBody(op.body) } : {}),
       responses: {
-        [op.status ?? 200]: { description: 'OK', ...(content ? { content } : {}) },
+        [op.status ?? 200]: {
+          description: 'OK',
+          ...(content ? { content } : {}),
+          ...(op.responseHeaders
+            ? {
+                headers: Object.fromEntries(
+                  Object.entries(op.responseHeaders).map(([name, description]) => [
+                    name,
+                    { description, schema: { type: 'string' } },
+                  ]),
+                ),
+              }
+            : {}),
+        },
         '4XX': problem,
         '5XX': problem,
       },

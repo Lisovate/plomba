@@ -179,3 +179,10 @@ A dated record of what was built and when. The newest entry is at the bottom.
 - deploy the demo instance behind HTTPS with an access code, and test on a real phone;
 - record the 3-minute demo video;
 - final README pass and submission.
+
+## 2026-11-03 (Tue): Handover search
+
+- Added API filters for vehicle, container, status, direction and place, with page sizes from 1 to 100.
+- Added cursor paging through next-page `Link` headers. Searches use start time and ID, newest first. Bare requests keep the existing open-first order.
+- Added search and page iteration to the examples client. The driver's receipt now finds older sealed handovers by truck without a container number.
+- Documented the query contract and paging in OpenAPI and the integration guide. Tests cover filters, invalid queries, timestamp ties and handovers arriving between pages.

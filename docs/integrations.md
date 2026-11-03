@@ -9,6 +9,7 @@ How other systems work with Plomba: a shipping line's claims desk, a rail operat
 | Know when a handover is sealed, with its damage and evidence | **Webhooks**: signed `handover.sealed` and `handover.started` events |
 | Read a container's history and damage passport | `GET /api/containers/{number}` |
 | Follow a fleet (an owner code) | `GET /api/containers?owner=PLBU` |
+| Find handovers by truck, wagon, container, status, direction or place | `GET /api/handovers?vehicle=EL4K217&status=closed` |
 | Prepare handovers before the train or truck arrives | `POST /api/containers`, `POST /api/handovers` |
 | Send the gate event to systems that speak EDIFACT | `GET /api/handovers/{id}/codeco` (CODECO D.95B, SMDG 1.6) |
 | Give the other party the receipt | The EIR at `/handovers/{id}/report` (print or save as PDF) |
@@ -29,6 +30,30 @@ The full description is OpenAPI 3.1, generated from the same schemas the server 
   Give each system its own token, so one can be revoked without the others. Tokens are compared in constant time.
 
   Tokens apply when the installation asks for an access code (`PLOMBA_ACCESS_CODE`). Without one, the API is open to anyone who can reach it, so keep such an installation on a private network.
+
+## Search and paging
+
+`GET /api/handovers` accepts these optional filters together:
+
+- `vehicle`: the truck plate or wagon number. Spaces, hyphens and case do not matter.
+- `container`: an ISO 6346 container number. The API normalises it and checks its check digit.
+- `status`: `open` or `closed`.
+- `direction`: `in` or `out`.
+- `place`: the exact place name, including case.
+
+Set `limit` to a page size from 1 to 100 (default 30). Searches return handovers by `startedAt`, newest first, with `id` breaking ties. A request with no query parameters keeps the existing open-first order and returns up to 30 handovers.
+
+The body is always a JSON array. When more matches exist, the response has a `Link` header (RFC 8288):
+
+```http
+Link: </api/handovers?vehicle=EL4K217&status=closed&limit=30&cursor=...>; rel="next"
+```
+
+Follow that URL to get the next page. It keeps the filters and page size. Treat the cursor as opaque. The last page has no next link. Invalid filters, limits and cursors return a 400 problem response.
+
+The cursor keeps the page's position by start time and ID. Handovers added ahead of that position do not shift later pages or cause repeats. Cursors from a bare request keep its open-first order. This is not a snapshot: a handover can still be closed between requests.
+
+The [examples client](../examples/shared/client.ts) provides `searchHandovers(filters)`, which returns `{ handovers, nextCursor }`, and `allHandovers(filters)`, an async iterator over every matching page. Pass `nextCursor` as `cursor` to resume a search.
 
 ## Webhooks
 
