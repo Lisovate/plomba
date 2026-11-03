@@ -45,6 +45,7 @@ describe('loadConfig', () => {
       baseUrl: 'http://glimmer.local:11434/v1',
       apiKey: undefined,
       apiStyle: 'chat-completions',
+      maxImages: 16,
     });
   });
 });

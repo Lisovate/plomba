@@ -27,6 +27,12 @@ const EnvSchema = z
      */
     META_VISION_BASE_URL: z.url().optional(),
     META_VISION_API_STYLE: z.enum(['responses', 'chat-completions']).default('responses'),
+    /**
+     * Images the vision endpoint accepts in one request. A walk-around's frames
+     * go in one call when they fit, so the model sees the whole walk; Muse
+     * Spark Open on Baseten takes 8.
+     */
+    META_VISION_MAX_IMAGES: z.coerce.number().int().min(1).max(64).default(16),
     /** The vision endpoint's own key, if it needs one. The Meta key is never sent there. */
     META_VISION_API_KEY_FILE: z.string().min(1).optional(),
     META_VISION_API_KEY: z.string().min(1).optional(),
@@ -73,6 +79,7 @@ export interface Config {
       readonly baseUrl: string | undefined;
       readonly apiKey: string | undefined;
       readonly apiStyle: 'responses' | 'chat-completions';
+      readonly maxImages: number;
     };
     readonly reasoningEffort: 'minimal' | 'low' | 'medium' | 'high';
     readonly timeoutMs: number;
@@ -133,6 +140,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         baseUrl: e.META_VISION_BASE_URL?.replace(/\/+$/, ''),
         apiKey: visionKey,
         apiStyle: e.META_VISION_API_STYLE,
+        maxImages: e.META_VISION_MAX_IMAGES,
       },
       reasoningEffort: e.META_REASONING_EFFORT,
       timeoutMs: e.META_TIMEOUT_MS,

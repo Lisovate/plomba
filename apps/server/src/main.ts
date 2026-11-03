@@ -73,6 +73,7 @@ function main(): void {
   const classifier = new MuseSparkFaceViewClassifier(visionClient, {
     ...spark,
     api: vision.apiStyle,
+    maxImages: vision.maxImages,
   });
   const segmenter = new Sam3Segmenter(meta, { model: config.meta.segmentationModel });
   const transcriber = new MuseVoiceTranscriber(meta, { model: config.meta.speechModel });

@@ -280,12 +280,6 @@ const VIEW_SCHEMA = {
   },
 } as const;
 
-/**
- * Images per request. Muse Spark Open on Baseten refuses more than 8 ("Too
- * many images: 12 (max 8)"), so larger walk-arounds go in several calls.
- */
-export const MAX_IMAGES_PER_CALL = 8;
-
 const ViewsAnswerSchema = z.object({
   views: z.array(FaceViewSchema.extend({ frame: z.number().int() })),
 });
@@ -293,10 +287,18 @@ const ViewsAnswerSchema = z.object({
 export class MuseSparkFaceViewClassifier implements FaceViewClassifier {
   readonly #client: MetaClient;
   readonly #options: MuseSparkOptions;
+  readonly #maxImages: number;
 
-  constructor(client: MetaClient, options: MuseSparkOptions) {
+  /**
+   * `maxImages`: images the endpoint accepts per request. Muse Spark Open on
+   * Baseten refuses more than 8 ("Too many images: 12 (max 8)"); runs split
+   * there lose sight of each other, so one call is preferred wherever it fits.
+   */
+  constructor(client: MetaClient, options: MuseSparkOptions & { readonly maxImages: number }) {
+    const { maxImages, ...rest } = options;
     this.#client = client;
-    this.#options = options;
+    this.#options = rest;
+    this.#maxImages = maxImages;
   }
 
   /**
@@ -304,7 +306,7 @@ export class MuseSparkFaceViewClassifier implements FaceViewClassifier {
    * consecutive frames, so each call still sees part of the walk in order.
    */
   async classify(frames: readonly ImageInput[]): Promise<FaceView[]> {
-    const calls = Math.ceil(frames.length / MAX_IMAGES_PER_CALL);
+    const calls = Math.ceil(frames.length / this.#maxImages);
     const size = Math.ceil(frames.length / Math.max(1, calls));
     const runs = Array.from({ length: calls }, (_, i) => frames.slice(i * size, (i + 1) * size));
     return (await Promise.all(runs.map((run) => this.#classifyRun(run)))).flat();

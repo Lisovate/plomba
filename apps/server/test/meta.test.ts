@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { type MetaApiError, MetaClient } from '../src/adapters/meta/client.ts';
-import {
-  MAX_IMAGES_PER_CALL,
-  MuseSparkFaceViewClassifier,
-} from '../src/adapters/meta/muse-spark.ts';
+import { MuseSparkFaceViewClassifier } from '../src/adapters/meta/muse-spark.ts';
 import { parseSegmentation } from '../src/adapters/meta/sam.ts';
 import { askStructured } from '../src/adapters/meta/structured.ts';
 import { silentLogger } from './fakes.ts';
@@ -210,7 +207,7 @@ describe('MuseSparkFaceViewClassifier', () => {
           .flatMap((m) => (typeof m.content === 'string' ? [] : m.content))
           .filter((part) => part.type === 'image_url').length;
         imagesPerRequest.push(images);
-        if (images > MAX_IMAGES_PER_CALL) return jsonResponse(400, { error: 'Too many images' });
+        if (images > 8) return jsonResponse(400, { error: 'Too many images' });
         // Each run's answer names its frames 1..n; the note says which frame it was overall.
         const views = Array.from({ length: images }, (_, i) => ({
           frame: i + 1,
@@ -230,6 +227,7 @@ describe('MuseSparkFaceViewClassifier', () => {
       model: 'meta-models/muse-spark-open-1026',
       reasoningEffort: 'low',
       api: 'chat-completions',
+      maxImages: 8,
     });
     const frame = { data: new Uint8Array([1]), mimeType: 'image/jpeg' as const };
 
