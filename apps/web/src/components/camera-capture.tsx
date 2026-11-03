@@ -1,3 +1,4 @@
+import { Camera, ImagePlus } from 'lucide-react';
 import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n/index.tsx';
 
@@ -104,12 +105,12 @@ export function CameraCapture({
           />
         ) : (
           <label className="button">
-            {t('camera.take')}
+            <Camera size={18} aria-hidden /> {t('camera.take')}
             <input type="file" accept="image/*" capture="environment" hidden onChange={choose} />
           </label>
         )}
         <label className="button secondary">
-          {t('camera.choose')}
+          <ImagePlus size={18} aria-hidden /> {t('camera.choose')}
           <input type="file" accept="image/*" hidden onChange={choose} disabled={busy} />
         </label>
       </div>

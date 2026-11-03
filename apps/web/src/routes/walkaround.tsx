@@ -19,6 +19,7 @@ import {
   viewAtFrame,
 } from '@plomba/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Circle, CircleCheck, CirclePlay, Frame, ScanSearch, Sparkles, Upload } from 'lucide-react';
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { api, queryKeys } from '../api/client.ts';
@@ -195,39 +196,65 @@ export function WalkaroundScreen() {
   return (
     <div className="stack">
       <Card>
-        <h1>{t('walk.title')}</h1>
+        <p className="eyebrow">{t('walk.title')}</p>
         <Link to={`/handovers/${id}`} className="big-number">
           <ContainerNumberText value={container.number} />
         </Link>
         <p className="muted">{t('walk.intro')}</p>
-        <label className="field">
-          {t('walk.video')}
-          <input type="file" accept="video/mp4,video/quicktime" onChange={choose} />
+        <ol className="how">
+          <li>
+            <ScanSearch size={18} aria-hidden /> {t('walk.how.track')}
+          </li>
+          <li>
+            <Frame size={18} aria-hidden /> {t('walk.how.pick')}
+          </li>
+          <li>
+            <Sparkles size={18} aria-hidden /> {t('walk.how.name')}
+          </li>
+          <li>
+            <CircleCheck size={18} aria-hidden /> {t('walk.how.confirm')}
+          </li>
+        </ol>
+        <label className="dropzone">
+          <Upload size={26} aria-hidden />
+          <strong>{t('walk.video')}</strong>
+          <span>{t('walk.tip')}</span>
+          <input
+            type="file"
+            accept="video/mp4,video/quicktime"
+            className="visually-hidden"
+            onChange={choose}
+          />
         </label>
-        <p className="muted">{t('walk.tip')}</p>
-        {samples.data && samples.data.length > 0 && (
-          <div className="samples">
-            <p className="muted">{t('walk.samples')}</p>
-            <ul className="list">
-              {samples.data.map((s) => (
-                <li key={s.url}>
-                  <button
-                    type="button"
-                    className="secondary small"
-                    disabled={sample.isPending}
-                    onClick={() => sample.mutate(s)}
-                  >
-                    {s.title}
-                  </button>{' '}
-                  <span className="muted">{s.credit}</span>
-                </li>
-              ))}
-            </ul>
-            {sample.isPending && <Spinner label={t('walk.loadingSample')} />}
-            {sample.isError && <ErrorNotice error={sample.error} />}
-          </div>
-        )}
       </Card>
+
+      {samples.data && samples.data.length > 0 && (
+        <section className="samples">
+          <div className="section-head">
+            <h2>{t('walk.samples')}</h2>
+          </div>
+          <ul className="sample-grid">
+            {samples.data.map((s) => (
+              <li key={s.url}>
+                <button
+                  type="button"
+                  className="sample"
+                  disabled={sample.isPending}
+                  onClick={() => sample.mutate(s)}
+                >
+                  <CirclePlay size={26} aria-hidden />
+                  <span>
+                    <strong>{s.title}</strong>
+                    <small>{s.credit}</small>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {sample.isPending && <Spinner label={t('walk.loadingSample')} />}
+          {sample.isError && <ErrorNotice error={sample.error} />}
+        </section>
+      )}
 
       {clip && (
         <VideoAr
@@ -245,10 +272,10 @@ export function WalkaroundScreen() {
 
       {clip && analyse.isIdle && (
         <button type="button" className="primary large" onClick={() => run(clip)}>
-          {t('walk.analyse')}
+          <Sparkles size={20} aria-hidden /> {t('walk.analyse')}
         </button>
       )}
-      {analyse.isPending && <Spinner label={t(`walk.step.${step}`)} />}
+      {analyse.isPending && <AnalysisSteps step={step} />}
       {analyse.isError &&
         (analyse.error instanceof BlankFramesError ? (
           <p className="notice error">{t('walk.blankFrames')}</p>
@@ -375,6 +402,30 @@ function Results({
         <AddToHandover handoverId={detail.handover.id} analysis={analysis} use={use} />
       )}
     </>
+  );
+}
+
+const STEPS: readonly Step[] = ['tracking', 'choosing', 'naming', 'reading'];
+
+/** Where the analysis is: done, current and still to come. */
+function AnalysisSteps({ step }: { step: Step }) {
+  const { t } = useI18n();
+  const current = STEPS.indexOf(step);
+  return (
+    <ol className="stepper card" role="status" aria-live="polite">
+      {STEPS.map((s, i) => (
+        <li key={s} className={i < current ? 'done' : i === current ? 'current' : ''}>
+          {i < current ? (
+            <CircleCheck size={18} aria-hidden />
+          ) : i === current ? (
+            <span className="spinner-dot" aria-hidden />
+          ) : (
+            <Circle size={18} aria-hidden />
+          )}
+          {t(`walk.step.${s}`)}
+        </li>
+      ))}
+    </ol>
   );
 }
 

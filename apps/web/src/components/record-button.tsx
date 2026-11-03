@@ -1,11 +1,13 @@
 import { useMutation } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n/index.tsx';
 import { NoteRecorder } from '../lib/audio.ts';
 
 interface RecordButtonProps<T> {
   /** The button's label while idle. */
   readonly label: string;
+  /** Shown before the label. */
+  readonly icon?: ReactNode;
   /** Shown while the recording is being processed. */
   readonly working: string;
   /** What happens to the recording (mono WAV), e.g. transcription. */
@@ -22,6 +24,7 @@ interface RecordButtonProps<T> {
  */
 export function RecordButton<T>({
   label,
+  icon,
   working,
   process,
   onDone,
@@ -70,7 +73,15 @@ export function RecordButton<T>({
         onClick={toggle}
         aria-pressed={recording}
       >
-        {run.isPending ? working : recording ? t('dictate.stop') : label}
+        {run.isPending ? (
+          working
+        ) : recording ? (
+          t('dictate.stop')
+        ) : (
+          <>
+            {icon} {label}
+          </>
+        )}
       </button>
       {denied && <span className="hint">{t('dictate.denied')}</span>}
       {run.isError && !onError && <span className="hint">{t('common.error')}</span>}

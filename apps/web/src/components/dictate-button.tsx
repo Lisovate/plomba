@@ -1,3 +1,4 @@
+import { Mic } from 'lucide-react';
 import { api } from '../api/client.ts';
 import { useI18n } from '../i18n/index.tsx';
 import { RecordButton } from './record-button.tsx';
@@ -8,6 +9,7 @@ export function DictateButton({ onText }: { onText: (text: string) => void }) {
   return (
     <RecordButton
       label={t('dictate.start')}
+      icon={<Mic size={18} aria-hidden />}
       working={t('dictate.working')}
       process={api.transcribe}
       onDone={({ text }) => {

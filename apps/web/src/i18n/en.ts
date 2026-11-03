@@ -252,17 +252,21 @@ export const en = {
   'passport.broken': "The container's history doesn't verify, so no damage history is shown.",
   'walk.title': 'Walk-around video',
   'walk.intro':
-    "Record one slow walk around the container on a phone or Meta AI glasses. SAM 3.1 tracks the container through every frame, Plomba picks the frames where one face is whole and square-on, and Muse Spark names each face and reads the doors. You confirm, and the frames become this handover's photos. The clip itself is not stored.",
+    "One clip from a phone or Meta AI glasses becomes this handover's photos. The clip itself is not stored.",
   'walk.tip':
     'Stop for a second square-on to each face, far enough back for the whole face to fit in the frame.',
-  'walk.samples': 'No footage of your own? Try a sample clip:',
+  'walk.samples': 'Or try a sample clip',
   'walk.loadingSample': 'Loading the sample clip…',
   'walk.sampleCredit': 'Sample clip:',
   'walk.blankFrames':
     "This browser returned blank frames from the clip, so the faces can't be named. Try again, or use another browser.",
   'walk.sideGuessed':
     "Left or right is a guess: the doors aren't in view. Check which end they are at.",
-  'walk.video': 'Video (MP4 or MOV)',
+  'walk.how.track': 'SAM 3.1 tracks the container through every frame',
+  'walk.how.pick': 'Plomba picks the frames where a face is whole, and splits corners',
+  'walk.how.name': 'Muse Spark names each face and reads the doors',
+  'walk.how.confirm': 'You confirm; the frames become photos',
+  'walk.video': 'Choose a video (MP4 or MOV)',
   'walk.analyse': 'Analyse the walk-around',
   'walk.step.tracking': 'SAM 3.1 is tracking the container through every frame…',
   'walk.step.choosing': 'Choosing the frames where one face is whole and square-on…',

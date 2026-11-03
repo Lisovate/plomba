@@ -255,17 +255,21 @@ export const pl: Messages = {
     'Historia kontenera nie przechodzi weryfikacji, więc historia uszkodzeń nie jest pokazana.',
   'walk.title': 'Nagranie obchodu',
   'walk.intro':
-    'Nagraj jeden powolny obchód kontenera telefonem lub okularami Meta AI. SAM 3.1 śledzi kontener w każdej klatce, Plomba wybiera klatki, na których jedna ściana jest widoczna w całości i na wprost, a Muse Spark nazywa każdą ścianę i odczytuje drzwi. Ty zatwierdzasz, a klatki stają się zdjęciami tego przekazania. Samo nagranie nie jest zapisywane.',
+    'Jedno nagranie z telefonu lub okularów Meta AI staje się zdjęciami tego przekazania. Samo nagranie nie jest zapisywane.',
   'walk.tip':
     'Zatrzymaj się na sekundę na wprost każdej ściany, na tyle daleko, by cała ściana mieściła się w kadrze.',
-  'walk.samples': 'Nie masz własnego nagrania? Wypróbuj przykładowy klip:',
+  'walk.samples': 'Albo wypróbuj przykładowy klip',
   'walk.loadingSample': 'Ładowanie przykładowego klipu…',
   'walk.sampleCredit': 'Przykładowy klip:',
   'walk.blankFrames':
     'Ta przeglądarka zwróciła puste klatki nagrania, więc nie da się rozpoznać ścian. Spróbuj ponownie albo użyj innej przeglądarki.',
   'walk.sideGuessed':
     'Lewa czy prawa to przypuszczenie: drzwi nie są widoczne. Sprawdź, po której stronie są.',
-  'walk.video': 'Wideo (MP4 lub MOV)',
+  'walk.how.track': 'SAM 3.1 śledzi kontener w każdej klatce',
+  'walk.how.pick': 'Plomba wybiera klatki z całą ścianą i dzieli narożniki',
+  'walk.how.name': 'Muse Spark nazywa ściany i odczytuje drzwi',
+  'walk.how.confirm': 'Ty zatwierdzasz; klatki stają się zdjęciami',
+  'walk.video': 'Wybierz wideo (MP4 lub MOV)',
   'walk.analyse': 'Przeanalizuj obchód',
   'walk.step.tracking': 'SAM 3.1 śledzi kontener w każdej klatce…',
   'walk.step.choosing': 'Wybieranie klatek, na których jedna ściana jest cała i na wprost…',

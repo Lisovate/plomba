@@ -1,6 +1,7 @@
 import type { Container, Mark, Photo, SpokenDamageResult } from '@plomba/contracts';
 import { type Face, type FaceRect, locationCode, type Quad } from '@plomba/core';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Camera, Mic, Move, Sparkles, SquareDashed } from 'lucide-react';
 import { useState } from 'react';
 import { api, queryKeys } from '../api/client.ts';
 import { useI18n } from '../i18n/index.tsx';
@@ -221,7 +222,7 @@ export function FacePanel(props: FacePanelProps) {
                 disabled={!photo.corners || propose.isPending}
                 onClick={() => propose.mutate()}
               >
-                {t('handover.findDamage')}
+                <Sparkles size={18} aria-hidden /> {t('handover.findDamage')}
               </button>
               <button
                 type="button"
@@ -229,10 +230,11 @@ export function FacePanel(props: FacePanelProps) {
                 disabled={!photo.corners}
                 onClick={() => setMode(mode === 'draw' ? 'view' : 'draw')}
               >
-                {t('handover.addMark')}
+                <SquareDashed size={18} aria-hidden /> {t('handover.addMark')}
               </button>
               <RecordButton
                 label={t('handover.speakDamage')}
+                icon={<Mic size={18} aria-hidden />}
                 working={t('handover.speaking')}
                 process={(wav) => api.speakDamage(handoverId, face, wav)}
                 onDone={async (result) => {
@@ -246,10 +248,10 @@ export function FacePanel(props: FacePanelProps) {
                 }}
               />
               <button type="button" className="secondary" onClick={() => setMode('corners')}>
-                {t('handover.adjust')}
+                <Move size={18} aria-hidden /> {t('handover.adjust')}
               </button>
               <button type="button" className="secondary" onClick={() => setRetaking(true)}>
-                {t('handover.retake')}
+                <Camera size={18} aria-hidden /> {t('handover.retake')}
               </button>
             </>
           )}
