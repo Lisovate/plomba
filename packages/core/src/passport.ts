@@ -56,11 +56,17 @@ export interface DamageHistory {
    * search for a clear handover stops there.
    */
   readonly recordedNearbyAt: string | null;
-  /** Every handover that recorded it, oldest first. */
+  /**
+   * Every handover that recorded it, oldest first, with the codes as that
+   * handover recorded them, so a statement about an earlier handover (an
+   * off-hire, a claim) can quote what was on record then.
+   */
   readonly trail: {
     readonly handoverId: string;
     readonly markId: string;
     readonly status: PassportStatus;
+    readonly locationCode: string;
+    readonly damageCode: string | null;
   }[];
 }
 
@@ -88,15 +94,22 @@ export function damageHistory(
       const existing = root ? histories.get(root) : undefined;
       if (root && existing) {
         rootOf.set(mark.id, root);
+        const damageCode = mark.damageCode ?? existing.damageCode;
         histories.set(root, {
           ...existing,
           rect: mark.rect,
           locationCode: mark.locationCode,
-          damageCode: mark.damageCode ?? existing.damageCode,
+          damageCode,
           status: mark.status,
           trail: [
             ...existing.trail,
-            { handoverId: handover.id, markId: mark.id, status: mark.status },
+            {
+              handoverId: handover.id,
+              markId: mark.id,
+              status: mark.status,
+              locationCode: mark.locationCode,
+              damageCode,
+            },
           ],
         });
         continue;
@@ -136,7 +149,15 @@ export function damageHistory(
         lastClear,
         notInspectedAt: notInspectedAt.reverse(),
         recordedNearbyAt,
-        trail: [{ handoverId: handover.id, markId: mark.id, status: mark.status }],
+        trail: [
+          {
+            handoverId: handover.id,
+            markId: mark.id,
+            status: mark.status,
+            locationCode: mark.locationCode,
+            damageCode: mark.damageCode,
+          },
+        ],
       });
     }
   });

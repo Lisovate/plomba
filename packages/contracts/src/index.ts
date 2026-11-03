@@ -316,8 +316,15 @@ export const DamageHistorySchema = z.object({
   notInspectedAt: z.array(z.string()),
   /** An earlier handover that recorded damage on this spot without it being linked: maybe the same damage. */
   recordedNearbyAt: z.string().nullable(),
+  /** Every handover that recorded it, oldest first, with the codes as that handover recorded them. */
   trail: z.array(
-    z.object({ handoverId: z.string(), markId: z.string(), status: MarkStatusSchema }),
+    z.object({
+      handoverId: z.string(),
+      markId: z.string(),
+      status: MarkStatusSchema,
+      locationCode: z.string(),
+      damageCode: z.string().nullable(),
+    }),
   ),
 });
 

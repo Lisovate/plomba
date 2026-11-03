@@ -97,10 +97,19 @@ export function compareLease(
 
   /** Position of a handover in the chain; -1 if unknown. */
   const seq = (id: string | null) => (id ? (sealed.get(id)?.seal.sequence ?? -1) : -1);
-  /** The damage's status at the last handover up to `limit` that recorded it. */
-  const statusBy = (d: DamageHistory, limit: number) =>
-    d.trail.filter((step) => seq(step.handoverId) <= limit).at(-1)?.status;
-  const item = (d: DamageHistory, reason?: string): LeaseItem => {
+  /** The damage as the last handover up to `limit` that recorded it had it. */
+  const recordBy = (d: DamageHistory, limit: number) =>
+    d.trail.filter((step) => seq(step.handoverId) <= limit).at(-1);
+  const statusBy = (d: DamageHistory, limit: number) => recordBy(d, limit)?.status;
+  /**
+   * One line of the statement, with the codes on record at `limit`: a later
+   * handover may re-code the damage, and a statement already issued for this
+   * lease must not change with it.
+   */
+  const item = (d: DamageHistory, limit: number, reason?: string): LeaseItem => {
+    const record = recordBy(d, limit);
+    const locationCode = record?.locationCode ?? d.locationCode;
+    const damageCode = record ? record.damageCode : d.damageCode;
     const clear = d.lastClear ? sealed.get(d.lastClear) : undefined;
     const first = sealed.get(d.firstRecorded);
     if (!first) {
@@ -108,9 +117,9 @@ export function compareLease(
     }
     return {
       damageId: d.id,
-      locationCode: d.locationCode,
-      damageCode: d.damageCode,
-      description: `${damageName(d.damageCode)}, ${faceName(d.face)}`,
+      locationCode,
+      damageCode,
+      description: `${damageName(damageCode)}, ${faceName(d.face)}`,
       firstRecorded: lease(first),
       lastClear: clear ? lease(clear) : null,
       ...(reason ? { reason } : {}),
@@ -130,12 +139,13 @@ export function compareLease(
   for (const d of history.damage) {
     const first = seq(d.firstRecorded);
     if (first <= on.seal.sequence) {
-      if (statusBy(d, on.seal.sequence) !== 'repaired') comparison.atOnHire.push(item(d));
+      if (statusBy(d, on.seal.sequence) !== 'repaired')
+        comparison.atOnHire.push(item(d, on.seal.sequence));
       continue;
     }
     if (first > off.seal.sequence) continue; // after the lease
     if (statusBy(d, off.seal.sequence) === 'repaired') {
-      comparison.repairedDuringLease.push(item(d));
+      comparison.repairedDuringLease.push(item(d, off.seal.sequence));
       continue;
     }
     const nearby = d.recordedNearbyAt ? sealed.get(d.recordedNearbyAt) : undefined;
@@ -143,20 +153,24 @@ export function compareLease(
       comparison.forReview.push(
         item(
           d,
+          off.seal.sequence,
           `damage was already recorded on this spot at ${nearby ? `${nearby.place}, ${formatTime(nearby.startedAt)}` : 'an earlier handover'}; it may be the same damage`,
         ),
       );
     } else if (d.lastClear && seq(d.lastClear) >= on.seal.sequence) {
-      comparison.chargeable.push(item(d));
+      comparison.chargeable.push(item(d, off.seal.sequence));
     } else if (d.lastClear) {
       comparison.forReview.push(
         item(
           d,
+          off.seal.sequence,
           'the on-hire survey didn’t photograph this spot; it was last seen clean before the lease',
         ),
       );
     } else {
-      comparison.forReview.push(item(d, 'no handover photographed this spot clean'));
+      comparison.forReview.push(
+        item(d, off.seal.sequence, 'no handover photographed this spot clean'),
+      );
     }
   }
   return comparison;

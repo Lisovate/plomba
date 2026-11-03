@@ -136,6 +136,38 @@ describe('on-hire to off-hire', () => {
     expect(markdown).toContain(`\`${gdynia.seal?.hash}\``);
   });
 
+  it('quotes the codes on record at off-hire, even after a later handover re-codes the damage', async () => {
+    const history = await plomba.client.containerHistory(CONTAINER);
+    const { gdynia, lodzIn, lodzOut } = plomba.journey.handovers;
+    const dent = history.damage.find((d) => d.id === plomba.journey.damage.dent.id);
+    if (!dent) throw new Error('No dent');
+    const recordedAtOffHire = { locationCode: dent.locationCode, damageCode: dent.damageCode };
+    // After the lease, the next handover records the same damage as a hole further along.
+    const recoded = {
+      ...history,
+      damage: [
+        {
+          ...dent,
+          locationCode: 'RB4N',
+          damageCode: 'HO',
+          trail: [
+            ...dent.trail,
+            {
+              handoverId: lodzOut.id,
+              markId: 'later',
+              status: 'changed' as const,
+              locationCode: 'RB4N',
+              damageCode: 'HO',
+            },
+          ],
+        },
+      ],
+    };
+    const lease = compareLease(recoded, gdynia.id, lodzIn.id);
+    expect(lease.chargeable).toHaveLength(1);
+    expect(lease.chargeable[0]).toMatchObject(recordedAtOffHire);
+  });
+
   it('counts damage repaired by off-hire as repaired during the lease', async () => {
     const history = await plomba.client.containerHistory(CONTAINER);
     const { gdynia, lodzIn, lodzOut } = plomba.journey.handovers;

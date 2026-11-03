@@ -56,6 +56,32 @@ describe('damageHistory', () => {
     expect(histories[0]?.trail.map((t) => t.handoverId)).toEqual(['lodz', 'poznan', 'depot']);
   });
 
+  it('keeps the codes each handover recorded, carrying a damage code a later mark left out', () => {
+    const [history] = damageHistory(
+      [
+        handover('lodz', [mark('m1')]),
+        handover('poznan', [
+          mark('m2', {
+            status: 'changed',
+            previousMarkId: 'm1',
+            locationCode: 'LB45',
+            damageCode: null,
+          }),
+        ]),
+        handover('depot', [
+          mark('m3', { status: 'changed', previousMarkId: 'm2', damageCode: 'HO' }),
+        ]),
+      ],
+      DEFAULT_DIMENSIONS,
+    );
+    expect(history?.trail.map((t) => [t.handoverId, t.locationCode, t.damageCode])).toEqual([
+      ['lodz', 'LB4N', 'DT'],
+      ['poznan', 'LB45', 'DT'],
+      ['depot', 'LB4N', 'HO'],
+    ]);
+    expect(history).toMatchObject({ locationCode: 'LB4N', damageCode: 'HO' });
+  });
+
   it('skips earlier handovers that did not photograph the spot', () => {
     const [history] = damageHistory(
       [handover('gdynia'), handover('rail-yard', [], true), handover('lodz', [mark('m1')])],
