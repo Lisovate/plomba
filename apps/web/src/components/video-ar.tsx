@@ -8,6 +8,7 @@ import {
   type Point,
   projectFaceRect,
   type Quad,
+  quadArea,
 } from '@plomba/core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../i18n/index.tsx';
@@ -47,7 +48,16 @@ function trackedAt(tracking: VideoTracking, frame: number): TrackedFrame | null 
 /** The faces to draw, each with the outline it occupies in the frame. */
 function facesInView(tracked: TrackedFrame, view: FrameView | null): { face: Face; quad: Quad }[] {
   if (!view) return [];
-  if ('face' in view) return [{ face: view.face, quad: tracked.corners }];
+  if ('face' in view) {
+    // Seen at an angle, the outline covers two faces: the named one is the larger part.
+    const { split } = tracked;
+    const quad = split
+      ? quadArea(split.left) >= quadArea(split.right)
+        ? split.left
+        : split.right
+      : tracked.corners;
+    return [{ face: view.face, quad }];
+  }
   if (!tracked.split) return [];
   return [
     { face: view.corner.left, quad: tracked.split.left },

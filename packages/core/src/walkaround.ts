@@ -41,6 +41,9 @@ export interface FaceView {
 /** How much a blurred or covered frame counts against a clear one. */
 const UNCLEAR_WEIGHT = 0.5;
 
+/** How much a whole face seen at an angle counts against one seen square-on. */
+const ANGLED_WEIGHT = 0.5;
+
 export interface CandidateOptions {
   /** Chosen frames are at least this many frames apart. */
   readonly minGap: number;
@@ -114,8 +117,10 @@ export function pickCandidateFrames(
 }
 
 /**
- * For each face, the best candidate the model saw square-on as that face: the
- * highest score, with frames that are blurred or partly covered counting half.
+ * For each face, the best candidate the model saw as that face: the highest
+ * score, with frames seen at an angle, blurred or partly covered counting
+ * half each. A face seen only at an angle is still chosen: better a slanted
+ * photo than none.
  */
 export function bestFramePerFace(
   candidates: readonly FrameCandidate[],
@@ -124,8 +129,11 @@ export function bestFramePerFace(
   const best = new Map<Face, { candidate: FrameCandidate; weighted: number }>();
   candidates.forEach((candidate, i) => {
     const view = views[i];
-    if (!view?.face || !view.squareOn) return;
-    const weighted = candidate.score * (view.clear === false ? UNCLEAR_WEIGHT : 1);
+    if (!view?.face) return;
+    const weighted =
+      candidate.score *
+      (view.squareOn ? 1 : ANGLED_WEIGHT) *
+      (view.clear === false ? UNCLEAR_WEIGHT : 1);
     const current = best.get(view.face);
     if (!current || weighted > current.weighted) best.set(view.face, { candidate, weighted });
   });
@@ -243,7 +251,7 @@ export function chooseWalkaroundPhotos(
   // A corner view's outline covers two faces, so it can only be used split.
   const whole = bestFramePerFace(
     candidates,
-    candidates.map((c) => (c.split && c.view.corner ? { ...c.view, squareOn: false } : c.view)),
+    candidates.map((c) => (c.split && c.view.corner ? { ...c.view, face: null } : c.view)),
   );
   const choices: PhotoChoice[] = [...whole].map(([face, best]) => ({
     index: candidates.findIndex((c) => c.frame === best.frame),
@@ -261,4 +269,54 @@ export function chooseWalkaroundPhotos(
     }
   });
   return [...choices, ...[...parts.values()].map((p) => p.choice)];
+}
+
+/**
+ * Makes one continuous view of a long side name the same side. Candidate
+ * frames between which the camera never turns a corner (no tracked frame in
+ * between is seen corner-on, and the container is never lost) show the same
+ * face, so where the model calls that side left in some frames and right in
+ * others, the confidence-weighted majority wins. A tie is left as it is.
+ */
+export function harmonizeSides<V extends FaceView & { readonly confidence?: number }>(
+  candidates: readonly { readonly frame: number; readonly view: V }[],
+  tracked: readonly { readonly frame: number; readonly split?: unknown }[],
+): V[] {
+  const corners = new Set(tracked.filter((t) => t.split).map((t) => t.frame));
+  const seen = new Set(tracked.map((t) => t.frame));
+  const isSide = (view: V) => (view.face === 'L' || view.face === 'R') && !view.corner;
+  const continuous = (from: number, to: number) => {
+    for (let frame = from; frame <= to; frame++) {
+      if (corners.has(frame) || !seen.has(frame)) return false;
+    }
+    return true;
+  };
+
+  const views = candidates.map((c) => c.view);
+  let start = 0;
+  while (start < candidates.length) {
+    const first = candidates[start] as { frame: number; view: V };
+    if (!isSide(first.view)) {
+      start++;
+      continue;
+    }
+    let end = start;
+    while (end + 1 < candidates.length) {
+      const next = candidates[end + 1] as { frame: number; view: V };
+      const current = candidates[end] as { frame: number; view: V };
+      if (!isSide(next.view) || !continuous(current.frame, next.frame)) break;
+      end++;
+    }
+    const votes = { L: 0, R: 0 };
+    for (let i = start; i <= end; i++) {
+      const view = views[i] as V;
+      votes[view.face as 'L' | 'R'] += view.confidence ?? 1;
+    }
+    if (votes.L !== votes.R) {
+      const side: Face = votes.L > votes.R ? 'L' : 'R';
+      for (let i = start; i <= end; i++) views[i] = { ...(views[i] as V), face: side };
+    }
+    start = end + 1;
+  }
+  return views;
 }

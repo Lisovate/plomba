@@ -238,6 +238,8 @@ export const en = {
   'walk.samples': 'No footage of your own? Try a sample clip:',
   'walk.loadingSample': 'Loading the sample clip…',
   'walk.sampleCredit': 'Sample clip:',
+  'walk.blankFrames':
+    "This browser returned blank frames from the clip, so the faces can't be named. Try again, or use another browser.",
   'walk.video': 'Video (MP4 or MOV)',
   'walk.analyse': 'Analyse the walk-around',
   'walk.step.tracking': 'SAM 3.1 is tracking the container through every frame…',

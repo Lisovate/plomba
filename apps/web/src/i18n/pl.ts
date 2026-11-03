@@ -241,6 +241,8 @@ export const pl: Messages = {
   'walk.samples': 'Nie masz własnego nagrania? Wypróbuj przykładowy klip:',
   'walk.loadingSample': 'Ładowanie przykładowego klipu…',
   'walk.sampleCredit': 'Przykładowy klip:',
+  'walk.blankFrames':
+    'Ta przeglądarka zwróciła puste klatki nagrania, więc nie da się rozpoznać ścian. Spróbuj ponownie albo użyj innej przeglądarki.',
   'walk.video': 'Wideo (MP4 lub MOV)',
   'walk.analyse': 'Przeanalizuj obchód',
   'walk.step.tracking': 'SAM 3.1 śledzi kontener w każdej klatce…',

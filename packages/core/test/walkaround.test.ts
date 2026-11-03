@@ -4,6 +4,7 @@ import {
   bestFramePerFace,
   chooseWalkaroundPhotos,
   frameScore,
+  harmonizeSides,
   isCornerPair,
   pickCandidateFrames,
   splitCornerView,
@@ -101,7 +102,22 @@ describe('bestFramePerFace', () => {
       { face: null, squareOn: false },
     ]);
     expect(best.get('D')?.frame).toBe(15);
-    expect(best.has('R')).toBe(false);
+    // Seen only at an angle, the right side is still chosen rather than left out.
+    expect(best.get('R')?.frame).toBe(30);
+  });
+
+  it('prefers a square-on frame to a larger one seen at an angle', () => {
+    const best = bestFramePerFace(
+      [
+        { frame: 0, score: 0.7 },
+        { frame: 15, score: 0.4 },
+      ],
+      [
+        { face: 'L', squareOn: false },
+        { face: 'L', squareOn: true },
+      ],
+    );
+    expect(best.get('L')?.frame).toBe(15);
   });
 
   it('prefers a clear frame to a larger one with a hand in front of the face', () => {
@@ -228,5 +244,59 @@ describe('chooseWalkaroundPhotos', () => {
       { index: 0, part: 'left', face: 'D' },
       { index: 0, part: 'right', face: 'R' },
     ]);
+  });
+});
+
+describe('harmonizeSides', () => {
+  const tracked = (frames: number, corners: number[] = []) =>
+    Array.from({ length: frames }, (_, frame) => ({
+      frame,
+      split: corners.includes(frame) ? {} : null,
+    }));
+  const side = (face: 'L' | 'R', confidence = 0.9) => ({ face, squareOn: true, confidence });
+
+  it('names one continuous view of a side the same, by weighted majority', () => {
+    const views = harmonizeSides(
+      [
+        { frame: 0, view: side('R', 0.6) },
+        { frame: 15, view: side('L') },
+        { frame: 30, view: side('L') },
+      ],
+      tracked(40),
+    );
+    expect(views.map((v) => v.face)).toEqual(['L', 'L', 'L']);
+  });
+
+  it('keeps sides apart where the camera turns a corner in between', () => {
+    const views = harmonizeSides(
+      [
+        { frame: 0, view: side('L') },
+        { frame: 30, view: side('R') },
+      ],
+      tracked(40, [15]),
+    );
+    expect(views.map((v) => v.face)).toEqual(['L', 'R']);
+  });
+
+  it('keeps sides apart where the container is lost in between, and leaves ties alone', () => {
+    const lost = tracked(40).filter((t) => t.frame !== 20);
+    expect(
+      harmonizeSides(
+        [
+          { frame: 0, view: side('L') },
+          { frame: 30, view: side('R') },
+        ],
+        lost,
+      ).map((v) => v.face),
+    ).toEqual(['L', 'R']);
+    expect(
+      harmonizeSides(
+        [
+          { frame: 0, view: side('L') },
+          { frame: 30, view: side('R') },
+        ],
+        tracked(40),
+      ).map((v) => v.face),
+    ).toEqual(['L', 'R']);
   });
 });

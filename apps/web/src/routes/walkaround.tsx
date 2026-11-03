@@ -11,6 +11,7 @@ import {
   FACES,
   type Face,
   type FrameCandidate,
+  harmonizeSides,
   type PhotoChoice,
   pickCandidateFrames,
   type Quad,
@@ -24,7 +25,7 @@ import { Card, ContainerNumberText, ErrorNotice, Spinner } from '../components/u
 import { type FrameView, VideoAr } from '../components/video-ar.tsx';
 import { useI18n } from '../i18n/index.tsx';
 import { prepareUpload } from '../lib/image.ts';
-import { frameTime, grabFrames, probeVideo } from '../lib/video-frames.ts';
+import { BlankFramesError, frameTime, grabFrames, probeVideo } from '../lib/video-frames.ts';
 
 /** Frames sent to Muse Spark in one call; the server accepts up to 16. */
 const MAX_FRAMES = 12;
@@ -113,18 +114,24 @@ export function WalkaroundScreen() {
         picked.map((c) => frameTime(c.frame, fps)),
       );
       setStep('naming');
-      const { views } = await api.videoFaces(blobs);
+      const { views: named } = await api.videoFaces(blobs);
+      const unnamed: FaceView = {
+        face: null,
+        squareOn: false,
+        corner: null,
+        clear: false,
+        confidence: 0,
+        note: '',
+      };
+      // One continuous view of a side is one side, whatever single frames say.
+      const views = harmonizeSides(
+        picked.map((c, i) => ({ frame: c.frame, view: named[i] ?? unnamed })),
+        tracking.frames,
+      );
       const splits = new Map(tracking.frames.map((f) => [f.frame, f.split ?? null]));
       const candidates = picked.map((c, i) => {
         const blob = blobs[i] as Blob;
-        const view = views[i] ?? {
-          face: null,
-          squareOn: false,
-          corner: null,
-          clear: false,
-          confidence: 0,
-          note: '',
-        };
+        const view = views[i] ?? unnamed;
         const split = splits.get(c.frame) ?? null;
         return { ...c, blob, view, split };
       });
@@ -237,7 +244,12 @@ export function WalkaroundScreen() {
         </button>
       )}
       {analyse.isPending && <Spinner label={t(`walk.step.${step}`)} />}
-      {analyse.isError && <ErrorNotice error={analyse.error} onRetry={() => clip && run(clip)} />}
+      {analyse.isError &&
+        (analyse.error instanceof BlankFramesError ? (
+          <p className="notice error">{t('walk.blankFrames')}</p>
+        ) : (
+          <ErrorNotice error={analyse.error} onRetry={() => clip && run(clip)} />
+        ))}
 
       {analysis && (
         <Results
@@ -266,7 +278,8 @@ function frameView(c: Candidate, index: number, use: Choices): FrameView | null 
   const left = use.get(choiceKey(index, 'left')) ?? c.view.corner?.left;
   const right = use.get(choiceKey(index, 'right')) ?? c.view.corner?.right;
   if (c.split && left && right) return { corner: { left, right } };
-  return c.view.squareOn && c.view.face ? { face: c.view.face } : null;
+  // Any named face is drawn, even at an angle: the overlay is a guide, not a photo.
+  return c.view.face ? { face: c.view.face } : null;
 }
 
 function Results({
