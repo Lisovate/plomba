@@ -83,6 +83,45 @@ A small check: five photos of trucks and people, from Wikimedia Commons (CC BY 4
 
 An earlier observation: a plate of 22 × 8 px (far away, unreadable) was found in a lossless PNG at confidence 0.52 but not after JPEG re-encoding. Plates too small to read carry no privacy risk, but small faces deserve more measurement. Tiling large photos is the next step if recall on real yard photos is low.
 
+## Walk-around videos (2026-11-03)
+
+**What's measured:** the walk-around pipeline as the app runs it, in `scripts/eval-walkaround.ts`:
+1. SAM 3.1 tracks the container;
+2. candidate frames are picked;
+3. Muse Spark names the faces, with left and right decided in code from where it saw the doors;
+4. photos are chosen, and the doors are read.
+
+The faces chosen are compared with hand labels.
+
+**Data:** 68 clips cut from public videos, used locally for testing only and not stored or published. Each is one continuous shot, labelled by hand with the faces wholly in view and the corners seen.
+- **Deliberately mixed:** walk-arounds, corner views, door ends, damage, trucks and rail, POV and dash-cam, night, rain, snow and low sun, 20, 40 and 45 ft, reefer, tank and flat-rack containers.
+- **Labels:** some depend on judgement (left or right when the doors never show), and a few were optimistic about whole faces.
+
+**Results** (Muse Spark 1.3; two full runs gave the same totals):
+
+| | |
+|---|---|
+| Faces chosen as photos | 39 |
+| … right | **29 (74%)** |
+| … left/right swapped | 3 |
+| … other disagreements with the labels | 7, mostly judgement labels, e.g. a modified container whose "door end" has a personnel door |
+| Expected faces not chosen | 34 |
+| Container numbers read from the walk-around and verified, where the clip has a labelled number | 9 right, 0 wrong (of 33 labelled clips; the rest were unreadable, ambiguous or never framed) |
+
+**Findings and decisions:**
+- **Most missed faces were never whole in the frame.**
+  - SAM 3.1's outline touched the frame edge, as with a 40 ft side filling the width or a 20 ft side cut off at the right, or it covered too little of the frame.
+  - Registering a clipped face would stretch every mark on it, so such frames are refused, and the app asks for a recording from further back.
+  - Registering partial faces (from corner castings or markings) is the next step.
+- **Corner views were wasted when someone stood in front of the container.** A presenter in front of the doors made every corner frame "not clear", and those were dropped outright, while whole faces only counted half. Corners now count half too, and the clip went from no photos to both faces, with the number read.
+- **A corner split is used only if its near edge is in the frame.** When the frame cuts off the near corner's foot, both faces' outlines would be guessed.
+- **Left and right:** see the build log for 2026-11-03.
+  - Sending the walk in one call, not runs of 6, stopped the model contradicting itself.
+  - Code applies the convention from where the model saw the doors.
+  - Sides with no frame showing the doors are flagged for the checker (5 of the chosen faces here).
+
+Run with: `node --env-file=.env apps/server/scripts/eval-walkaround.ts <clips dir> <labels.json> [--runs N] [--verbose]`.
+
 ## Damage by voice: coding the checker's words (2026-11-03)
 
 **What's measured:** the coding step of damage by voice. A note, as Muse Voice Transcribe would write it, goes through the app's parser, and the CEDEX location code (from `sectionRect`) and damage code are compared with the expected ones.
