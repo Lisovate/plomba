@@ -363,6 +363,18 @@ export const SessionSchema = z.object({
 
 export const LoginSchema = z.object({ code: z.string().min(1).max(200) });
 
+/** A sample walk-around clip the installation offers, with its credit. */
+export const SampleClipSchema = z.object({
+  title: z.string(),
+  /** Who made it and under which licence, shown with the clip. */
+  credit: z.string(),
+  sourceUrl: z.string().nullable(),
+  /** Where the app downloads it. */
+  url: z.string(),
+});
+
+export const SampleClipsSchema = z.array(SampleClipSchema);
+
 /** What the operator says about this installation, shown to everyone (no session needed). */
 export const InstanceSchema = z.object({
   /** One line for the foot of every screen, e.g. "Demo data" or photo credits. */
@@ -412,6 +424,7 @@ export type FrameRegistration = z.infer<typeof FrameRegistrationSchema>;
 export type VideoTracking = z.infer<typeof VideoTrackingSchema>;
 export type SpokenDamageResult = z.infer<typeof SpokenDamageResultSchema>;
 export type Instance = z.infer<typeof InstanceSchema>;
+export type SampleClip = z.infer<typeof SampleClipSchema>;
 export type FaceView = z.infer<typeof FaceViewSchema>;
 export type FaceViews = z.infer<typeof FaceViewsSchema>;
 

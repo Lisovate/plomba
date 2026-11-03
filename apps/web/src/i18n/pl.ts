@@ -238,6 +238,9 @@ export const pl: Messages = {
     'Nagraj jeden powolny obchód kontenera telefonem lub okularami Meta AI. SAM 3.1 śledzi kontener w każdej klatce, Plomba wybiera klatki, na których jedna ściana jest widoczna w całości i na wprost, a Muse Spark nazywa każdą ścianę i odczytuje drzwi. Ty zatwierdzasz, a klatki stają się zdjęciami tego przekazania. Samo nagranie nie jest zapisywane.',
   'walk.tip':
     'Zatrzymaj się na sekundę na wprost każdej ściany, na tyle daleko, by cała ściana mieściła się w kadrze.',
+  'walk.samples': 'Nie masz własnego nagrania? Wypróbuj przykładowy klip:',
+  'walk.loadingSample': 'Ładowanie przykładowego klipu…',
+  'walk.sampleCredit': 'Przykładowy klip:',
   'walk.video': 'Wideo (MP4 lub MOV)',
   'walk.analyse': 'Przeanalizuj obchód',
   'walk.step.tracking': 'SAM 3.1 śledzi kontener w każdej klatce…',

@@ -25,6 +25,7 @@ import {
   ProblemSchema,
   ProposalsSchema,
   type RegisterContainer,
+  SampleClipsSchema,
   SessionSchema,
   SpokenDamageResultSchema,
   type StartHandoverInput,
@@ -84,6 +85,16 @@ export const api = {
   session: () => request('/api/session', {}, SessionSchema),
 
   instance: () => request('/api/instance', {}, InstanceSchema),
+
+  samples: () => request('/api/samples', {}, SampleClipsSchema),
+
+  /** A sample clip as a file, as if the checker had chosen it. */
+  sampleClip: async (url: string, name: string): Promise<File> => {
+    const response = await fetch(url, { credentials: 'same-origin' });
+    if (!response.ok) throw new ApiError(`Could not load ${name}`, response.status);
+    const blob = await response.blob();
+    return new File([blob], name, { type: blob.type || 'video/mp4' });
+  },
 
   login: async (code: string) => {
     const response = await fetch('/api/session', json('POST', { code }));
@@ -185,6 +196,7 @@ export const api = {
 export const queryKeys = {
   session: ['session'] as const,
   instance: ['instance'] as const,
+  samples: ['samples'] as const,
   recent: ['handovers'] as const,
   handover: (id: string) => ['handovers', id] as const,
   container: (number: string) => ['containers', number] as const,

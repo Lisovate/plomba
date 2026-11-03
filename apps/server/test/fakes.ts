@@ -10,6 +10,7 @@ import {
   SqlitePhotoRepository,
 } from '../src/adapters/sqlite/repositories.ts';
 import { createApp } from '../src/http/app.ts';
+import type { SampleClips } from '../src/media/sample-clips.ts';
 import type {
   Agent,
   AgentRun,
@@ -350,6 +351,7 @@ export function createTestApp(
     classifier?: FaceViewClassifier;
     notice?: string;
     noteParser?: DamageNoteParser;
+    samples?: SampleClips;
   } = {},
 ) {
   const context = createTestHandoverService();
@@ -381,6 +383,7 @@ export function createTestApp(
     logger: silentLogger,
     accessCode: options.accessCode,
     notice: options.notice,
+    samples: options.samples,
   });
   return { ...context, app };
 }

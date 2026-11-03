@@ -42,6 +42,8 @@ const EnvSchema = z
     EDI_SENDER_ID: z.string().min(1).max(35).default('PLOMBA'),
     /** A line shown at the foot of every screen, e.g. "Demo data" or credits for the photos. */
     PLOMBA_NOTICE: z.string().trim().min(1).max(500).optional(),
+    /** A folder of sample walk-around clips with a samples.json, offered to try the app. */
+    PLOMBA_SAMPLES_DIR: z.string().min(1).optional(),
   })
   .refine((env) => env.META_API_KEY || env.META_API_KEY_FILE, {
     message: 'Set META_API_KEY_FILE (preferred) or META_API_KEY',
@@ -58,6 +60,8 @@ export interface Config {
   readonly accessCode: string | undefined;
   /** A line shown at the foot of every screen. */
   readonly notice: string | undefined;
+  /** A folder of sample walk-around clips (see media/sample-clips.ts). */
+  readonly samplesDir: string | undefined;
   readonly meta: {
     readonly baseUrl: string;
     readonly apiKey: string;
@@ -118,6 +122,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     ediSenderId: e.EDI_SENDER_ID,
     accessCode: e.PLOMBA_ACCESS_CODE,
     notice: e.PLOMBA_NOTICE,
+    samplesDir: e.PLOMBA_SAMPLES_DIR ? resolve(expandHome(e.PLOMBA_SAMPLES_DIR)) : undefined,
     meta: {
       baseUrl: e.META_API_BASE_URL.replace(/\/+$/, ''),
       apiKey,

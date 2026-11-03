@@ -60,6 +60,7 @@ All settings are environment variables.
 | `PLOMBA_ACCESS_CODE` | — | If set (8+ characters), each device enters this code once and gets a 30-day session cookie; without it the API and photos answer 401. Leave unset behind single sign-on |
 | `EDI_SENDER_ID` | `PLOMBA` | This installation's ID in EDIFACT messages (UNB sender, NAD+MS) |
 | `PLOMBA_NOTICE` | — | One line shown at the foot of every screen, before and after the access code, e.g. "Demo data" or credits for the photos |
+| `PLOMBA_SAMPLES_DIR` | — | A folder of sample walk-around clips that people can try the app with (see below) |
 | `META_VISION_BASE_URL` | — | A separate endpoint for reading markings and finding damage (see below) |
 | `META_VISION_API_STYLE` | `responses` | `responses`, or `chat-completions` for OpenAI-compatible servers |
 | `META_VISION_API_KEY_FILE` / `META_VISION_API_KEY` | — | That endpoint's own key, if it needs one |
@@ -123,3 +124,28 @@ npm run check            # lint, type checks and tests
 ```
 
 To test the camera on a phone during development, serve the web app over HTTPS on your network with a self-signed certificate: `HTTPS=1 npm run dev:web`. Then open `https://<your computer's IP>:5173` on the phone and accept the certificate warning.
+
+## Sample walk-around clips
+
+An installation used for demonstrations or training can offer sample clips, so that someone without footage of their own can run a walk-around. Put MP4 or MOV files in a folder with a `samples.json` that names and credits each one:
+
+```json
+[
+  {
+    "file": "corner.mp4",
+    "title": "40 ft container seen corner-on",
+    "credit": "Life, Take 2, CC BY 3.0 (people blurred)",
+    "sourceUrl": "https://www.youtube.com/watch?v=CZkrwiKmvpY"
+  }
+]
+```
+
+Set `PLOMBA_SAMPLES_DIR` to the folder (with Docker, mount it read-only and point the variable at the mount). Only listed files are served, behind the access code like everything else. Each clip is shown with its credit.
+
+Blur people and number plates before sharing a clip:
+
+```sh
+node --env-file=.env apps/server/scripts/blur-clip.ts in.mp4 out.mp4
+```
+
+SAM 3.1 tracks every person and number plate through the clip, and the app's own blurring covers them frame by frame. It needs ffmpeg; the server itself never decodes video.

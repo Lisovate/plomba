@@ -20,6 +20,9 @@ services:
       EDI_SENDER_ID: ${EDI_SENDER_ID:-PLOMBA}
       # A line at the foot of every screen, e.g. "Demo data" or photo credits.
       PLOMBA_NOTICE: ${PLOMBA_NOTICE:-}
+      # Sample walk-around clips to try the app with: mount a folder with a
+      # samples.json (see docs/self-hosting.md) and point this at it.
+      PLOMBA_SAMPLES_DIR: ${PLOMBA_SAMPLES_DIR:-}
       # META_API_BASE_URL: https://api.meta.ai/v1
       # LOG_LEVEL: info
     secrets:

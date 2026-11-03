@@ -30,6 +30,7 @@ import { ConfigError, loadConfig } from './config.ts';
 import { createApp } from './http/app.ts';
 import { FileMediaStore } from './media/file-media-store.ts';
 import { JsonFileCache } from './media/json-file-cache.ts';
+import { SampleClips } from './media/sample-clips.ts';
 import { ClaimService } from './services/claims.ts';
 import { HandoverService } from './services/handovers.ts';
 import { IdentifyService } from './services/identify.ts';
@@ -115,6 +116,7 @@ function main(): void {
     webDistDir: config.webDistDir,
     accessCode: config.accessCode,
     notice: config.notice,
+    samples: config.samplesDir ? SampleClips.load(config.samplesDir) : undefined,
   });
 
   const server = serve({ fetch: app.fetch, hostname: config.host, port: config.port }, (info) => {

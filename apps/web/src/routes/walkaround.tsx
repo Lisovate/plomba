@@ -1,4 +1,10 @@
-import type { FaceView, HandoverDetail, IdentifyResult, VideoTracking } from '@plomba/contracts';
+import type {
+  FaceView,
+  HandoverDetail,
+  IdentifyResult,
+  SampleClip,
+  VideoTracking,
+} from '@plomba/contracts';
 import {
   type CornerSplit,
   chooseWalkaroundPhotos,
@@ -77,7 +83,12 @@ export function WalkaroundScreen() {
   const { id = '' } = useParams();
   const { t } = useI18n();
   const detail = useQuery({ queryKey: queryKeys.handover(id), queryFn: () => api.handover(id) });
-  const [clip, setClip] = useState<{ file: File; url: string } | null>(null);
+  const [clip, setClip] = useState<{ file: File; url: string; credit?: string } | null>(null);
+  const samples = useQuery({ queryKey: queryKeys.samples, queryFn: api.samples });
+  const sample = useMutation({
+    mutationFn: (s: SampleClip) => api.sampleClip(s.url, `${s.title}.mp4`),
+    onSuccess: (file, s) => start(file, s.credit),
+  });
   const [step, setStep] = useState<Step>('tracking');
   const [use, setUse] = useState<Choices>(new Map());
 
@@ -155,12 +166,14 @@ export function WalkaroundScreen() {
     [analysis, use],
   );
 
-  const choose = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const start = (file: File, credit?: string) => {
     analyse.reset();
     setUse(new Map());
-    setClip({ file, url: URL.createObjectURL(file) });
+    setClip({ file, url: URL.createObjectURL(file), ...(credit ? { credit } : {}) });
+  };
+  const choose = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) start(file);
   };
 
   if (detail.isPending) return <Spinner label={t('common.loading')} />;
@@ -180,6 +193,28 @@ export function WalkaroundScreen() {
           <input type="file" accept="video/mp4,video/quicktime" onChange={choose} />
         </label>
         <p className="muted">{t('walk.tip')}</p>
+        {samples.data && samples.data.length > 0 && (
+          <div className="samples">
+            <p className="muted">{t('walk.samples')}</p>
+            <ul className="list">
+              {samples.data.map((s) => (
+                <li key={s.url}>
+                  <button
+                    type="button"
+                    className="secondary small"
+                    disabled={sample.isPending}
+                    onClick={() => sample.mutate(s)}
+                  >
+                    {s.title}
+                  </button>{' '}
+                  <span className="muted">{s.credit}</span>
+                </li>
+              ))}
+            </ul>
+            {sample.isPending && <Spinner label={t('walk.loadingSample')} />}
+            {sample.isError && <ErrorNotice error={sample.error} />}
+          </div>
+        )}
       </Card>
 
       {clip && (
@@ -189,6 +224,11 @@ export function WalkaroundScreen() {
           detail={detail.data}
           viewAt={viewAt}
         />
+      )}
+      {clip?.credit && (
+        <p className="muted">
+          {t('walk.sampleCredit')} {clip.credit}
+        </p>
       )}
 
       {clip && analyse.isIdle && (

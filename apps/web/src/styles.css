@@ -856,6 +856,13 @@ legend {
   pointer-events: none;
 }
 
+.samples .list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .face-outline.faint {
   stroke-dasharray: 10 8;
   opacity: 0.7;

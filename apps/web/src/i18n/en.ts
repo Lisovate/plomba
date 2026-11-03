@@ -235,6 +235,9 @@ export const en = {
     "Record one slow walk around the container on a phone or Meta AI glasses. SAM 3.1 tracks the container through every frame, Plomba picks the frames where one face is whole and square-on, and Muse Spark names each face and reads the doors. You confirm, and the frames become this handover's photos. The clip itself is not stored.",
   'walk.tip':
     'Stop for a second square-on to each face, far enough back for the whole face to fit in the frame.',
+  'walk.samples': 'No footage of your own? Try a sample clip:',
+  'walk.loadingSample': 'Loading the sample clip…',
+  'walk.sampleCredit': 'Sample clip:',
   'walk.video': 'Video (MP4 or MOV)',
   'walk.analyse': 'Analyse the walk-around',
   'walk.step.tracking': 'SAM 3.1 is tracking the container through every frame…',

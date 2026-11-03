@@ -17,7 +17,8 @@ import { HTTPException } from 'hono/http-exception';
 import { secureHeaders } from 'hono/secure-headers';
 import type { Logger } from 'pino';
 import type { z } from 'zod';
-import { AppError, ValidationError } from '../errors.ts';
+import { AppError, NotFoundError, ValidationError } from '../errors.ts';
+import type { SampleClips } from '../media/sample-clips.ts';
 import type { MediaStore } from '../ports.ts';
 import type { ClaimService } from '../services/claims.ts';
 import type { HandoverService } from '../services/handovers.ts';
@@ -42,6 +43,8 @@ export interface AppDeps {
   readonly accessCode?: string | undefined;
   /** The operator's notice for the foot of every screen. */
   readonly notice?: string | undefined;
+  /** Sample walk-around clips to try the app with. */
+  readonly samples?: SampleClips | undefined;
 }
 
 /** Phones produce 3–12 MB photos; leave room for multipart overhead. */
@@ -128,6 +131,17 @@ function api(deps: AppDeps): Hono {
   api.get('/health', (c) => c.json({ status: 'ok' }));
 
   api.get('/instance', (c) => c.json({ notice: deps.notice ?? null }));
+
+  api.get('/samples', (c) => c.json(deps.samples?.list() ?? []));
+
+  api.get('/samples/:file', async (c) => {
+    const clip = await deps.samples?.read(c.req.param('file'));
+    if (!clip) throw new NotFoundError('No such sample clip');
+    return c.body(clip.data as Uint8Array<ArrayBuffer>, 200, {
+      'content-type': clip.mimeType,
+      'cache-control': 'private, max-age=86400',
+    });
+  });
 
   // Walk-around clips from a phone: up to a few minutes of 1080p.
   const videoLimit = bodyLimit({
