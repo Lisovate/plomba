@@ -240,9 +240,10 @@ export function chooseWalkaroundPhotos(
     readonly split: CornerSplit | null;
   })[],
 ): PhotoChoice[] {
+  // A corner view's outline covers two faces, so it can only be used split.
   const whole = bestFramePerFace(
     candidates,
-    candidates.map((c) => c.view),
+    candidates.map((c) => (c.split && c.view.corner ? { ...c.view, squareOn: false } : c.view)),
   );
   const choices: PhotoChoice[] = [...whole].map(([face, best]) => ({
     index: candidates.findIndex((c) => c.frame === best.frame),

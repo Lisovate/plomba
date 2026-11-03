@@ -214,4 +214,19 @@ describe('chooseWalkaroundPhotos', () => {
     expect(choices).toContainEqual({ index: 1, part: 'left', face: 'D' });
     expect(choices).toContainEqual({ index: 0, part: 'right', face: 'R' });
   });
+
+  it('uses a corner view only split, even when the model also saw one face square-on', () => {
+    const choices = chooseWalkaroundPhotos([
+      {
+        frame: 0,
+        score: 0.5,
+        view: { face: 'D', squareOn: true, corner: { left: 'D', right: 'R' } },
+        split,
+      },
+    ]);
+    expect(choices).toEqual([
+      { index: 0, part: 'left', face: 'D' },
+      { index: 0, part: 'right', face: 'R' },
+    ]);
+  });
 });

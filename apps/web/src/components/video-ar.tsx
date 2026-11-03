@@ -153,8 +153,16 @@ export function VideoAr({ src, tracking, detail, viewAt }: VideoArProps) {
               strokeWidth={2 * px}
             />
           )}
-          {drawn.map(({ face, quad, h }) => (
-            <FaceLayer key={face} face={face} quad={quad} h={h} detail={detail} px={px} />
+          {drawn.map(({ face, quad, h }, i) => (
+            <FaceLayer
+              // biome-ignore lint/suspicious/noArrayIndexKey: one layer per side of a corner, which may share a face
+              key={`${i}-${face}`}
+              face={face}
+              quad={quad}
+              h={h}
+              detail={detail}
+              px={px}
+            />
           ))}
         </svg>
       )}

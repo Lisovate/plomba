@@ -1,6 +1,5 @@
 import type { FaceView, HandoverDetail, IdentifyResult, VideoTracking } from '@plomba/contracts';
 import {
-  bestFramePerFace,
   type CornerSplit,
   chooseWalkaroundPhotos,
   FACES,
@@ -12,7 +11,7 @@ import {
   viewAtFrame,
 } from '@plomba/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { api, queryKeys } from '../api/client.ts';
 import { Card, ContainerNumberText, ErrorNotice, Spinner } from '../components/ui.tsx';
@@ -26,7 +25,6 @@ const MAX_FRAMES = 12;
 
 interface Candidate extends FrameCandidate {
   readonly blob: Blob;
-  readonly url: string;
   readonly view: FaceView;
   /** Seen corner-on: the two faces' outlines, from SAM 3.1's mask. */
   readonly split: CornerSplit | null;
@@ -38,6 +36,8 @@ interface Analysis {
   /** The clip's size in pixels: the frames' and the tracked outlines' coordinates. */
   readonly size: { readonly width: number; readonly height: number };
   readonly candidates: readonly Candidate[];
+  /** The photos proposed to the checker. */
+  readonly choices: readonly PhotoChoice[];
   /** The door end's markings, read from the best door frame. */
   readonly doors: IdentifyResult | null;
 }
@@ -94,7 +94,9 @@ export function WalkaroundScreen() {
         { minGap: Math.max(1, Math.round(fps)), max: MAX_FRAMES },
       );
       const size = { width, height };
-      if (picked.length === 0) return { tracking, fps, size, candidates: [], doors: null };
+      if (picked.length === 0) {
+        return { tracking, fps, size, candidates: [], choices: [], doors: null };
+      }
       const blobs = await grabFrames(
         chosen.url,
         picked.map((c) => frameTime(c.frame, fps)),
@@ -113,31 +115,26 @@ export function WalkaroundScreen() {
           note: '',
         };
         const split = splits.get(c.frame) ?? null;
-        return { ...c, blob, url: URL.createObjectURL(blob), view, split };
+        return { ...c, blob, view, split };
       });
-      const door = bestFramePerFace(picked, views).get('D');
-      const doorFrame = candidates.find((c) => c.frame === door?.frame);
+      const choices = chooseWalkaroundPhotos(candidates);
+      const door = choices.find((c) => c.face === 'D');
+      const doorFrame = door ? candidates[door.index] : undefined;
       setStep('reading');
       const doors = doorFrame ? await api.identify(doorFrame.blob).catch(() => null) : null;
-      return { tracking, fps, size, candidates, doors };
-    },
-    onSuccess: ({ candidates }) => {
-      setUse(
-        new Map(
-          chooseWalkaroundPhotos(candidates).map((c) => [choiceKey(c.index, c.part), c.face]),
-        ),
-      );
+      return { tracking, fps, size, candidates, choices, doors };
     },
   });
+  // Callbacks given to mutate() fire only for the latest analysis, so a slow
+  // earlier clip can't overwrite the choices for the current one.
+  const run = (chosen: { file: File; url: string }) =>
+    analyse.mutate(chosen, {
+      onSuccess: ({ choices }) =>
+        setUse(new Map(choices.map((c) => [choiceKey(c.index, c.part), c.face]))),
+    });
   const analysis = analyse.data;
 
-  // Thumbnails and the clip are object URLs: release them with the screen.
-  useEffect(
-    () => () => {
-      for (const c of analysis?.candidates ?? []) URL.revokeObjectURL(c.url);
-    },
-    [analysis],
-  );
+  // The clip is an object URL: release it with the screen or the next clip.
   useEffect(
     () => () => {
       if (clip) URL.revokeObjectURL(clip.url);
@@ -195,14 +192,12 @@ export function WalkaroundScreen() {
       )}
 
       {clip && analyse.isIdle && (
-        <button type="button" className="primary large" onClick={() => analyse.mutate(clip)}>
+        <button type="button" className="primary large" onClick={() => run(clip)}>
           {t('walk.analyse')}
         </button>
       )}
       {analyse.isPending && <Spinner label={t(`walk.step.${step}`)} />}
-      {analyse.isError && (
-        <ErrorNotice error={analyse.error} onRetry={() => clip && analyse.mutate(clip)} />
-      )}
+      {analyse.isError && <ErrorNotice error={analyse.error} onRetry={() => clip && run(clip)} />}
 
       {analysis && (
         <Results
@@ -279,7 +274,7 @@ function Results({
               const used = parts.some((part) => use.has(choiceKey(i, part)));
               return (
                 <li key={c.frame} className={used ? 'frame used' : 'frame'}>
-                  <img src={c.url} alt={t('walk.frameAlt', { frame: c.frame + 1 })} />
+                  <Thumbnail blob={c.blob} alt={t('walk.frameAlt', { frame: c.frame + 1 })} />
                   <p className="frame-label">
                     {c.view.corner && c.split
                       ? `${t(`faceTitle.${c.view.corner.left}`)} | ${t(`faceTitle.${c.view.corner.right}`)}`
@@ -324,6 +319,17 @@ function Results({
   );
 }
 
+/** A frame grabbed from the clip; its object URL lives as long as the image. */
+function Thumbnail({ blob, alt }: { blob: Blob; alt: string }) {
+  const [url, setUrl] = useState<string>();
+  useEffect(() => {
+    const created = URL.createObjectURL(blob);
+    setUrl(created);
+    return () => URL.revokeObjectURL(created);
+  }, [blob]);
+  return url ? <img src={url} alt={alt} /> : null;
+}
+
 function DoorsCheck({ doors, expected }: { doors: IdentifyResult | null; expected: string }) {
   const { t } = useI18n();
   if (!doors) return null;
@@ -353,15 +359,18 @@ function AddToHandover({
   const queryClient = useQueryClient();
   const [findDamage, setFindDamage] = useState(true);
   const [progress, setProgress] = useState('');
+  // Photos already added, so a retry after a failure doesn't add them twice.
+  const done = useRef(new Set<string>());
   const chosen = useMemo(
     () =>
       [...use]
         .map(([key, face]) => {
           const { index, part } = parseKey(key);
-          return { face, part, candidate: analysis.candidates[index] };
+          return { key, face, part, candidate: analysis.candidates[index] };
         })
         .filter(
-          (c): c is { face: Face; part: Part; candidate: Candidate } => c.candidate !== undefined,
+          (c): c is { key: string; face: Face; part: Part; candidate: Candidate } =>
+            c.candidate !== undefined,
         )
         .sort((a, b) => FACES.indexOf(a.face) - FACES.indexOf(b.face)),
     [use, analysis],
@@ -369,7 +378,8 @@ function AddToHandover({
 
   const add = useMutation({
     mutationFn: async () => {
-      for (const [i, { face, part, candidate }] of chosen.entries()) {
+      for (const [i, { key, face, part, candidate }] of chosen.entries()) {
+        if (done.current.has(key)) continue;
         const faceName = t(`faceTitle.${face}`);
         setProgress(t('walk.adding', { n: i + 1, total: chosen.length, face: faceName }));
         let photo = await api.uploadPhoto(handoverId, face, await prepareUpload(candidate.blob));
@@ -383,6 +393,7 @@ function AddToHandover({
           setProgress(t('walk.lookingForDamage', { face: faceName }));
           await api.proposeDamage(handoverId, photo.id);
         }
+        done.current.add(key);
       }
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.handover(handoverId) }),
