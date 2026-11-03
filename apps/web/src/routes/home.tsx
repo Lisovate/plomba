@@ -1,5 +1,19 @@
 import type { HandoverSummary } from '@plomba/contracts';
 import { useQuery } from '@tanstack/react-query';
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Camera,
+  ChevronRight,
+  ClipboardList,
+  Download,
+  MapPin,
+  ScanLine,
+  ShieldCheck,
+  TrainFront,
+  Truck,
+  UserRound,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { api, queryKeys } from '../api/client.ts';
@@ -20,11 +34,17 @@ export function HomeScreen() {
 
   const open = recent.data?.filter((h) => h.status === 'open') ?? [];
   const sealed = recent.data?.filter((h) => h.status === 'closed') ?? [];
+  const today = new Date().toDateString();
+  const sealedToday = sealed.filter(
+    (h) => h.closedAt && new Date(h.closedAt).toDateString() === today,
+  ).length;
+  const marksOpen = open.reduce((sum, h) => sum + h.markCount, 0);
 
   return (
     <div className="stack">
       {firstVisit && (
         <Card className="intro">
+          <p className="eyebrow">{t('intro.eyebrow')}</p>
           <h1>{t('app.tagline')}</h1>
           <ol className="steps">
             <li>{t('intro.identify')}</li>
@@ -36,14 +56,20 @@ export function HomeScreen() {
       )}
 
       {!editing ? (
-        <p className="profile-line">
-          <span>
-            {profile.checker} · {profile.place}
-          </span>
+        <div className="hello">
+          <div>
+            <p className="eyebrow">{t('home.greeting')}</p>
+            <h1>{profile.checker}</h1>
+            <p className="profile-line">
+              <span>
+                <MapPin size={16} aria-hidden /> {profile.place}
+              </span>
+            </p>
+          </div>
           <button type="button" className="link" onClick={() => setEditing(true)}>
             {t('profile.change')}
           </button>
-        </p>
+        </div>
       ) : (
         <ProfileForm
           profile={profile}
@@ -52,26 +78,52 @@ export function HomeScreen() {
         />
       )}
 
-      {ready ? (
-        <Link to="/identify" className="button primary large">
-          {t('home.inspect')}
-        </Link>
-      ) : (
-        <button type="button" className="primary large" disabled>
-          {t('home.inspect')}
-        </button>
+      {recent.isSuccess && recent.data.length > 0 && (
+        <div className="stats">
+          <div className="stat">
+            <strong>{open.length}</strong>
+            <span>{t('home.statOpen')}</span>
+          </div>
+          <div className="stat">
+            <strong>{sealedToday}</strong>
+            <span>{t('home.statSealedToday')}</span>
+          </div>
+          <div className="stat">
+            <strong>{marksOpen}</strong>
+            <span>{t('home.statMarks')}</span>
+          </div>
+        </div>
       )}
+
+      <section className="hero-action">
+        <h2>{t('home.heroTitle')}</h2>
+        <p>{t('home.heroText')}</p>
+        {ready ? (
+          <Link to="/identify" className="button accent large">
+            <ScanLine size={20} aria-hidden /> {t('home.inspect')}
+          </Link>
+        ) : (
+          <button type="button" className="accent large" disabled>
+            <ScanLine size={20} aria-hidden /> {t('home.inspect')}
+          </button>
+        )}
+      </section>
 
       {install.kind === 'prompt' && (
         <button type="button" className="secondary" onClick={install.prompt}>
-          {t('home.install')}
+          <Download size={18} aria-hidden /> {t('home.install')}
         </button>
       )}
       {install.kind === 'ios' && <p className="notice">{t('home.installIos')}</p>}
 
       {recent.isPending && <Spinner label={t('common.loading')} />}
       {recent.isError && <ErrorNotice error={recent.error} onRetry={() => recent.refetch()} />}
-      {recent.isSuccess && recent.data.length === 0 && <p className="muted">{t('home.none')}</p>}
+      {recent.isSuccess && recent.data.length === 0 && (
+        <div className="empty">
+          <ClipboardList size={28} aria-hidden />
+          <p>{t('home.none')}</p>
+        </div>
+      )}
       {open.length > 0 && <HandoverList title={t('home.open')} handovers={open} />}
       {sealed.length > 0 && <HandoverList title={t('home.recent')} handovers={sealed} />}
     </div>
@@ -91,7 +143,9 @@ function ProfileForm({
   const { t } = useI18n();
   return (
     <Card>
-      <h2>{t('profile.title')}</h2>
+      <h2>
+        <UserRound size={20} aria-hidden /> {t('profile.title')}
+      </h2>
       <label className="field">
         {t('profile.name')}
         <input
@@ -119,27 +173,70 @@ function ProfileForm({
 }
 
 function HandoverList({ title, handovers }: { title: string; handovers: HandoverSummary[] }) {
-  const { t, language } = useI18n();
   return (
     <section>
-      <h2>{title}</h2>
+      <div className="section-head">
+        <h2>{title}</h2>
+        <span className="muted">{handovers.length}</span>
+      </div>
       <ul className="list">
         {handovers.map((h) => (
           <li key={h.id}>
-            <Link to={`/handovers/${h.id}`} className="list-item">
-              <ContainerNumberText value={h.containerNumber} />
-              <span className="muted">
-                {t(h.direction === 'in' ? 'handover.in' : 'handover.out')} · {h.place} ·{' '}
-                {new Date(h.startedAt).toLocaleString(language)}
-              </span>
-              <span className="muted">
-                {t('home.photos', { count: h.photoCount })} ·{' '}
-                {t('home.marks', { count: h.markCount })}
-              </span>
-            </Link>
+            <HandoverRow handover={h} />
           </li>
         ))}
       </ul>
     </section>
+  );
+}
+
+/** One handover as a tappable row: the container, where and how it moved, and what's recorded. */
+function HandoverRow({ handover: h }: { handover: HandoverSummary }) {
+  const { t, language } = useI18n();
+  const open = h.status === 'open';
+  return (
+    <Link to={`/handovers/${h.id}`} className="list-item entity">
+      <span className={`entity-icon ${open ? 'open' : 'sealed'}`}>
+        {open ? <Camera size={22} aria-hidden /> : <ShieldCheck size={22} aria-hidden />}
+      </span>
+      <span className="entity-main">
+        <span className="cluster">
+          <ContainerNumberText value={h.containerNumber} />
+          <span className={`pill ${h.direction}`}>
+            {h.direction === 'in' ? (
+              <ArrowDownToLine size={13} aria-hidden />
+            ) : (
+              <ArrowUpFromLine size={13} aria-hidden />
+            )}
+            {t(h.direction === 'in' ? 'handover.in' : 'handover.out')}
+          </span>
+        </span>
+        <span className="entity-meta">
+          <span>
+            <MapPin size={14} aria-hidden /> {h.place}
+          </span>
+          {h.vehicleId && (
+            <span>
+              {h.transportMode === 'rail' ? (
+                <TrainFront size={14} aria-hidden />
+              ) : (
+                <Truck size={14} aria-hidden />
+              )}
+              {h.vehicleId}
+            </span>
+          )}
+          <span>
+            {new Date(h.startedAt).toLocaleString(language, {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            })}
+          </span>
+          <span>
+            {t('home.photos', { count: h.photoCount })} · {t('home.marks', { count: h.markCount })}
+          </span>
+        </span>
+      </span>
+      <ChevronRight className="entity-end" size={20} aria-hidden />
+    </Link>
   );
 }

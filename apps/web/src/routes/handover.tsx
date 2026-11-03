@@ -8,6 +8,19 @@ import {
   isDamageCode,
 } from '@plomba/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  CalendarClock,
+  History,
+  Lock,
+  MapPin,
+  ShieldCheck,
+  TrainFront,
+  Truck,
+  UserRound,
+  Video,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { api, queryKeys } from '../api/client.ts';
@@ -18,7 +31,7 @@ import { describeTransport } from '../lib/transport.ts';
 
 export function HandoverScreen() {
   const { id = '' } = useParams();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const detail = useQuery({ queryKey: queryKeys.handover(id), queryFn: () => api.handover(id) });
   const [face, setFace] = useState<Face>('D');
   const [selectedMarkId, setSelectedMarkId] = useState<string>();
@@ -35,26 +48,71 @@ export function HandoverScreen() {
   return (
     <div className="stack">
       <Card>
+        <div className="cluster">
+          <span className={`pill ${editable ? 'open' : 'ok'}`}>
+            <span className="dot" />
+            {t(editable ? 'handover.open' : 'handover.closed')}
+          </span>
+          <span className={`pill ${handover.direction}`}>
+            {handover.direction === 'in' ? (
+              <ArrowDownToLine size={13} aria-hidden />
+            ) : (
+              <ArrowUpFromLine size={13} aria-hidden />
+            )}
+            {t(handover.direction === 'in' ? 'handover.in' : 'handover.out')}
+          </span>
+        </div>
         <Link to={`/containers/${container.number}`} className="big-number">
           <ContainerNumberText value={container.number} />
         </Link>
-        <p className="muted">
-          {t(handover.direction === 'in' ? 'handover.in' : 'handover.out')} · {handover.place} ·{' '}
-          {handover.checker}
-          {describeTransport(t, handover) && ` · ${describeTransport(t, handover)}`}
-        </p>
-        <p className={editable ? 'badge' : 'badge ok'}>
-          {t(editable ? 'handover.open' : 'handover.closed')}
-        </p>
-        <p className="muted">
-          {t('handover.faces', { done: view.registeredFaces, total: FACES.length })} ·{' '}
-          {t('handover.coverage', view.sections)}
-        </p>
-        {editable && (
-          <Link to={`/handovers/${handover.id}/walkaround`} className="button secondary">
-            {t('handover.walkaround')}
+        <ul className="meta">
+          <li>
+            <MapPin size={15} aria-hidden /> {handover.place}
+          </li>
+          <li>
+            <UserRound size={15} aria-hidden /> {handover.checker}
+          </li>
+          {describeTransport(t, handover) && (
+            <li>
+              {handover.transportMode === 'rail' ? (
+                <TrainFront size={15} aria-hidden />
+              ) : (
+                <Truck size={15} aria-hidden />
+              )}
+              {describeTransport(t, handover)}
+            </li>
+          )}
+          <li>
+            <CalendarClock size={15} aria-hidden />
+            {new Date(handover.startedAt).toLocaleString(language, {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            })}
+          </li>
+        </ul>
+        <div className="progress">
+          <div className="progress-label">
+            <span>{t('handover.coverage', view.sections)}</span>
+            <span>{t('handover.faces', { done: view.registeredFaces, total: FACES.length })}</span>
+          </div>
+          <div className="progress-bar">
+            <span
+              style={{
+                width: `${view.sections.total ? (100 * view.sections.done) / view.sections.total : 0}%`,
+              }}
+            />
+          </div>
+        </div>
+        <div className="actions">
+          {editable && (
+            <Link to={`/handovers/${handover.id}/walkaround`} className="button secondary">
+              <Video size={18} aria-hidden /> {t('handover.walkaround')}
+            </Link>
+          )}
+          <Link to={`/containers/${container.number}`} className="button secondary">
+            <History size={18} aria-hidden /> {t('handover.history')}
           </Link>
-        )}
+        </div>
       </Card>
 
       <nav className="face-tabs" aria-label="Faces">
@@ -378,7 +436,7 @@ function SealButton({
           if (window.confirm(question)) seal.mutate(gaps.length > 0);
         }}
       >
-        {t('handover.seal')}
+        <Lock size={20} aria-hidden /> {t('handover.seal')}
       </button>
     </div>
   );
@@ -390,7 +448,9 @@ function SealInfo({ detail }: { detail: HandoverDetail }) {
   if (!seal) return null;
   return (
     <Card className="sealed">
-      <h2>{t('handover.sealed')}</h2>
+      <h2>
+        <ShieldCheck size={20} aria-hidden /> {t('handover.sealed')}
+      </h2>
       <p className="muted">
         #{seal.sequence + 1} ·{' '}
         {detail.handover.closedAt && new Date(detail.handover.closedAt).toLocaleString()}

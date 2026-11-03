@@ -1,6 +1,7 @@
 import type { ContainerHistory, Direction, TransportMode } from '@plomba/contracts';
 import { formatWagonNumber, parseWagonNumber } from '@plomba/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Box, Ruler, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { api, queryKeys } from '../api/client.ts';
@@ -12,7 +13,7 @@ import type { IdentifyHandoff } from './identify.tsx';
 
 export function ContainerScreen() {
   const { number = '' } = useParams();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const history = useQuery({
     queryKey: queryKeys.container(number),
     queryFn: () => api.containerHistory(number),
@@ -29,17 +30,23 @@ export function ContainerScreen() {
   return (
     <div className="stack">
       <Card>
+        <p className="eyebrow">{t('container.eyebrow')}</p>
         <p className="big-number">
           <ContainerNumberText value={container.number} />
         </p>
-        <p className="muted">
-          {container.sizeTypeCode ?? '—'} ·{' '}
-          {t('container.dimensions', {
-            length: length.toFixed(2),
-            width: width.toFixed(2),
-            height: height.toFixed(2),
-          })}
-        </p>
+        <ul className="meta">
+          <li>
+            <Box size={15} aria-hidden /> {container.sizeTypeCode ?? '—'}
+          </li>
+          <li>
+            <Ruler size={15} aria-hidden />
+            {t('container.dimensions', {
+              length: length.toFixed(2),
+              width: width.toFixed(2),
+              height: height.toFixed(2),
+            })}
+          </li>
+        </ul>
         <ChainBadge chain={chain} />
       </Card>
 
@@ -60,21 +67,32 @@ export function ContainerScreen() {
 
       {handovers.length > 0 && (
         <section>
-          <h2>{t('container.history')}</h2>
-          <ul className="list">
+          <div className="section-head">
+            <h2>{t('container.history')}</h2>
+            <span>{handovers.length}</span>
+          </div>
+          <ul className="timeline">
             {handovers.map((h) => (
-              <li key={h.id}>
+              <li key={h.id} className={h.status === 'open' ? 'open' : 'sealed'}>
                 <Link to={`/handovers/${h.id}`} className="list-item">
-                  <span>
-                    {t(h.direction === 'in' ? 'handover.in' : 'handover.out')} · {h.place}
+                  <span className="cluster">
+                    <strong>
+                      {t(h.direction === 'in' ? 'handover.in' : 'handover.out')} · {h.place}
+                    </strong>
+                    <span className={`pill ${h.status === 'open' ? 'open' : 'ok'}`}>
+                      {t(h.status === 'open' ? 'handover.open' : 'handover.closed')}
+                    </span>
                   </span>
                   <span className="muted">
-                    {new Date(h.startedAt).toLocaleString()} · {h.checker} ·{' '}
-                    {t(h.status === 'open' ? 'handover.open' : 'handover.closed')}
+                    {new Date(h.startedAt).toLocaleString(language, {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })}{' '}
+                    · {h.checker}
                   </span>
                   {h.seal && (
                     <code className="hash">
-                      #{h.seal.sequence + 1} {h.seal.hash.slice(0, 16)}…
+                      #{h.seal.sequence + 1} · SHA-256 {h.seal.hash.slice(0, 16)}…
                     </code>
                   )}
                 </Link>
@@ -91,13 +109,15 @@ function ChainBadge({ chain }: { chain: ContainerHistory['chain'] }) {
   const { t } = useI18n();
   if (!chain.ok) {
     return (
-      <p className="badge danger">
+      <p className="pill danger">
+        <ShieldAlert size={14} aria-hidden />
         {t('container.chainBroken', { index: (chain.brokenAt ?? 0) + 1 })}
       </p>
     );
   }
   return (
-    <p className={chain.length > 0 ? 'badge ok' : 'badge'}>
+    <p className={chain.length > 0 ? 'pill ok' : 'pill'}>
+      <ShieldCheck size={14} aria-hidden />
       {chain.length > 0
         ? t('container.chainOk', { count: chain.length })
         : t('container.chainEmpty')}

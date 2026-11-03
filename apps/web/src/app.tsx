@@ -5,13 +5,15 @@ import {
   QueryClientProvider,
   useQuery,
 } from '@tanstack/react-query';
-import { createBrowserRouter, Link, Outlet, useRouteError } from 'react-router';
+import { Boxes, ClipboardList, ScanLine } from 'lucide-react';
+import { createBrowserRouter, Link, NavLink, Outlet, useRouteError } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { ApiError, api, queryKeys } from './api/client.ts';
 import { AccessGate } from './components/access-gate.tsx';
 import { ErrorNotice, useOnline } from './components/ui.tsx';
 import { I18nProvider, useI18n } from './i18n/index.tsx';
 import { ContainerScreen } from './routes/container.tsx';
+import { FleetScreen } from './routes/fleet.tsx';
 import { HandoverScreen } from './routes/handover.tsx';
 import { HomeScreen } from './routes/home.tsx';
 import { IdentifyScreen } from './routes/identify.tsx';
@@ -45,16 +47,30 @@ function Shell() {
     <>
       <header className="app-header no-print">
         <Link to="/" className="brand">
-          <img src="/icons/favicon.svg" alt="" width={28} height={28} />
+          <img src="/icons/favicon.svg" alt="" width={30} height={30} />
           Plomba
         </Link>
-        <button
-          type="button"
-          className="link"
-          onClick={() => setLanguage(language === 'en' ? 'pl' : 'en')}
-        >
-          {t('app.language')}
-        </button>
+        <nav className="app-nav" aria-label={t('nav.label')}>
+          <NavLink to="/" end>
+            <ClipboardList size={18} aria-hidden /> {t('nav.handovers')}
+          </NavLink>
+          <NavLink to="/containers">
+            <Boxes size={18} aria-hidden /> {t('nav.fleet')}
+          </NavLink>
+        </nav>
+        <div className="app-header-end">
+          <Link to="/identify" className="button accent small inspect-cta">
+            <ScanLine size={18} aria-hidden /> {t('nav.inspect')}
+          </Link>
+          <button
+            type="button"
+            className="lang-toggle"
+            aria-label={t('app.language')}
+            onClick={() => setLanguage(language === 'en' ? 'pl' : 'en')}
+          >
+            {language === 'en' ? 'PL' : 'EN'}
+          </button>
+        </div>
       </header>
       {!online && <p className="offline-banner no-print">{t('common.offline')}</p>}
       <main>
@@ -63,6 +79,20 @@ function Shell() {
         </AccessGate>
       </main>
       <Footer />
+      <nav className="tabbar no-print" aria-label={t('nav.label')}>
+        <NavLink to="/" end>
+          <ClipboardList size={22} aria-hidden />
+          {t('nav.handovers')}
+        </NavLink>
+        <NavLink to="/identify" className="inspect">
+          <ScanLine size={28} aria-hidden />
+          <span className="visually-hidden">{t('nav.inspect')}</span>
+        </NavLink>
+        <NavLink to="/containers">
+          <Boxes size={22} aria-hidden />
+          {t('nav.fleet')}
+        </NavLink>
+      </nav>
     </>
   );
 }
@@ -99,6 +129,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <HomeScreen /> },
       { path: 'identify', element: <IdentifyScreen /> },
+      { path: 'containers', element: <FleetScreen /> },
       { path: 'containers/:number', element: <ContainerScreen /> },
       { path: 'handovers/:id', element: <HandoverScreen /> },
       { path: 'handovers/:id/report', element: <ReportScreen /> },

@@ -86,7 +86,7 @@ export function CameraCapture({
 
   return (
     <div className="camera">
-      <div className="camera-view">
+      <div className={state === 'live' ? 'camera-view live' : 'camera-view'}>
         <video ref={videoRef} playsInline muted hidden={state !== 'live'} />
         {state === 'live' && videoRef.current && renderOverlay?.(videoRef.current)}
         {state === 'starting' && <p className="camera-status">{t('camera.starting')}</p>}

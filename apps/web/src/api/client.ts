@@ -9,6 +9,7 @@ import {
   type CloseHandoverInput,
   type ContainerHistory,
   ContainerHistorySchema,
+  ContainerListSchema,
   ContainerSchema,
   type CreateMarkInput,
   type Face,
@@ -119,6 +120,13 @@ export const api = {
   registerContainer: (body: RegisterContainer) =>
     request('/api/containers', json('POST', body), ContainerSchema),
 
+  containers: (owner?: string) =>
+    request(
+      `/api/containers${owner ? `?owner=${encodeURIComponent(owner)}` : ''}`,
+      {},
+      ContainerListSchema,
+    ),
+
   containerHistory: (number: string): Promise<ContainerHistory> =>
     request(path`/api/containers/${number}`, {}, ContainerHistorySchema),
 
@@ -196,6 +204,7 @@ export const api = {
 export const queryKeys = {
   session: ['session'] as const,
   instance: ['instance'] as const,
+  containers: (owner: string) => ['containers', owner] as const,
   samples: ['samples'] as const,
   recent: ['handovers'] as const,
   handover: (id: string) => ['handovers', id] as const,
