@@ -206,3 +206,11 @@ A dated record of what was built and when. The newest entry is at the bottom.
 - **Walk-around privacy before storage.** SAM 3.1 tracks people and number plates; the server blurs them frame by frame and stores H.264 MP4 without audio. Frame count, rate and size stay the same, cached container tracking follows the redacted hash, and retries use the source hash. Each upload uses temporary files that are removed on success or failure. Docker includes ffmpeg; without ffmpeg and ffprobe the server refuses video evidence and the app hides its checkbox. The upload progress explains the blurring in English and Polish, and the operator script uses the same redactor.
 - **Face naming cached on disk.** Muse Spark's walk-around face results are kept in `DATA_DIR/faces`. Older clients use an ordered hash of the normalized frames; the app sends the clip's SHA-256 and selected frame numbers so browser JPEG differences do not cause misses. The server validates the hash, frame count, order and bounds against tracking. Evaluation runs still call the model each time.
 - **Progressive AR on `/try`.** As soon as SAM tracking is ready, the sample plays with its outline, an unlabeled guide grid and the linked container's information tag. Face names, CEDEX sections and damage ghosts arrive after Muse Spark answers. A small English or Polish status line on the player explains frame preparation and face naming; a naming failure leaves tracking visible and can be retried. The walk-around's confirmation and upload flow is unchanged.
+- **A judge's walkthrough** of the app, the website and the repository led to these fixes:
+  - CI was red: the end-to-end runner had no ffmpeg for the video tests, and a test still expected a removed line.
+  - On the demo, Home has a "Start here" card leading to the strongest screens, and inspecting no longer waits for a name and a place.
+  - Every AI step says which Meta model did it: "Read by Muse Spark · verified by the ISO 6346 check digit", "Blurred by SAM 3.1", and so on.
+  - The passport links damage placed between two handovers to the claim draft.
+  - Sample door photos no longer give the number away.
+  - Polish labels fit a phone, and dates use one format.
+  - The docs lead open weights with the measured Muse Spark Open.
