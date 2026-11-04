@@ -23,7 +23,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import type { Face, FaceView } from '@plomba/contracts';
+import type { Face, FaceView, FaceViews } from '@plomba/contracts';
 import { harmonizeSides, pickCandidateFrames } from '@plomba/core';
 import { pino } from 'pino';
 import { MetaClient } from '../src/adapters/meta/client.ts';
@@ -103,6 +103,7 @@ const video = new VideoService({
     maxImages: config.meta.vision.maxImages,
   }),
   cache: tracks,
+  facesCache: new JsonFileCache<FaceViews>(join(config.dataDir, 'faces')),
 });
 const handovers = new HandoverService({
   containers: new SqliteContainerRepository(db),

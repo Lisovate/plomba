@@ -195,7 +195,16 @@ function api(deps: AppDeps): Hono {
     const files = [form.frame ?? []].flat().filter((f): f is File => f instanceof File);
     if (files.length === 0) throw new ValidationError('Attach the frames as "frame" fields');
     const frames = await Promise.all(files.map(async (f) => new Uint8Array(await f.arrayBuffer())));
-    return c.json(await video.faces(frames));
+    let source: unknown;
+    if (form.source !== undefined) {
+      if (typeof form.source !== 'string') throw new ValidationError('source must be JSON');
+      try {
+        source = JSON.parse(form.source);
+      } catch {
+        throw new ValidationError('source must be JSON');
+      }
+    }
+    return c.json(await video.faces(frames, source));
   });
 
   api.post('/identify', uploadLimit, async (c) => {

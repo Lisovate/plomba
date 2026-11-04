@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   FaceViewsSchema,
   HandoverListSchema,
@@ -179,6 +180,42 @@ describe('HTTP API', () => {
     expect(views.map((v) => v.face)).toEqual(['D', 'L']);
     expect(classifier.calls).toEqual([2]);
   });
+
+  it('accepts a stable frame source and reuses face names on repeated requests', async () => {
+    const classifier = new FakeFaceViewClassifier();
+    const { app, segmenter } = createTestApp({ classifier });
+    segmenter.tracked = [{ frame: 0, objects: [] }];
+    const clip = new TextEncoder().encode('\0\0\0\x18ftypisom\0\0\0\0isommp42');
+    const track = new FormData();
+    track.set('video', new File([clip], 'clip.mp4'));
+    expect((await app.request('/api/videos/track', { method: 'POST', body: track })).status).toBe(
+      200,
+    );
+    const source = { sha256: createHash('sha256').update(clip).digest('hex'), frames: [0] };
+    const image = (await makePhoto()) as Uint8Array<ArrayBuffer>;
+    for (let i = 0; i < 2; i++) {
+      const form = new FormData();
+      form.append('frame', new File([image], 'frame.jpg'));
+      form.set('source', JSON.stringify(source));
+      const response = await app.request('/api/videos/faces', { method: 'POST', body: form });
+      expect(response.status).toBe(200);
+    }
+    expect(classifier.calls).toEqual([1]);
+  });
+
+  it.each(['{', 'null', '{"sha256":"bad","frames":[0]}', '[0]'])(
+    'rejects malformed frame source JSON: %s',
+    async (source) => {
+      const classifier = new FakeFaceViewClassifier();
+      const { app } = createTestApp({ classifier });
+      const form = new FormData();
+      form.append('frame', new File([(await makePhoto()) as Uint8Array<ArrayBuffer>], 'frame.jpg'));
+      form.set('source', source);
+      const response = await app.request('/api/videos/faces', { method: 'POST', body: form });
+      expect(response.status).toBe(400);
+      expect(classifier.calls).toEqual([]);
+    },
+  );
 
   it('answers unknown API routes with 404 problem details', async () => {
     const response = await testApp().request('/api/nope');

@@ -6,7 +6,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import type { FaceViews, VideoTracking } from '@plomba/contracts';
+import { type FaceViews, VideoFaceSourceSchema, type VideoTracking } from '@plomba/contracts';
 import { isCornerPair, type Point, type Quad } from '@plomba/core';
 import { ValidationError } from '../errors.ts';
 import { normaliseImage } from '../media/images.ts';
@@ -35,17 +35,20 @@ export interface VideoServiceDeps {
   readonly segmenter: Segmenter;
   readonly classifier: FaceViewClassifier;
   readonly cache: ResultCache<StoredTracking>;
+  readonly facesCache: ResultCache<FaceViews>;
 }
 
 export class VideoService {
   readonly #segmenter: Segmenter;
   readonly #classifier: FaceViewClassifier;
   readonly #cache: ResultCache<StoredTracking>;
+  readonly #facesCache: ResultCache<FaceViews>;
 
   constructor(deps: VideoServiceDeps) {
     this.#segmenter = deps.segmenter;
     this.#classifier = deps.classifier;
     this.#cache = deps.cache;
+    this.#facesCache = deps.facesCache;
   }
 
   async cached(sha256: string): Promise<VideoTracking | undefined> {
@@ -90,20 +93,48 @@ export class VideoService {
    * given in clip order. The checker confirms the faces before any frame is
    * added to a handover as a photo.
    */
-  async faces(frames: readonly Uint8Array[]): Promise<FaceViews> {
+  async faces(frames: readonly Uint8Array[], source?: unknown): Promise<FaceViews> {
     if (frames.length === 0 || frames.length > MAX_WALKAROUND_FRAMES) {
       throw new ValidationError(`Send 1 to ${MAX_WALKAROUND_FRAMES} frames`);
     }
+    const hash = createHash('sha256');
+    if (source !== undefined) {
+      const parsed = VideoFaceSourceSchema.safeParse(source);
+      if (!parsed.success) throw new ValidationError('Invalid clip hash or frame numbers');
+      const { sha256, frames: numbers } = parsed.data;
+      const tracking = await this.#cache.get(sha256);
+      if (
+        numbers.length !== frames.length ||
+        !tracking ||
+        numbers.some((n, i) => n >= tracking.frameCount || n <= (numbers[i - 1] ?? -1))
+      ) {
+        throw new ValidationError(
+          'Frame numbers must match the frames, in order, in a tracked clip',
+        );
+      }
+      // Canvas JPEGs and decoded pixels can differ between browsers.
+      hash.update(`faces:clip:v1:${sha256}:${numbers.join(',')}`);
+    }
     const images = await Promise.all(frames.map((frame) => normaliseImage(frame, VIEW_MAX_SIDE)));
+    if (source === undefined) {
+      hash.update('faces:images:v1:');
+      for (const image of images) hash.update(`${image.data.byteLength}:`).update(image.data);
+    }
+    const key = hash.digest('hex');
+    const cached = await this.#facesCache.get(key);
+    if (cached) return cached;
+
     const views = await this.#classifier.classify(images);
     // A pair that can't meet at a corner is a misreading; better no corner than a wrong one.
-    return {
+    const result: FaceViews = {
       views: views.map((view) =>
         view.corner && !isCornerPair(view.corner.left, view.corner.right)
           ? { ...view, corner: null }
           : view,
       ),
     };
+    await this.#facesCache.put(key, result);
+    return result;
   }
 }
 

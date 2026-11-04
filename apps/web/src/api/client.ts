@@ -33,6 +33,7 @@ import {
   type StartHandoverInput,
   TranscriptionSchema,
   type UpdateMark,
+  type VideoFaceSource,
   VideoSchema,
   VideoTrackingSchema,
   type VideoViews,
@@ -175,11 +176,12 @@ export const api = {
   },
 
   /** Names the face of the container in each frame of a walk-around (frames in clip order). */
-  videoFaces: (frames: readonly Blob[]) => {
+  videoFaces: (frames: readonly Blob[], source?: VideoFaceSource) => {
     const form = new FormData();
     frames.forEach((frame, i) => {
       form.append('frame', frame, `frame-${i + 1}.jpg`);
     });
+    if (source) form.set('source', JSON.stringify(source));
     return request('/api/videos/faces', { method: 'POST', body: form }, FaceViewsSchema);
   },
 

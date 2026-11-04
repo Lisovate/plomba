@@ -288,9 +288,10 @@ export const OPERATIONS: readonly Operation[] = [
   {
     method: 'post',
     path: '/videos/faces',
-    summary: 'Name the face of the container in each frame of a walk-around (Muse Spark)',
+    summary:
+      'Name each face (Muse Spark); optional source JSON: tracked clip sha256 and ordered frames',
     tag: 'Video',
-    body: { fields: { frame: 'files' }, required: ['frame'] },
+    body: { fields: { frame: 'files', source: 'string' }, required: ['frame'] },
     response: FaceViewsSchema,
   },
   {

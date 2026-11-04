@@ -98,6 +98,8 @@ const video = new VideoService({
     maxImages: vision.maxImages,
   }),
   cache: new JsonFileCache<StoredTracking>(values.cache ?? join(config.dataDir, 'tracks')),
+  // Each evaluation run must measure the model again, not reuse its earlier answers.
+  facesCache: { get: async () => undefined, put: async () => {} },
 });
 const identify = new IdentifyService(new MuseSparkMarkingsReader(visionClient, spark));
 

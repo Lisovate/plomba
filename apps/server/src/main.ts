@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { serve } from '@hono/node-server';
+import type { FaceViews } from '@plomba/contracts';
 import { pino } from 'pino';
 import { MetaClient } from './adapters/meta/client.ts';
 import {
@@ -135,6 +136,7 @@ async function main(): Promise<void> {
       segmenter,
       classifier,
       cache: videoTracking,
+      facesCache: new JsonFileCache<FaceViews>(join(config.dataDir, 'faces')),
     }),
     media,
     logger,

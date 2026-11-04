@@ -55,7 +55,14 @@ export async function analyseVideo(
     picked.map((c) => frameTime(c.frame, fps)),
   );
   onStep('naming');
-  const { views: named } = await api.videoFaces(blobs);
+  const digest = await crypto.subtle.digest('SHA-256', await chosen.file.arrayBuffer());
+  const sha256 = Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
+  const { views: named } = await api.videoFaces(blobs, {
+    sha256,
+    frames: picked.map((c) => c.frame),
+  });
   const unnamed: FaceView = {
     face: null,
     squareOn: false,

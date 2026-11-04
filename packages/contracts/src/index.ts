@@ -190,6 +190,12 @@ export const FaceViewSchema = z.object({
 /** The faces in a walk-around's chosen frames, in the order they were sent. */
 export const FaceViewsSchema = z.object({ views: z.array(FaceViewSchema) });
 
+/** Stable frame identity when browsers encode the same video frames differently. */
+export const VideoFaceSourceSchema = z.object({
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  frames: z.array(z.number().int().nonnegative()).min(1).max(16),
+});
+
 /** Named frames kept with a walk-around video, using the checker's confirmed faces. */
 export const VideoViewsSchema = z
   .array(z.object({ frame: z.number().int().nonnegative(), view: FaceViewSchema }))
@@ -544,6 +550,7 @@ export type HandoverEventType = z.infer<typeof HandoverEventTypeSchema>;
 export type WebhookEvent = z.infer<typeof WebhookEventSchema>;
 export type FaceView = z.infer<typeof FaceViewSchema>;
 export type FaceViews = z.infer<typeof FaceViewsSchema>;
+export type VideoFaceSource = z.infer<typeof VideoFaceSourceSchema>;
 
 /** Request bodies as clients write them, before defaults are applied. */
 export type StartHandoverInput = z.input<typeof StartHandoverSchema>;

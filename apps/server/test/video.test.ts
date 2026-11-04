@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import { ValidationError } from '../src/errors.ts';
@@ -5,7 +6,12 @@ import { VideoService, videoType } from '../src/services/video.ts';
 import { FakeFaceViewClassifier, FakeSegmenter, MemoryCache, rectangleObject } from './fakes.ts';
 
 function videoService(segmenter = new FakeSegmenter(), classifier = new FakeFaceViewClassifier()) {
-  return new VideoService({ segmenter, classifier, cache: new MemoryCache() });
+  return new VideoService({
+    segmenter,
+    classifier,
+    cache: new MemoryCache(),
+    facesCache: new MemoryCache(),
+  });
 }
 
 const jpeg = (width: number, height: number) =>
@@ -116,6 +122,74 @@ describe('VideoService', () => {
       frames.map((f) => new Uint8Array(f)),
     );
     expect(views.map((v) => v.corner)).toEqual([{ left: 'D', right: 'R' }, null, null]);
+  });
+
+  it('caches normalized frame bytes, with misses for different content, count or order', async () => {
+    const classifier = new FakeFaceViewClassifier();
+    const service = videoService(undefined, classifier);
+    const image = sharp({ create: { width: 80, height: 45, channels: 3, background: '#557' } });
+    const plain = await image.clone().png().toBuffer();
+    const tagged = await image.clone().withMetadata().png().toBuffer();
+    const other = await jpeg(64, 36);
+    expect(plain).not.toEqual(tagged);
+
+    const first = await service.faces([plain, other]);
+    expect(await service.faces([tagged, other])).toEqual(first);
+    expect(classifier.calls).toEqual([2]);
+    await service.faces([other, plain]);
+    await service.faces([plain]);
+    await service.faces([plain, await jpeg(32, 18)]);
+    expect(classifier.calls).toEqual([2, 2, 1, 2]);
+  });
+
+  it('reuses names across browser encodings, but separates clips and selected frames', async () => {
+    const classifier = new FakeFaceViewClassifier();
+    const segmenter = new FakeSegmenter();
+    segmenter.tracked = [{ frame: 19, objects: [] }];
+    const service = videoService(segmenter, classifier);
+    const clip = isoFile('isom');
+    const otherClip = isoFile('mp42');
+    await service.track(clip);
+    await service.track(otherClip);
+    const sha256 = createHash('sha256').update(clip).digest('hex');
+    const frames = [await jpeg(80, 45), await jpeg(64, 36)];
+    const source = { sha256, frames: [1, 10] };
+
+    const first = await service.faces(frames, source);
+    expect(await service.faces([...frames].reverse(), source)).toEqual(first);
+    expect(classifier.calls).toEqual([2]);
+    await service.faces(frames, { ...source, frames: [2, 10] });
+    await service.faces(frames, {
+      ...source,
+      sha256: createHash('sha256').update(otherClip).digest('hex'),
+    });
+    expect(classifier.calls).toEqual([2, 2, 2]);
+  });
+
+  it.each([
+    { sha256: 'bad', frames: [1, 10] },
+    { sha256: undefined, frames: [1, 10] },
+    { frames: [1] },
+    { frames: [10, 1] },
+    { frames: [1, 1] },
+    { frames: [-1, 10] },
+    { frames: [1.5, 10] },
+    { frames: [1, 20] },
+    { sha256: '0'.repeat(64), frames: [1, 10] },
+  ])('rejects an invalid frame source: %j', async (source) => {
+    const classifier = new FakeFaceViewClassifier();
+    const segmenter = new FakeSegmenter();
+    segmenter.tracked = [{ frame: 19, objects: [] }];
+    const service = videoService(segmenter, classifier);
+    const clip = isoFile('isom');
+    await service.track(clip);
+    await expect(
+      service.faces([await jpeg(80, 45), await jpeg(80, 45)], {
+        sha256: createHash('sha256').update(clip).digest('hex'),
+        ...source,
+      }),
+    ).rejects.toThrow(ValidationError);
+    expect(classifier.calls).toEqual([]);
   });
 
   it('refuses no frames or more than one call can look at', async () => {

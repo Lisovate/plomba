@@ -434,6 +434,7 @@ export function createTestApp(
       segmenter,
       classifier: options.classifier ?? new FakeFaceViewClassifier(),
       cache: context.videoTracking,
+      facesCache: new MemoryCache(),
     }),
     media,
     logger: silentLogger,
