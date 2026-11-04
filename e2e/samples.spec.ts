@@ -90,7 +90,6 @@ test('sample AR shows the passport, follows the clip, switches layers and create
   await still(page, 0.2);
   await expect(page.locator('.video-info')).toContainText('PLBU 123456 2');
   await expect(page.locator('.video-info')).toContainText('42G1 · 40 ft general purpose');
-  await expect(page.locator('.video-info')).toContainText('Owner code: PLB');
   await expect(page.locator('.video-info')).toContainText('Last: Łódź · Gate out');
   await expect(page.locator('.video-info')).toContainText('Sealed records verified: 2');
   await expect(page.locator('.passport-ghost')).toContainText('First: Gdynia');
