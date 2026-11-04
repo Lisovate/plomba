@@ -188,3 +188,12 @@ A dated record of what was built and when. The newest entry is at the bottom.
 - deploy the demo instance behind HTTPS with an access code, and test on a real phone;
 - record the 3-minute demo video;
 - final README pass and submission.
+
+## 2026-11-04 (Wed): Day 9
+
+**Built:**
+- **A demo that looks like a terminal in use.** `scripts/seed-demo.ts` records a scenario through the real services, with a scripted clock: 16 containers and 32 handovers over three weeks at Gdynia, Gdańsk, Łódź, Poznań, Sławków and a depot, by rail and by truck.
+  - Photos are frames of openly licensed clips of 8 real containers. SAM 3.1 registered every one of the 26 photos and blurred the people in them.
+  - Muse Spark found the rust on the teal container's side (`LX50 CO`); the scenario adds a dent on a road leg and a dented door on a rail leg, so the passports show damage placed between two handovers.
+  - A train from Gdynia is due at Łódź: the rail operator's system has opened a gate-in for each of its 8 containers, as in the rail example.
+- **Wagon numbers** are shown grouped as painted on the wagon in the handover list.

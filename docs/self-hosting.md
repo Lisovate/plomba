@@ -117,6 +117,17 @@ cp .env.example .env   # then set META_API_KEY_FILE and DATA_DIR
 WEB_DIST_DIR=apps/web/dist node --env-file=.env apps/server/src/main.ts
 ```
 
+## Demo data
+
+`scripts/seed-demo.ts` fills an empty data directory with what an installation looks like after a few weeks of use: the story in [`apps/server/scripts/demo/scenario.ts`](../apps/server/scripts/demo/scenario.ts), recorded through the real services. Each handover starts at its scenario time; SAM 3.1 registers and blurs every photo; Muse Spark looks for damage where the scenario asks; damage from the last handover is confirmed; and every handover not left open is sealed into its container's hash chain. The public demo's data was made this way.
+
+```sh
+cd apps/server
+DATA_DIR=/tmp/plomba-demo node --env-file=../../.env scripts/seed-demo.ts --clips <folder with the clips>
+```
+
+The movements, places, people and companies in the scenario are invented; the photos are frames of openly licensed clips, credited in the scenario. It needs ffmpeg and the Meta Model API key, and it refuses a data directory that already has data.
+
 ## Development
 
 ```sh
