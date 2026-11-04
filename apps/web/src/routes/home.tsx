@@ -18,6 +18,7 @@ import {
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { api, queryKeys } from '../api/client.ts';
+import { DemoTour } from '../components/demo-tour.tsx';
 import { Card, ContainerNumberText, ErrorNotice, Spinner } from '../components/ui.tsx';
 import { useI18n } from '../i18n/index.tsx';
 import { useInstallPrompt } from '../lib/install.ts';
@@ -30,9 +31,8 @@ export function HomeScreen() {
   const install = useInstallPrompt();
   const recent = useQuery({ queryKey: queryKeys.recent, queryFn: api.recentHandovers });
   const ready = isComplete(profile);
-  // Decided once per visit, so the form doesn't fold away while the checker is typing.
   const [firstVisit] = useState(() => !isComplete(profile));
-  const [editing, setEditing] = useState(firstVisit);
+  const [editing, setEditing] = useState(false);
 
   const open = recent.data?.filter((h) => h.status === 'open') ?? [];
   const sealed = recent.data?.filter((h) => h.status === 'closed') ?? [];
@@ -44,24 +44,23 @@ export function HomeScreen() {
 
   return (
     <div className="stack">
-      {firstVisit && (
-        <Card className="intro">
-          <p className="eyebrow">{t('intro.eyebrow')}</p>
-          <h1>{t('app.tagline')}</h1>
-          <ol className="steps">
-            <li>{t('intro.identify')}</li>
-            <li>{t('intro.record')}</li>
-            <li>{t('intro.confirm')}</li>
-            <li>{t('intro.seal')}</li>
-          </ol>
-        </Card>
-      )}
+      <section className="hero-action">
+        <h1>{t('home.heroTitle')}</h1>
+        <p>{t('home.heroText')}</p>
+        <Link to="/identify" className="button accent large">
+          <ScanLine size={20} aria-hidden /> {t('home.inspect')}
+        </Link>
+      </section>
 
-      {!editing ? (
+      <DemoTour />
+
+      {editing ? (
+        <ProfileForm profile={profile} onChange={saveProfile} onDone={() => setEditing(false)} />
+      ) : ready ? (
         <div className="hello">
           <div>
             <p className="eyebrow">{t('home.greeting')}</p>
-            <h1>{profile.checker}</h1>
+            <h2>{profile.checker}</h2>
             <p className="profile-line">
               <span>
                 <MapPin size={16} aria-hidden /> {profile.place}
@@ -73,11 +72,11 @@ export function HomeScreen() {
           </button>
         </div>
       ) : (
-        <ProfileForm
-          profile={profile}
-          onChange={saveProfile}
-          onDone={ready ? () => setEditing(false) : undefined}
-        />
+        <Card>
+          <button type="button" className="link" onClick={() => setEditing(true)}>
+            <UserRound size={18} aria-hidden /> {t('profile.title')}
+          </button>
+        </Card>
       )}
 
       {recent.isSuccess && recent.data.length > 0 && (
@@ -97,23 +96,22 @@ export function HomeScreen() {
         </div>
       )}
 
-      <section className="hero-action">
-        <h2>{t('home.heroTitle')}</h2>
-        <p>{t('home.heroText')}</p>
-        {ready ? (
-          <Link to="/identify" className="button accent large">
-            <ScanLine size={20} aria-hidden /> {t('home.inspect')}
-          </Link>
-        ) : (
-          <button type="button" className="accent large" disabled>
-            <ScanLine size={20} aria-hidden /> {t('home.inspect')}
-          </button>
-        )}
-      </section>
-
       <Link to="/try" className="button secondary">
         <CirclePlay size={20} aria-hidden /> {t('home.try')}
       </Link>
+
+      {firstVisit && (
+        <Card className="intro">
+          <p className="eyebrow">{t('intro.eyebrow')}</p>
+          <h2>{t('app.tagline')}</h2>
+          <ol className="steps">
+            <li>{t('intro.identify')}</li>
+            <li>{t('intro.record')}</li>
+            <li>{t('intro.confirm')}</li>
+            <li>{t('intro.seal')}</li>
+          </ol>
+        </Card>
+      )}
 
       {install.kind === 'prompt' && (
         <button type="button" className="secondary" onClick={install.prompt}>
@@ -143,8 +141,7 @@ function ProfileForm({
 }: {
   profile: Profile;
   onChange: (profile: Profile) => void;
-  /** Shown as a Done button once the profile is complete. */
-  onDone: (() => void) | undefined;
+  onDone: () => void;
 }) {
   const { t } = useI18n();
   return (
@@ -167,13 +164,10 @@ function ProfileForm({
           onChange={(e) => onChange({ ...profile, place: e.target.value })}
         />
       </label>
-      {onDone ? (
-        <button type="button" className="secondary" onClick={onDone}>
-          {t('common.done')}
-        </button>
-      ) : (
-        <p className="muted">{t('profile.missing')}</p>
-      )}
+      <p className="muted">{t('profile.optional')}</p>
+      <button type="button" className="secondary" onClick={onDone}>
+        {t('common.done')}
+      </button>
     </Card>
   );
 }

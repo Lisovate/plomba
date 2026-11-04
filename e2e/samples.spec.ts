@@ -234,8 +234,7 @@ test('sample photos identify the doors and go through the face and walk-around p
   page,
 }) => {
   await page.goto('/');
-  await page.getByLabel('Your name').fill('Sample checker');
-  await page.getByLabel('Place (terminal or depot)').fill('Sample yard');
+  await expect(page.getByLabel('Your name')).toHaveCount(0);
   await page.getByRole('link', { name: 'Inspect a container', exact: true }).click();
   await expect(
     page.getByRole('heading', { name: 'No container here? Try a sample door photo' }),
@@ -244,6 +243,10 @@ test('sample photos identify the doors and go through the face and walk-around p
   await expect(page.getByRole('heading', { name: 'Check digit verified' })).toBeVisible();
   await expect(page.getByText('Sample photo ·')).toContainText('Apache-2.0');
   await page.getByRole('button', { name: 'Confirm container' }).click();
+  await expect(page.getByLabel('Checker', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Place', { exact: true })).toHaveValue('');
+  await page.getByLabel('Checker', { exact: true }).fill('Sample checker');
+  await page.getByLabel('Place', { exact: true }).fill('Sample yard');
   await page.getByRole('button', { name: 'Start handover' }).click();
   await page.getByRole('button', { name: 'Left', exact: true }).click();
   await page.getByRole('button', { name: 'Use a sample photo' }).click();

@@ -9,6 +9,7 @@ test('a checker identifies a container, records damage, seals the handover and s
   page,
 }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: "Who's checking?" }).click();
   await page.getByLabel('Your name').fill('Paweł Lisowski');
   await page.getByLabel('Place (terminal or depot)').fill('Gdynia rail terminal');
   await page.getByRole('link', { name: 'Inspect a container' }).click();
@@ -21,6 +22,8 @@ test('a checker identifies a container, records damage, seals the handover and s
   await page.getByRole('button', { name: 'Confirm container' }).click();
 
   // Start the handover; the seal read from the doors is carried over.
+  await expect(page.getByLabel('Checker', { exact: true })).toHaveValue('Paweł Lisowski');
+  await expect(page.getByLabel('Place', { exact: true })).toHaveValue('Gdynia rail terminal');
   await expect(page.getByLabel('Seal numbers, comma-separated')).toHaveValue('PL123456');
   // It came by rail: the wagon number is checked with the UIC check digit as it's typed.
   await page.getByRole('radio', { name: 'Rail wagon' }).check({ force: true });

@@ -943,7 +943,7 @@ a.list-item:hover {
   gap: 1rem;
 }
 
-.hello h1 {
+.hello h2 {
   margin: 0;
 }
 
@@ -988,7 +988,7 @@ a.list-item:hover {
   box-shadow: var(--shadow-lg);
 }
 
-.hero-action h2 {
+.hero-action h1 {
   color: #fff;
   font-size: 1.25rem;
 }
@@ -1005,7 +1005,7 @@ a.list-item:hover {
   border-top: 4px solid var(--seal-500);
 }
 
-.intro h1 {
+.intro h2 {
   font-size: 1.35rem;
 }
 
