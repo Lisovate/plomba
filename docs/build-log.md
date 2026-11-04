@@ -197,3 +197,4 @@ A dated record of what was built and when. The newest entry is at the bottom.
   - Muse Spark found the rust on the teal container's side (`LX50 CO`); the scenario adds a dent on a road leg and a dented door on a rail leg, so the passports show damage placed between two handovers.
   - A train from Gdynia is due at Łódź: the rail operator's system has opened a gate-in for each of its 8 containers, as in the rail example.
 - **Wagon numbers** are shown grouped as painted on the wagon in the handover list.
+- **Walk-around videos kept as evidence.** The clip is stored with the handover, content-addressed, and its SHA-256 goes into the sealed record (record version 3; versions 1 and 2 still verify and read). The handover page replays it with SAM 3.1's outline and the faces Muse Spark named; the EIR lists it with its hash. MP4, MOV and WebM are recognised by their bytes, and media is served with byte ranges, which Safari needs to play video.

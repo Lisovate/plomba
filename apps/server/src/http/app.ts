@@ -19,6 +19,7 @@ import type { Logger } from 'pino';
 import type { z } from 'zod';
 import { AppError, NotFoundError, ValidationError } from '../errors.ts';
 import type { SampleClips } from '../media/sample-clips.ts';
+import { videoContentType } from '../media/video.ts';
 import type { MediaStore } from '../ports.ts';
 import type { ClaimService } from '../services/claims.ts';
 import type { HandoverService } from '../services/handovers.ts';
@@ -112,11 +113,25 @@ export function createApp(deps: AppDeps): Hono {
   app.get('/media/:sha256', async (c) => {
     const data = await deps.media.get(c.req.param('sha256'));
     if (!data) return problem(c, 404, 'not-found', 'No such media');
-    return c.body(data as Uint8Array<ArrayBuffer>, 200, {
-      'content-type': 'image/jpeg',
-      // Content-addressed: the bytes behind a hash never change.
-      'cache-control': 'private, max-age=31536000, immutable',
-    });
+    c.header('content-type', videoContentType(data) ?? 'image/jpeg');
+    // Content-addressed: the bytes behind a hash never change.
+    c.header('cache-control', 'private, max-age=31536000, immutable');
+    c.header('accept-ranges', 'bytes');
+    const range = c.req.header('if-range')
+      ? undefined
+      : byteRange(c.req.header('range'), data.length);
+    if (range === null) {
+      c.header('content-range', `bytes */${data.length}`);
+      return c.body(null, 416);
+    }
+    if (range) {
+      const { start, end } = range;
+      c.header('content-range', `bytes ${start}-${end}/${data.length}`);
+      c.header('content-length', String(end - start + 1));
+      return c.body(data.subarray(start, end + 1) as Uint8Array<ArrayBuffer>, 206);
+    }
+    c.header('content-length', String(data.length));
+    return c.body(data as Uint8Array<ArrayBuffer>, 200);
   });
 
   if (deps.webDistDir) serveWebApp(app, deps.webDistDir);
@@ -233,6 +248,46 @@ function api(deps: AppDeps): Hono {
   });
 
   api.get('/handovers/:id', (c) => c.json(handovers.detail(c.req.param('id'))));
+
+  const evidenceVideoLimit = bodyLimit({
+    maxSize: 150 * 1024 * 1024,
+    onError: () => {
+      throw new HTTPException(413, { message: 'The video is too large (maximum 150 MB)' });
+    },
+  });
+
+  api.post('/handovers/:id/videos', evidenceVideoLimit, async (c) => {
+    const form = await c.req.parseBody().catch(() => {
+      throw new ValidationError('Expected multipart/form-data');
+    });
+    const file = form.video;
+    if (!(file instanceof File) || file.size === 0) {
+      throw new ValidationError('Attach the clip as the "video" field');
+    }
+    let views: unknown;
+    if (form.views !== undefined) {
+      if (typeof form.views !== 'string') throw new ValidationError('views must be JSON');
+      try {
+        views = JSON.parse(form.views);
+      } catch {
+        throw new ValidationError('views must be JSON');
+      }
+    }
+    return c.json(
+      await handovers.addVideo(c.req.param('id'), {
+        data: new Uint8Array(await file.arrayBuffer()),
+        views,
+      }),
+      201,
+    );
+  });
+
+  api.get('/handovers/:id/videos/:videoId/tracking', async (c) => {
+    const stored = handovers.video(c.req.param('id'), c.req.param('videoId'));
+    const tracking = await video.cached(stored.sha256);
+    if (!tracking) throw new NotFoundError('No cached tracking for this video');
+    return c.json(tracking);
+  });
 
   api.post('/handovers/:id/photos', uploadLimit, async (c) => {
     const { image, fields } = await readUpload(c);
@@ -362,4 +417,21 @@ function problem(
     status as 400,
     { 'content-type': 'application/problem+json' },
   );
+}
+
+/** One byte range, including open-ended and suffix ranges. Ignore unsupported ranges. */
+function byteRange(
+  header: string | undefined,
+  size: number,
+): { start: number; end: number } | null | undefined {
+  const match = header?.match(/^bytes=(\d*)-(\d*)$/);
+  if (!match || (!match[1] && !match[2])) return undefined;
+  if (size === 0) return null;
+  if (!match[1]) {
+    const suffix = Number(match[2]);
+    return suffix > 0 ? { start: Math.max(0, size - suffix), end: size - 1 } : null;
+  }
+  const start = Number(match[1]);
+  const end = match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
+  return start >= size || start > end ? null : { start, end };
 }

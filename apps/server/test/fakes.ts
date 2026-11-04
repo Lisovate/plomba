@@ -8,6 +8,7 @@ import {
   SqliteHandoverRepository,
   SqliteMarkRepository,
   SqlitePhotoRepository,
+  SqliteVideoRepository,
 } from '../src/adapters/sqlite/repositories.ts';
 import { createApp } from '../src/http/app.ts';
 import type { SampleClips } from '../src/media/sample-clips.ts';
@@ -225,6 +226,7 @@ export function createTestHandoverService(options: { events?: EventPublisher } =
     containers: new SqliteContainerRepository(db),
     handovers: new SqliteHandoverRepository(db),
     photos: new SqlitePhotoRepository(db),
+    videos: new SqliteVideoRepository(db),
     marks: new SqliteMarkRepository(db),
     media,
     segmenter,

@@ -10,7 +10,7 @@ Phone (iPhone or Android): Plomba PWA in the browser or installed to the home sc
   └─ HTTPS (same origin) ─▶ Plomba server (Node 24, TypeScript)
                               ├─ Meta Model API: Muse Spark, SAM 3.1, Muse Voice
                               │   Transcribe (built); Muse Image for synthetic tests only
-                              ├─ SQLite database + content-addressed photo store
+                              ├─ SQLite database + content-addressed media store
                               ├─ hash-chained handover history
                               └─ serves the built web app
 Open-weights option: reading, face naming and damage detection on Muse Spark Open or Muse Glimmer
@@ -122,7 +122,7 @@ The server computes the ISO 9897 (CEDEX) location code from a mark's position (`
 
 A checker can record one slow walk around the container, on a phone or Meta AI glasses, instead of taking a photo of each face (`/handovers/:id/walkaround`).
 
-1. **SAM 3.1 tracks the container through every frame** in one request (`POST /api/videos/track`). The clip goes up through the Files API; the result (the four corners per frame) is cached by the clip's SHA-256, and the clip itself isn't stored.
+1. **SAM 3.1 tracks the container through every frame** in one request (`POST /api/videos/track`). The clip goes up through the Files API; the result (the four corners per frame) is cached by the clip's SHA-256, and tracking alone does not store the clip.
    - The app follows the most prominent container by its stable object ID, so the overlay never jumps to a neighbour.
 2. **Plomba picks candidate frames** (`pickCandidateFrames` in core). A frame scores 0 when the outline touches the frame edge (a cut-off face can't be registered) or covers less than 10% of it. Otherwise it scores its share of the frame times its squareness squared; squareness is 1 minus the mean |cos| of the outline's corner angles. The best frames are taken greedily at least a second apart, up to 12.
 3. **The browser cuts those frames out** of the clip (a hidden video element and a canvas), so the server needs no video decoder.
@@ -146,6 +146,8 @@ A checker can record one slow walk around the container, on a phone or Meta AI g
 While the clip plays, the overlay follows the face in view: the face of the nearest named frame within 1.5 s, with its CEDEX sections, the previous handover's damage and this handover's marks (`requestVideoFrameCallback`). While the camera turns a corner only the container's outline is drawn.
 
 **Limits:** a face must be whole in some frame, square-on or at a corner. Close-range clips, where the top corners are always out of view, give no candidate frames, and the app asks for a recording from further back. A clip with cuts can lose the tracked object ID at a cut.
+
+The checker can keep the clip with the handover (on by default). The browser attaches it after the chosen frames, with their confirmed face views. The server accepts MP4, MOV and WebM by their bytes, stores them by SHA-256, and allows up to three clips on an open handover. New sealed records use version 3 and include each clip's ID, hash, size and content type; versions 1 and 2 still verify and feed the passport and claims. Stored clips play with cached tracking when available, or as plain video, and the media route supports byte ranges for phone playback. Clips must already have faces and number plates blurred before upload (see `apps/server/scripts/blur-clip.ts`); the server stores the uploaded clip unchanged so its hash also identifies its tracking.
 
 ## Damage proposals
 
@@ -177,8 +179,8 @@ Live, on a container with one old hole and one new dent, Muse Spark called both 
 
 - **Photos are re-encoded on the server before anything else.** sharp turns them upright, resizes them to 2048 px and re-encodes them, which strips EXIF metadata including GPS. The phone also downscales before upload.
 - **Faces and number plates are blurred** (SAM 3.1 boxes plus a margin) before a photo is stored.
-- **Photos are content-addressed**: a stored file's name is the SHA-256 of its bytes.
-- **Closing a handover seals it.** The handover, its marks and its photos' hashes are serialised as canonical JSON (sorted keys). The record's hash covers the previous sealed record's hash and the record. Records chain per container.
+- **Photos and videos are content-addressed**: a stored file's name is the SHA-256 of its bytes.
+- **Closing a handover seals it.** The handover, its marks and its photos' and videos' hashes are serialised as canonical JSON (sorted keys). The record's hash covers the previous sealed record's hash and the record. Records chain per container.
 - **Verification.** `GET /api/containers/:number` re-hashes the whole chain and reports where it breaks, e.g. after a record is edited directly in the database.
 - **Concurrency.** Sealing uses optimistic concurrency, backed by a unique index on (container, sequence). A partial unique index allows only one open handover per container.
 
@@ -200,6 +202,7 @@ The container page shows every damage on a map of the container's faces (each lo
 | `containers` | ISO 6346 number, size/type code, external dimensions |
 | `handovers` | container, direction (in/out), place, checker, parties, seal numbers, transport (road/rail) and vehicle (registration or UIC wagon number), status, previous handover; once sealed: sequence, previous hash, hash, the sealed record |
 | `photos` | handover, face, SHA-256, size, the face's corners and whether they were detected or adjusted, number of blurred regions, capture time |
+| `videos` | handover, SHA-256, byte size, detected content type, confirmed frame views and creation time |
 | `marks` | handover, face, rectangle in metres, CEDEX location code, damage and component codes, status (new, still there, changed, repaired), source (proposed, confirmed, rejected), the previous handover's mark it confirms, photo |
 
 Migrations live in `apps/server/src/adapters/sqlite/migrations.ts` and are applied at startup.

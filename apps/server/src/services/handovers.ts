@@ -4,6 +4,7 @@
  * container's hash chain.
  */
 
+import { createHash } from 'node:crypto';
 import {
   type Container,
   type ContainerHistory,
@@ -20,6 +21,8 @@ import {
   type RegisterContainer,
   type StartHandover,
   type UpdateMark,
+  type Video,
+  VideoViewsSchema,
 } from '@plomba/contracts';
 import {
   buildCodeco,
@@ -44,6 +47,7 @@ import {
 import { z } from 'zod';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
 import { blurRegions, normaliseImage } from '../media/images.ts';
+import { videoContentType } from '../media/video.ts';
 import type {
   Clock,
   ContainerRepository,
@@ -57,6 +61,7 @@ import type {
   PhotoRepository,
   Segmenter,
   TransactionRunner,
+  VideoRepository,
 } from '../ports.ts';
 import { findingsToDrafts } from './damage.ts';
 import { SealedRecordSchema } from './sealed-records.ts';
@@ -66,6 +71,7 @@ export interface HandoverServiceDeps {
   readonly containers: ContainerRepository;
   readonly handovers: HandoverRepository;
   readonly photos: PhotoRepository;
+  readonly videos: VideoRepository;
   readonly marks: MarkRepository;
   readonly media: MediaStore;
   readonly segmenter: Segmenter;
@@ -291,9 +297,56 @@ export class HandoverService {
       handover,
       container: this.#container(handover.containerNumber),
       photos: this.#d.photos.listForHandover(id),
+      videos: this.#d.videos.listForHandover(id),
       marks: this.#d.marks.listForHandover(id),
       previousMarks,
     };
+  }
+
+  video(handoverId: string, videoId: string): Video {
+    this.#handover(handoverId);
+    const video = this.#d.videos.get(videoId);
+    if (!video || video.handoverId !== handoverId) {
+      throw new NotFoundError(`Video ${videoId} not found in handover ${handoverId}`);
+    }
+    return video;
+  }
+
+  async addVideo(handoverId: string, input: { data: Uint8Array; views?: unknown }): Promise<Video> {
+    this.#openHandover(handoverId);
+    const contentType = videoContentType(input.data);
+    if (!contentType) throw new ValidationError('Upload an MP4, MOV or WebM video');
+    const parsed = VideoViewsSchema.safeParse(input.views === undefined ? [] : input.views);
+    if (!parsed.success) {
+      throw new ValidationError('The video views are invalid', {
+        issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      });
+    }
+    const sha256 = createHash('sha256').update(input.data).digest('hex');
+    const existing = this.#d.videos.listForHandover(handoverId).find((v) => v.sha256 === sha256);
+    // A retry after a lost response must not attach the same clip twice.
+    if (existing) return existing;
+    if (this.#d.videos.listForHandover(handoverId).length >= 3) {
+      throw new ConflictError('A handover can keep at most 3 videos');
+    }
+    const stored = await this.#d.media.put(input.data);
+    return this.#d.transaction(() => {
+      this.#openHandover(handoverId);
+      const videos = this.#d.videos.listForHandover(handoverId);
+      const duplicate = videos.find((v) => v.sha256 === stored.sha256);
+      if (duplicate) return duplicate;
+      if (videos.length >= 3) throw new ConflictError('A handover can keep at most 3 videos');
+      const id = this.#d.newId();
+      this.#d.videos.insert({
+        id,
+        handoverId,
+        ...stored,
+        contentType,
+        views: parsed.data,
+        createdAt: this.#now(),
+      });
+      return this.video(handoverId, id);
+    });
   }
 
   /**
@@ -596,7 +649,7 @@ export class HandoverService {
     const photos = this.#d.photos.listForHandover(handover.id);
     const marks = this.#d.marks.listForHandover(handover.id).filter((m) => m.source !== 'rejected');
     return {
-      version: 2,
+      version: 3,
       // Sections without a photo were not inspected, and the record says so.
       notInspected: Object.fromEntries(
         Object.entries(coverage).flatMap(([face, c]) =>
@@ -624,6 +677,12 @@ export class HandoverService {
         sha256: p.sha256,
         corners: p.corners,
         capturedAt: p.capturedAt,
+      })),
+      videos: this.#d.videos.listForHandover(handover.id).map((v) => ({
+        id: v.id,
+        sha256: v.sha256,
+        size: v.size,
+        contentType: v.contentType,
       })),
       marks: marks.map((m) => ({
         id: m.id,

@@ -25,6 +25,7 @@ import {
   SqliteHandoverRepository,
   SqliteMarkRepository,
   SqlitePhotoRepository,
+  SqliteVideoRepository,
 } from './adapters/sqlite/repositories.ts';
 import { WebhookNotifier } from './adapters/webhooks.ts';
 import { ConfigError, loadConfig } from './config.ts';
@@ -84,6 +85,7 @@ function main(): void {
     containers: new SqliteContainerRepository(db),
     handovers: new SqliteHandoverRepository(db),
     photos: new SqlitePhotoRepository(db),
+    videos: new SqliteVideoRepository(db),
     marks: new SqliteMarkRepository(db),
   };
   // Handover events for other systems: signed webhooks when configured.

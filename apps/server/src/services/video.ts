@@ -48,6 +48,11 @@ export class VideoService {
     this.#cache = deps.cache;
   }
 
+  async cached(sha256: string): Promise<VideoTracking | undefined> {
+    const result = await this.#cache.get(sha256);
+    return result ? { ...result, cached: true } : undefined;
+  }
+
   /** Tracks the container's face through a clip. The clip itself isn't stored. */
   async track(data: Uint8Array): Promise<VideoTracking> {
     const video: VideoInput = { data, mimeType: videoType(data) };

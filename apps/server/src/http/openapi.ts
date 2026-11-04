@@ -34,7 +34,9 @@ import {
   TranscriptionSchema,
   UpdateCornersSchema,
   UpdateMarkSchema,
+  VideoSchema,
   VideoTrackingSchema,
+  VideoViewsSchema,
   WebhookEventSchema,
 } from '@plomba/contracts';
 import { z } from 'zod';
@@ -45,6 +47,7 @@ type Method = 'get' | 'post' | 'put' | 'patch';
 interface Multipart {
   readonly fields: Readonly<Record<string, 'file' | 'files' | 'string'>>;
   readonly required: readonly string[];
+  readonly jsonFields?: Readonly<Record<string, z.ZodType>>;
 }
 
 export interface Operation {
@@ -163,7 +166,7 @@ export const OPERATIONS: readonly Operation[] = [
   {
     method: 'get',
     path: '/handovers/{id}',
-    summary: 'A handover with its photos, marks and the previous handover’s marks',
+    summary: 'A handover with its photos, videos, marks and the previous handover’s marks',
     tag: 'Handovers',
     response: HandoverDetailSchema,
   },
@@ -203,6 +206,27 @@ export const OPERATIONS: readonly Operation[] = [
     },
     response: PhotoSchema,
     status: 201,
+  },
+  {
+    method: 'post',
+    path: '/handovers/{id}/videos',
+    summary:
+      'Keep an MP4, MOV or WebM clip as evidence (150 MB body limit, at most 3 per open handover); identical clips reuse the attachment',
+    tag: 'Video',
+    body: {
+      fields: { video: 'file', views: 'string' },
+      required: ['video'],
+      jsonFields: { views: VideoViewsSchema },
+    },
+    response: VideoSchema,
+    status: 201,
+  },
+  {
+    method: 'get',
+    path: '/handovers/{id}/videos/{videoId}/tracking',
+    summary: 'Cached tracking for a stored clip; 404 when tracking is unavailable',
+    tag: 'Video',
+    response: VideoTrackingSchema,
   },
   {
     method: 'put',
@@ -289,7 +313,15 @@ function requestBody(body: z.ZodType | Multipart) {
     Object.entries(body.fields).map(([name, kind]) => [
       name,
       kind === 'string'
-        ? { type: 'string' }
+        ? {
+            type: 'string',
+            ...(body.jsonFields?.[name]
+              ? {
+                  contentMediaType: 'application/json',
+                  contentSchema: json(body.jsonFields[name], 'input'),
+                }
+              : {}),
+          }
         : kind === 'file'
           ? { type: 'string', format: 'binary' }
           : { type: 'array', items: { type: 'string', format: 'binary' } },
@@ -320,7 +352,7 @@ const problem = {
 };
 
 /** The version of this API description; bumped when the API changes. */
-export const API_VERSION = '1.1.0';
+export const API_VERSION = '1.2.0';
 
 export function openApiDocument(options: { readonly serverUrl: string }) {
   const paths: Record<string, Record<string, unknown>> = {};

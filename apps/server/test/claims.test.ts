@@ -17,6 +17,8 @@ import {
   ScriptedAgent,
 } from './fakes.ts';
 
+import { useLegacyRecord } from './legacy-record.ts';
+
 const NUMBER = 'CSQU3054383';
 
 /** Gate-in at Gdynia with one dent; gate-out at Łódź where the dent is still there and a hole is new. */
@@ -94,6 +96,27 @@ function recordedClaim(context: Awaited<ReturnType<typeof twoHandovers>>): Claim
 }
 
 describe('ClaimService', () => {
+  it.each([1, 2] as const)(
+    'drafts from version %i sealed records and reads their history',
+    async (version) => {
+      const context = await twoHandovers();
+      await useLegacyRecord(context.db, context.first.id, version);
+      await context.service.close(context.second.id, { acceptGaps: true });
+      await useLegacyRecord(context.db, context.second.id, version);
+      const recorded = recordedClaim(context);
+      const agent = new ScriptedAgent([() => recorded]);
+      await expect(
+        claimService(context, agent).draft(context.second.id, 'en'),
+      ).resolves.toMatchObject({
+        status: 'drafted',
+        claim: recorded,
+      });
+      expect(agent.toolResults[1]).toMatchObject({ chainIntact: true });
+      expect((await context.service.history(NUMBER)).chain.ok).toBe(true);
+      context.db.close();
+    },
+  );
+
   it.each([
     {
       fact: 'damage code',

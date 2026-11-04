@@ -91,4 +91,19 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX handovers_by_vehicle
     ON handovers(upper(replace(replace(vehicle_id, ' ', ''), '-', '')), started_at DESC, id DESC);
   `,
+  // 2026-11-04: walk-around clips kept as handover evidence.
+  `
+  CREATE TABLE videos (
+    id            TEXT PRIMARY KEY,
+    handover_id   TEXT NOT NULL REFERENCES handovers(id),
+    sha256        TEXT NOT NULL,
+    size          INTEGER NOT NULL CHECK (size > 0),
+    content_type  TEXT NOT NULL CHECK (content_type IN ('video/mp4', 'video/quicktime', 'video/webm')),
+    views         TEXT NOT NULL,
+    created_at    TEXT NOT NULL,
+    UNIQUE (handover_id, sha256)
+  ) STRICT;
+
+  CREATE INDEX videos_by_handover ON videos(handover_id, created_at, id);
+  `,
 ];

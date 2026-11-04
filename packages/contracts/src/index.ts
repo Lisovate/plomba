@@ -190,6 +190,24 @@ export const FaceViewSchema = z.object({
 /** The faces in a walk-around's chosen frames, in the order they were sent. */
 export const FaceViewsSchema = z.object({ views: z.array(FaceViewSchema) });
 
+/** Named frames kept with a walk-around video, using the checker's confirmed faces. */
+export const VideoViewsSchema = z
+  .array(z.object({ frame: z.number().int().nonnegative(), view: FaceViewSchema }))
+  .max(16);
+
+export const VideoContentTypeSchema = z.enum(['video/mp4', 'video/quicktime', 'video/webm']);
+
+export const VideoSchema = z.object({
+  id: z.uuid(),
+  handoverId: z.uuid(),
+  url: z.string(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  size: z.number().int().positive(),
+  contentType: VideoContentTypeSchema,
+  views: VideoViewsSchema,
+  createdAt: isoDateTime,
+});
+
 /** Where the face is in a live camera frame. Frames are never stored. */
 export const FrameRegistrationSchema = z.object({
   width: z.number().int(),
@@ -260,6 +278,7 @@ export const HandoverDetailSchema = z.object({
   handover: HandoverSchema,
   container: ContainerSchema,
   photos: z.array(PhotoSchema),
+  videos: z.array(VideoSchema),
   marks: z.array(MarkSchema),
   /** Marks recorded at the previous handover of this container, to be confirmed again. */
   previousMarks: z.array(MarkSchema),
@@ -470,6 +489,8 @@ export type TransportMode = z.infer<typeof TransportModeSchema>;
 export type StartHandover = z.infer<typeof StartHandoverSchema>;
 export type Handover = z.infer<typeof HandoverSchema>;
 export type Photo = z.infer<typeof PhotoSchema>;
+export type Video = z.infer<typeof VideoSchema>;
+export type VideoViews = z.infer<typeof VideoViewsSchema>;
 export type MarkStatus = z.infer<typeof MarkStatusSchema>;
 export type MarkSource = z.infer<typeof MarkSourceSchema>;
 export type Mark = z.infer<typeof MarkSchema>;

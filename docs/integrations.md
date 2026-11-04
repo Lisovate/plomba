@@ -10,6 +10,7 @@ How other systems work with Plomba: a shipping line's claims desk, a rail operat
 | Read a container's history and damage passport | `GET /api/containers/{number}` |
 | Follow a fleet (an owner code) | `GET /api/containers?owner=PLBU` |
 | Find handovers by truck, wagon, container, status, direction or place | `GET /api/handovers?vehicle=EL4K217&status=closed` |
+| Attach and watch walk-around evidence | `POST /api/handovers/{id}/videos` (multipart `video`, optional `views` JSON, 150 MB); clips in `GET /api/handovers/{id}`, cached overlays at `GET /api/handovers/{id}/videos/{videoId}/tracking` |
 | Prepare handovers before the train or truck arrives | `POST /api/containers`, `POST /api/handovers` |
 | Send the gate event to systems that speak EDIFACT | `GET /api/handovers/{id}/codeco` (CODECO D.95B, SMDG 1.6) |
 | Give the other party the receipt | The EIR at `/handovers/{id}/report` (print or save as PDF) |

@@ -15,6 +15,7 @@ import type {
   MarkSource,
   MarkStatus,
   Photo,
+  Video,
 } from '@plomba/contracts';
 import type {
   ComponentCode,
@@ -288,6 +289,14 @@ export interface PhotoRepository {
   insert(photo: NewPhoto): void;
   listForHandover(handoverId: string): Photo[];
   updateCorners(id: string, corners: Quad, source: 'detected' | 'adjusted'): void;
+}
+
+export type NewVideo = Omit<Video, 'url'>;
+
+export interface VideoRepository {
+  get(id: string): Video | undefined;
+  insert(video: NewVideo): void;
+  listForHandover(handoverId: string): Video[];
 }
 
 export interface NewMark {

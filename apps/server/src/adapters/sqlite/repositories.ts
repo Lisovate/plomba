@@ -11,6 +11,7 @@ import type {
   HandoverSummary,
   Mark,
   Photo,
+  Video,
 } from '@plomba/contracts';
 import type { Face, Quad } from '@plomba/core';
 import { ConflictError } from '../../errors.ts';
@@ -23,8 +24,10 @@ import type {
   NewHandover,
   NewMark,
   NewPhoto,
+  NewVideo,
   PhotoRepository,
   SealedRecord,
+  VideoRepository,
 } from '../../ports.ts';
 import { isUniqueViolation } from './database.ts';
 
@@ -447,5 +450,57 @@ export class SqliteMarkRepository implements MarkRepository {
         .prepare('SELECT * FROM marks WHERE handover_id = ? ORDER BY created_at')
         .all(handoverId) as Row[]
     ).map(toMark);
+  }
+}
+
+function toVideo(row: Row): Video {
+  const sha256 = str(row, 'sha256');
+  return {
+    id: str(row, 'id'),
+    handoverId: str(row, 'handover_id'),
+    url: `/media/${sha256}`,
+    sha256,
+    size: num(row, 'size'),
+    contentType: str(row, 'content_type') as Video['contentType'],
+    views: JSON.parse(str(row, 'views')) as Video['views'],
+    createdAt: str(row, 'created_at'),
+  };
+}
+
+export class SqliteVideoRepository implements VideoRepository {
+  readonly #db: DatabaseSync;
+
+  constructor(db: DatabaseSync) {
+    this.#db = db;
+  }
+
+  get(id: string): Video | undefined {
+    const row = this.#db.prepare('SELECT * FROM videos WHERE id = ?').get(id) as Row | undefined;
+    return row && toVideo(row);
+  }
+
+  insert(video: NewVideo): void {
+    this.#db
+      .prepare(
+        `INSERT INTO videos (id, handover_id, sha256, size, content_type, views, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        video.id,
+        video.handoverId,
+        video.sha256,
+        video.size,
+        video.contentType,
+        JSON.stringify(video.views),
+        video.createdAt,
+      );
+  }
+
+  listForHandover(handoverId: string): Video[] {
+    return (
+      this.#db
+        .prepare('SELECT * FROM videos WHERE handover_id = ? ORDER BY created_at, id')
+        .all(handoverId) as Row[]
+    ).map(toVideo);
   }
 }
