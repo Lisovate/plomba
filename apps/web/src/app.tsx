@@ -6,7 +6,14 @@ import {
   useQuery,
 } from '@tanstack/react-query';
 import { Boxes, ClipboardList, ScanLine } from 'lucide-react';
-import { createBrowserRouter, Link, NavLink, Outlet, useRouteError } from 'react-router';
+import {
+  createBrowserRouter,
+  Link,
+  NavLink,
+  Outlet,
+  ScrollRestoration,
+  useRouteError,
+} from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { ApiError, api, queryKeys } from './api/client.ts';
 import { AccessGate } from './components/access-gate.tsx';
@@ -75,6 +82,7 @@ function Shell() {
       </header>
       {!online && <p className="offline-banner no-print">{t('common.offline')}</p>}
       <main>
+        <ScrollRestoration />
         <AccessGate>
           <Outlet />
         </AccessGate>

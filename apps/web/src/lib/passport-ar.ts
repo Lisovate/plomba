@@ -38,11 +38,16 @@ export function firstRecordedLabel(
 }
 
 export function informationLines(history: ContainerHistory, t: Translate, language: Language) {
-  const last = history.handovers.reduce<Handover | undefined>(
-    (latest, handover) =>
-      !latest || Date.parse(handover.startedAt) > Date.parse(latest.startedAt) ? handover : latest,
-    undefined,
-  );
+  // The last sealed handover: an open one can still change, so it isn't the container's record yet.
+  const last = history.handovers
+    .filter((handover) => handover.status === 'closed')
+    .reduce<Handover | undefined>(
+      (latest, handover) =>
+        !latest || Date.parse(handover.startedAt) > Date.parse(latest.startedAt)
+          ? handover
+          : latest,
+      undefined,
+    );
   return {
     sizeType: describeSizeType(history.container.sizeTypeCode, t),
     lastHandover: last

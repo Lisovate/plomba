@@ -41,7 +41,8 @@ export function HandoverScreen() {
   const { id = '' } = useParams();
   const { t, language } = useI18n();
   const detail = useQuery({ queryKey: queryKeys.handover(id), queryFn: () => api.handover(id) });
-  const [face, setFace] = useState<Face>('D');
+  // Until the checker picks one: the face with damage to confirm, else the first photographed.
+  const [chosenFace, setFace] = useState<Face>();
   const [selectedMarkId, setSelectedMarkId] = useState<string>();
 
   const view = useMemo(() => (detail.data ? deriveView(detail.data) : undefined), [detail.data]);
@@ -52,6 +53,7 @@ export function HandoverScreen() {
 
   const { handover, container } = detail.data;
   const editable = handover.status === 'open';
+  const face = chosenFace ?? view.startFace;
 
   return (
     <div className="stack">
@@ -234,7 +236,12 @@ function deriveView(detail: HandoverDetail) {
     (sum, c) => ({ done: sum.done + c.covered.length, total: sum.total + c.total }),
     { done: 0, total: 0 },
   );
+  const startFace =
+    FACES.find((f) => previousByFace.get(f)?.some((m) => !resolved.has(m.id))) ??
+    FACES.find((f) => photoByFace.has(f)) ??
+    'D';
   return {
+    startFace,
     photoByFace,
     activeMarks,
     marksByFace,

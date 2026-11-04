@@ -1889,6 +1889,20 @@ button.sample small {
   font-weight: 650;
 }
 
+/* On a phone the receipt's tables scroll sideways rather than squeeze the codes. */
+@media screen and (max-width: 640px) {
+  .report table {
+    display: block;
+    overflow-x: auto;
+    font-size: 0.8rem;
+  }
+
+  .report th,
+  .report td {
+    min-width: 6.5rem;
+  }
+}
+
 .report .new-damage td {
   background: var(--seal-50);
 }

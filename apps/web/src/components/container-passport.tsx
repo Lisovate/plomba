@@ -69,7 +69,9 @@ export function useSealedHandovers(handovers: readonly Handover[]) {
       n: i + 1,
       direction: t(h.direction === 'in' ? 'handover.in' : 'handover.out'),
       place: h.place,
-      date: new Date(h.closedAt ?? h.startedAt).toLocaleDateString(language),
+      date: new Date(h.closedAt ?? h.startedAt).toLocaleDateString(language, {
+        dateStyle: 'medium',
+      }),
     });
   };
   return { sealed, colour, name };

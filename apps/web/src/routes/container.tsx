@@ -1,7 +1,7 @@
 import type { ContainerHistory, Direction, TransportMode } from '@plomba/contracts';
 import { formatWagonNumber, parseWagonNumber } from '@plomba/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Box, Ruler, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Box, Plus, Ruler, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { api, queryKeys } from '../api/client.ts';
@@ -55,7 +55,7 @@ export function ContainerScreen() {
           {t('container.continue')}
         </Link>
       ) : (
-        <StartHandoverForm containerNumber={container.number} />
+        <StartHandover containerNumber={container.number} expanded={handovers.length === 0} />
       )}
 
       <ContainerPassport
@@ -122,6 +122,29 @@ function ChainBadge({ chain }: { chain: ContainerHistory['chain'] }) {
         ? t('container.chainOk', { count: chain.length })
         : t('container.chainEmpty')}
     </p>
+  );
+}
+
+/**
+ * Someone reading a container's history gets the history first: the form opens
+ * on a tap, and straight away when the checker has just read the doors or the
+ * container has no handovers yet.
+ */
+function StartHandover({
+  containerNumber,
+  expanded,
+}: {
+  containerNumber: string;
+  expanded: boolean;
+}) {
+  const { t } = useI18n();
+  const fromIdentify = useLocation().state !== null;
+  const [open, setOpen] = useState(expanded || fromIdentify);
+  if (open) return <StartHandoverForm containerNumber={containerNumber} />;
+  return (
+    <button type="button" className="secondary large" onClick={() => setOpen(true)}>
+      <Plus size={18} aria-hidden /> {t('container.start')}
+    </button>
   );
 }
 
