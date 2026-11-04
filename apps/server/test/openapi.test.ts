@@ -28,6 +28,22 @@ describe('GET /api/openapi.json', () => {
     expect(missing).toEqual([]);
   });
 
+  it('describes the sample roles and container links, and the photo and clip media types', () => {
+    const doc = openApiDocument({ serverUrl: 'https://plomba.example.com' });
+    const list = JSON.stringify(doc.paths['/samples']);
+    for (const field of ['kind', 'clip', 'photo', 'use', 'doors', 'containerNumber']) {
+      expect(list).toContain(`"${field}"`);
+    }
+    const download = doc.paths['/samples/{file}']?.get as {
+      responses: Record<string, { content: Record<string, unknown> }>;
+    };
+    expect(Object.keys(download.responses['200']?.content ?? {})).toEqual([
+      'video/mp4',
+      'video/quicktime',
+      'image/jpeg',
+    ]);
+  });
+
   it('describes handover search validation and the next-page header', () => {
     const doc = openApiDocument({ serverUrl: 'https://plomba.example.com' });
     const operation = doc.paths['/handovers']?.get as {

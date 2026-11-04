@@ -47,7 +47,7 @@ export interface AppDeps {
   readonly apiTokens?: readonly ApiToken[] | undefined;
   /** The operator's notice for the foot of every screen. */
   readonly notice?: string | undefined;
-  /** Sample walk-around clips to try the app with. */
+  /** Sample clips and photos to try the app with. */
   readonly samples?: SampleClips | undefined;
   /** This installation's address, for the API description. */
   readonly publicUrl?: string | undefined;
@@ -161,7 +161,7 @@ function api(deps: AppDeps): Hono {
 
   api.get('/samples/:file', async (c) => {
     const clip = await deps.samples?.read(c.req.param('file'));
-    if (!clip) throw new NotFoundError('No such sample clip');
+    if (!clip) throw new NotFoundError('No such sample');
     return c.body(clip.data as Uint8Array<ArrayBuffer>, 200, {
       'content-type': clip.mimeType,
       'cache-control': 'private, max-age=86400',

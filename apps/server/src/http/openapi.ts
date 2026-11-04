@@ -27,7 +27,7 @@ import {
   ProblemSchema,
   ProposalsSchema,
   RegisterContainerSchema,
-  SampleClipsSchema,
+  SamplesSchema,
   SessionSchema,
   SpokenDamageResultSchema,
   StartHandoverSchema,
@@ -61,7 +61,7 @@ export interface Operation {
   readonly responseHeaders?: Readonly<Record<string, string>>;
   readonly body?: z.ZodType | Multipart;
   /** The 2xx response: a schema, or a content type for non-JSON answers. */
-  readonly response: z.ZodType | { readonly contentType: string };
+  readonly response: z.ZodType | { readonly contentType: string | readonly string[] };
   readonly status?: 200 | 201 | 204;
 }
 
@@ -296,9 +296,16 @@ export const OPERATIONS: readonly Operation[] = [
   {
     method: 'get',
     path: '/samples',
-    summary: 'Sample walk-around clips this installation offers',
+    summary: 'Sample clips and photos, with credits, photo roles and optional container links',
     tag: 'Video',
-    response: SampleClipsSchema,
+    response: SamplesSchema,
+  },
+  {
+    method: 'get',
+    path: '/samples/{file}',
+    summary: 'Download a listed sample clip or JPEG photo',
+    tag: 'Video',
+    response: { contentType: ['video/mp4', 'video/quicktime', 'image/jpeg'] },
   },
 ];
 
@@ -343,7 +350,20 @@ function responseContent(response: Operation['response']) {
   }
   return response.contentType === 'none'
     ? undefined
-    : { [response.contentType]: { schema: { type: 'string' } } };
+    : Object.fromEntries(
+        (typeof response.contentType === 'string'
+          ? [response.contentType]
+          : response.contentType
+        ).map((type) => [
+          type,
+          {
+            schema: {
+              type: 'string',
+              ...(/^(image|video)\//.test(type) ? { format: 'binary' } : {}),
+            },
+          },
+        ]),
+      );
 }
 
 const problem = {

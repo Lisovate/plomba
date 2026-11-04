@@ -66,7 +66,7 @@ All settings are environment variables.
 | `PLOMBA_WEBHOOK_URLS` | — | Comma-separated endpoints that receive signed `handover.started` and `handover.sealed` events |
 | `PLOMBA_WEBHOOK_SECRET_FILE` | — | The secret webhooks are signed with (16+ characters); required with `PLOMBA_WEBHOOK_URLS` |
 | `PLOMBA_PUBLIC_URL` | `http://localhost:<PORT>` | This installation's address, used in links sent to other systems |
-| `PLOMBA_SAMPLES_DIR` | — | A folder of sample walk-around clips that people can try the app with (see below) |
+| `PLOMBA_SAMPLES_DIR` | — | A folder of sample clips and JPEG photos for trying the app (see below) |
 | `META_VISION_BASE_URL` | — | A separate endpoint for reading markings and finding damage (see below) |
 | `META_VISION_API_STYLE` | `responses` | `responses`, or `chat-completions` for OpenAI-compatible servers |
 | `META_VISION_API_KEY_FILE` / `META_VISION_API_KEY` | — | That endpoint's own key, if it needs one |
@@ -142,9 +142,11 @@ npm run check            # lint, type checks and tests
 
 To test the camera on a phone during development, serve the web app over HTTPS on your network with a self-signed certificate: `HTTPS=1 npm run dev:web`. Then open `https://<your computer's IP>:5173` on the phone and accept the certificate warning.
 
-## Sample walk-around clips
+## Sample clips and photos
 
-An installation used for demonstrations or training can offer sample clips, so that someone without footage of their own can run a walk-around. Put MP4 or MOV files in a folder with a `samples.json` that names and credits each one:
+An installation used for demonstrations or training can offer sample footage and photos. People can open **No container nearby? See it on sample footage** on the home screen, or go straight to `/try`, to see the tracked outline, face names and CEDEX grid without creating a handover. Sample door and face photos also let them try the normal handover flow.
+
+Put MP4/MOV clips and JPG/JPEG photos in a folder with a `samples.json` that names and credits each one:
 
 ```json
 [
@@ -152,14 +154,38 @@ An installation used for demonstrations or training can offer sample clips, so t
     "file": "corner.mp4",
     "title": "40 ft container seen corner-on",
     "credit": "Life, Take 2, CC BY 3.0 (people blurred)",
-    "sourceUrl": "https://www.youtube.com/watch?v=CZkrwiKmvpY"
+    "sourceUrl": "https://www.youtube.com/watch?v=CZkrwiKmvpY",
+    "containerNumber": "CSQU3054383"
+  },
+  {
+    "file": "door-markings.jpg",
+    "title": "Door markings",
+    "credit": "Your name, your own photo, Apache-2.0",
+    "use": "doors"
+  },
+  {
+    "file": "left-side.jpeg",
+    "title": "Left side",
+    "credit": "Your name, your own photo, Apache-2.0",
+    "use": "L",
+    "containerNumber": "CSQU3054383"
   }
 ]
 ```
 
-Set `PLOMBA_SAMPLES_DIR` to the folder (with Docker, mount it read-only and point the variable at the mount). Only listed files are served, behind the access code like everything else. Each clip is shown with its credit.
+- `file`: a file name in this folder, without a path. Clips end in `.mp4` or `.mov`; photos end in `.jpg` or `.jpeg` (case does not matter). Each file can appear only once. Missing files are left out; symlinks are rejected.
+- `title` and `credit`: required. Credit the author and the licence. Use openly licensed material or your own footage, and label synthetic material as synthetic.
+- `sourceUrl`: optional link to the source.
+- `containerNumber`: optional ISO 6346 number, including its check digit, in uppercase without spaces. This links footage to the container it stands for in this installation's data; it does not register a container or change its history. On `/try`, the linked container's open damage appears as ghosts with the place and date of its first recording. An information tag follows the container, showing its size and type, owner code, last handover and chain verification. A broken chain suppresses the damage layer. Without a link, only the outline, faces and grid are shown.
+- `use`: required for photos. `"doors"` offers a photo on the identify screen for reading the number. `"D"`, `"R"`, `"F"`, `"L"` or `"T"` offers it in that face's panel. To offer the same image both for reading and as the door face, give two copies different file names and roles. Clips have no `use`.
 
-Blur people and number plates before sharing a clip:
+Set `PLOMBA_SAMPLES_DIR` to the folder (with Docker, mount it read-only and point the variable at the mount), then restart the server. Existing clip-only manifests work unchanged. `GET /api/samples` lists all samples with `kind` (`clip` or `photo`), `use` (null for clips) and `containerNumber` (null when omitted), as well as the title, credit, source link and download URL. JPEGs are served with `image/jpeg`. Only listed files are served, behind the installation's access code like the rest of the API.
+
+Every offered sample shows its credit. Sample photos use the normal identification or photo upload pipeline, including registration, EXIF removal and privacy blurring. The `/try` screen does not store a handover; clips selected from a handover's walk-around screen still become face photos through the existing workflow. Tracking is cached by the clip's SHA-256, so a clip is faster after its first run. Face naming still calls Muse Spark. An unknown linked container or a failed request is shown as an error, without inventing a passport.
+
+For local development, set `PLOMBA_SAMPLES_DIR=/absolute/path/to/samples` in the gitignored `.env`, start `npm run dev:server` and `npm run dev:web`, and open `http://localhost:5173/try`. Register the linked container and record its handovers first if you want damage and information in the preview. Supply photos with each of the six roles above to try every photo step.
+
+Blur people and number plates before sharing samples, since the files themselves are served directly. For a clip:
 
 ```sh
 node --env-file=.env apps/server/scripts/blur-clip.ts in.mp4 out.mp4

@@ -4,7 +4,7 @@
  * responses with them, so both sides fail loudly on a mismatch.
  */
 
-import { FACES, isComponentCode, isDamageCode } from '@plomba/core';
+import { FACES, isComponentCode, isDamageCode, parseContainerNumber } from '@plomba/core';
 import { z } from 'zod';
 
 const isoDateTime = z.iso.datetime({ offset: true });
@@ -460,6 +460,29 @@ export const SampleClipSchema = z.object({
 
 export const SampleClipsSchema = z.array(SampleClipSchema);
 
+export const SampleUseSchema = z.enum(['doors', ...FACES]);
+
+export const SampleContainerNumberSchema = z
+  .string()
+  .regex(/^[A-Z]{3}[UJZ]\d{7}$/)
+  .refine((number) => parseContainerNumber(number).ok, 'Invalid ISO 6346 number');
+
+/** A clip or face photo, optionally standing for a container in this installation. */
+export const SampleSchema = z.discriminatedUnion('kind', [
+  SampleClipSchema.extend({
+    kind: z.literal('clip'),
+    use: z.null(),
+    containerNumber: SampleContainerNumberSchema.nullable(),
+  }),
+  SampleClipSchema.extend({
+    kind: z.literal('photo'),
+    use: SampleUseSchema,
+    containerNumber: SampleContainerNumberSchema.nullable(),
+  }),
+]);
+
+export const SamplesSchema = z.array(SampleSchema);
+
 /** This installation's notice and capabilities, shown without a session. */
 export const InstanceSchema = z.object({
   /** One line for the foot of every screen, e.g. "Demo data" or photo credits. */
@@ -516,6 +539,7 @@ export type VideoTracking = z.infer<typeof VideoTrackingSchema>;
 export type SpokenDamageResult = z.infer<typeof SpokenDamageResultSchema>;
 export type Instance = z.infer<typeof InstanceSchema>;
 export type SampleClip = z.infer<typeof SampleClipSchema>;
+export type Sample = z.infer<typeof SampleSchema>;
 export type HandoverEventType = z.infer<typeof HandoverEventTypeSchema>;
 export type WebhookEvent = z.infer<typeof WebhookEventSchema>;
 export type FaceView = z.infer<typeof FaceViewSchema>;
