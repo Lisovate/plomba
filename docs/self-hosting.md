@@ -1,12 +1,14 @@
 # Self-hosting
 
-Plomba is one container: the API server, which also serves the web app. It keeps its data in one directory: a SQLite database and the photos.
+Plomba is one container: the API server, which also serves the web app. It keeps its data in one directory: a SQLite database, photos and redacted videos.
 
 ## What you need
 
 - A Linux machine with Docker (or Node.js 24+).
 - A Meta Model API key from https://dev.meta.ai.
 - A domain name and HTTPS. **Phones only allow the camera on HTTPS pages.**
+
+When running without Docker, install **ffmpeg and ffprobe** on the server's `PATH` for video evidence (Debian/Ubuntu: `sudo apt-get install ffmpeg`). The Docker image includes them. The server checks once at startup; without them it still handles photos and video analysis, but refuses to keep clips with a 503 response and hides that option in the app. Restart after installing them. Kept clips have people and number plates blurred and audio removed before storage.
 
 ## Run with Docker Compose
 
@@ -163,4 +165,4 @@ Blur people and number plates before sharing a clip:
 node --env-file=.env apps/server/scripts/blur-clip.ts in.mp4 out.mp4
 ```
 
-SAM 3.1 tracks every person and number plate through the clip, and the app's own blurring covers them frame by frame. It needs ffmpeg; the server itself never decodes video.
+SAM 3.1 tracks every person and number plate through the clip, and the app's own blurring covers them frame by frame. This script uses the same ffmpeg adapter as handover video evidence and removes audio too; sample clips must be processed before putting them in the shared folder.

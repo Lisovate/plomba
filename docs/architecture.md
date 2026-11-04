@@ -125,7 +125,7 @@ A checker can record one slow walk around the container, on a phone or Meta AI g
 1. **SAM 3.1 tracks the container through every frame** in one request (`POST /api/videos/track`). The clip goes up through the Files API; the result (the four corners per frame) is cached by the clip's SHA-256, and tracking alone does not store the clip.
    - The app follows the most prominent container by its stable object ID, so the overlay never jumps to a neighbour.
 2. **Plomba picks candidate frames** (`pickCandidateFrames` in core). A frame scores 0 when the outline touches the frame edge (a cut-off face can't be registered) or covers less than 10% of it. Otherwise it scores its share of the frame times its squareness squared; squareness is 1 minus the mean |cos| of the outline's corner angles. The best frames are taken greedily at least a second apart, up to 12.
-3. **The browser cuts those frames out** of the clip (a hidden video element and a canvas), so the server needs no video decoder.
+3. **The browser cuts those frames out** of the clip (a hidden video element and a canvas), without a server video decoder for this step.
 4. **Muse Spark names the face in each frame** in a single call with all the frames in clip order (`POST /api/videos/faces`), so it can follow the walk.
    - The prompt carries the conventions: facing a side from outside, the door end on the right means the left side.
    - It also carries the clues: faces follow each other around the container, and containers on a truck or wagon are loaded doors to the rear.
@@ -147,7 +147,7 @@ While the clip plays, the overlay follows the face in view: the face of the near
 
 **Limits:** a face must be whole in some frame, square-on or at a corner. Close-range clips, where the top corners are always out of view, give no candidate frames, and the app asks for a recording from further back. A clip with cuts can lose the tracked object ID at a cut.
 
-The checker can keep the clip with the handover (on by default). The browser attaches it after the chosen frames, with their confirmed face views. The server accepts MP4, MOV and WebM by their bytes, stores them by SHA-256, and allows up to three clips on an open handover. New sealed records use version 3 and include each clip's ID, hash, size and content type; versions 1 and 2 still verify and feed the passport and claims. Stored clips play with cached tracking when available, or as plain video, and the media route supports byte ranges for phone playback. Clips must already have faces and number plates blurred before upload (see `apps/server/scripts/blur-clip.ts`); the server stores the uploaded clip unchanged so its hash also identifies its tracking.
+The checker can keep the clip with the handover (on by default). The browser attaches it after the chosen frames, with their confirmed face views. The server accepts MP4, MOV and WebM by their bytes, stores them by SHA-256, and allows up to three clips on an open handover. New sealed records use version 3 and include each clip's ID, hash, size and content type; versions 1 and 2 still verify and feed the passport and claims. Stored clips play with cached tracking when available, or as plain video, and the media route supports byte ranges for phone playback. Before storing a clip, SAM 3.1 tracks people and number plates and ffmpeg re-encodes the blurred frames as H.264 MP4 without audio, keeping the frame count, rate and pixel size; cached container tracking is copied to the redacted hash, while the source hash identifies retries. Without ffmpeg and ffprobe, video uploads return 503 and `/api/instance` reports `videoEvidence: false`, so the browser hides the option to keep a clip.
 
 ## Damage proposals
 
@@ -202,7 +202,8 @@ The container page shows every damage on a map of the container's faces (each lo
 | `containers` | ISO 6346 number, size/type code, external dimensions |
 | `handovers` | container, direction (in/out), place, checker, parties, seal numbers, transport (road/rail) and vehicle (registration or UIC wagon number), status, previous handover; once sealed: sequence, previous hash, hash, the sealed record |
 | `photos` | handover, face, SHA-256, size, the face's corners and whether they were detected or adjusted, number of blurred regions, capture time |
-| `videos` | handover, SHA-256, byte size, detected content type, confirmed frame views and creation time |
+| `videos` | handover, redacted SHA-256, byte size, content type, confirmed frame views and creation time |
+| `video_sources` | source SHA-256 per handover, pointing to the stored video for retries; several uploads can redact to identical bytes |
 | `marks` | handover, face, rectangle in metres, CEDEX location code, damage and component codes, status (new, still there, changed, repaired), source (proposed, confirmed, rejected), the previous handover's mark it confirms, photo |
 
 Migrations live in `apps/server/src/adapters/sqlite/migrations.ts` and are applied at startup.
