@@ -41,10 +41,11 @@ import {
   SqliteVideoRepository,
 } from '../src/adapters/sqlite/repositories.ts';
 import { loadConfig } from '../src/config.ts';
+import { FfmpegVideoRedactor } from '../src/media/ffmpeg-video-redactor.ts';
 import { FileMediaStore } from '../src/media/file-media-store.ts';
 import { JsonFileCache } from '../src/media/json-file-cache.ts';
 import { HandoverService } from '../src/services/handovers.ts';
-import { VideoService } from '../src/services/video.ts';
+import { type StoredTracking, VideoService } from '../src/services/video.ts';
 import { type ContainerSpec, type HandoverSpec, SCENARIO } from './demo/scenario.ts';
 
 const { values } = parseArgs({
@@ -52,8 +53,8 @@ const { values } = parseArgs({
 });
 const clipsDir = values.clips;
 if (!clipsDir) throw new Error('Pass --clips <folder with the scenario clips>');
-// Walk-around videos are stored as they are, so they come from copies with people and plates blurred.
-const videosDir = values.videos;
+// Where the walk-around clips come from; the server blurs people and plates before storing them.
+const videosDir = values.videos ?? clipsDir;
 
 const config = loadConfig();
 const dbPath = join(config.dataDir, 'plomba.db');
@@ -94,13 +95,14 @@ const spark = {
   reasoningEffort: config.meta.reasoningEffort,
   api: config.meta.vision.apiStyle,
 };
+const tracks = new JsonFileCache<StoredTracking>(join(config.dataDir, 'tracks'));
 const video = new VideoService({
   segmenter,
   classifier: new MuseSparkFaceViewClassifier(vision, {
     ...spark,
     maxImages: config.meta.vision.maxImages,
   }),
-  cache: new JsonFileCache(join(config.dataDir, 'tracks')),
+  cache: tracks,
 });
 const handovers = new HandoverService({
   containers: new SqliteContainerRepository(db),
@@ -111,6 +113,9 @@ const handovers = new HandoverService({
   media: new FileMediaStore(join(config.dataDir, 'media')),
   segmenter,
   detector: new MuseSparkDamageDetector(vision, spark),
+  // As in the app: people and number plates are blurred before a video is stored.
+  videoRedactor: new FfmpegVideoRedactor(segmenter),
+  videoTracking: tracks,
   transaction: createTransactionRunner(db),
   clock,
   newId: randomUUID,
