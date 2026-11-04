@@ -121,11 +121,11 @@ npm run dev:web         # app on http://localhost:5173
 
 ## Credits
 
-The footage in the screenshots above and in the demo installation is openly licensed, CC BY 3.0:
+The footage in the screenshots above is openly licensed, CC BY 3.0:
 - "How to buy a shipping container in 10 minutes" by Cowboy Steve Builds (YouTube);
 - "40' reefer shipping container delivery and repositioning" by Life, Take 2 (YouTube).
 
-The handovers and the damage passport in the screenshot show test data. People in the walk-around clip are blurred.
+The demo installation also uses openly licensed clips and photos (CC BY, CC BY-SA and the Pexels licence) of 20 more containers, from YouTube channels, Wikimedia Commons and Pexels; each is credited in [`apps/server/scripts/demo/scenario.ts`](apps/server/scripts/demo/scenario.ts). People and number plates are blurred in everything stored. The handovers, places, people and companies are invented.
 
 ## Licence
 
