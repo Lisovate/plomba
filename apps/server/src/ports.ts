@@ -84,6 +84,15 @@ export interface VideoInput {
   readonly mimeType: 'video/mp4' | 'video/quicktime';
 }
 
+/** Blurs people and number plates and removes audio before a clip is kept. */
+export interface VideoRedactor {
+  redact(video: { readonly data: Uint8Array; readonly mimeType: Video['contentType'] }): Promise<{
+    readonly data: Uint8Array;
+    readonly mimeType: 'video/mp4';
+    readonly regions: number;
+  }>;
+}
+
 /** The objects SAM found in one frame of a video. */
 export interface TrackedFrame {
   /** Zero-based index of the decoded frame. */
@@ -291,10 +300,12 @@ export interface PhotoRepository {
   updateCorners(id: string, corners: Quad, source: 'detected' | 'adjusted'): void;
 }
 
-export type NewVideo = Omit<Video, 'url'>;
+export type NewVideo = Omit<Video, 'url'> & { readonly sourceSha256: string };
 
 export interface VideoRepository {
   get(id: string): Video | undefined;
+  findBySource(handoverId: string, sha256: string): Video | undefined;
+  addSource(video: Pick<Video, 'id' | 'handoverId'>, sha256: string): void;
   insert(video: NewVideo): void;
   listForHandover(handoverId: string): Video[];
 }

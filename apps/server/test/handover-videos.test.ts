@@ -1,12 +1,14 @@
+import { createHash } from 'node:crypto';
 import {
   HandoverDetailSchema,
+  InstanceSchema,
   ProblemSchema,
   VideoSchema,
   VideoTrackingSchema,
 } from '@plomba/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { SqliteVideoRepository } from '../src/adapters/sqlite/repositories.ts';
-import { ConflictError, ValidationError } from '../src/errors.ts';
+import { ConflictError, ServiceUnavailableError, ValidationError } from '../src/errors.ts';
 import { createTestApp, makePhoto, markInput, rectangleObject } from './fakes.ts';
 import { useLegacyRecord } from './legacy-record.ts';
 
@@ -29,8 +31,8 @@ const views = [
   },
 ];
 
-function started() {
-  const context = createTestApp();
+function started(options: Parameters<typeof createTestApp>[0] = {}) {
+  const context = createTestApp(options);
   context.service.registerContainer({ number: NUMBER });
   const handover = context.service.start({
     containerNumber: NUMBER,
@@ -56,18 +58,77 @@ describe('handover video evidence', () => {
     [mp4(), 'video/mp4'],
     [mp4('qt  '), 'video/quicktime'],
     [webm, 'video/webm'],
-  ] as const)('stores the bytes with their detected type %s', async (data, contentType) => {
-    const { service, db, media, handover } = started();
+  ] as const)('redacts a %s clip before storing it as MP4', async (data, contentType) => {
+    const { service, db, media, handover, redactor } = started();
     try {
+      const redact = redactor.redact.bind(redactor);
+      let redacted = new Uint8Array();
+      vi.spyOn(redactor, 'redact').mockImplementation(async (input) => {
+        expect(media.files.size).toBe(0);
+        const result = await redact(input);
+        redacted = result.data;
+        return result;
+      });
       const video = await service.addVideo(handover.id, { data, views });
-      expect(VideoSchema.parse(video)).toMatchObject({ contentType, size: data.length, views });
-      expect(await media.get(video.sha256)).toEqual(data);
+      const sourceSha256 = createHash('sha256').update(data).digest('hex');
+      const sha256 = createHash('sha256').update(redacted).digest('hex');
+      expect(redactor.calls).toEqual([{ data, mimeType: contentType }]);
+      expect(VideoSchema.parse(video)).toMatchObject({
+        contentType: 'video/mp4',
+        size: redacted.length,
+        sha256,
+        views,
+      });
+      expect(sha256).not.toBe(sourceSha256);
+      expect(await media.get(video.sha256)).toEqual(redacted);
+      expect(await media.get(sourceSha256)).toBeUndefined();
       const repository = new SqliteVideoRepository(db);
       expect(repository.get(video.id)).toEqual(video);
       expect(repository.listForHandover(handover.id)).toEqual([video]);
       expect(repository.listForHandover('missing')).toEqual([]);
       expect(repository.get('missing')).toBeUndefined();
+      expect(repository.findBySource(handover.id, sourceSha256)).toEqual(video);
+      expect(repository.findBySource('missing', sourceSha256)).toBeUndefined();
       expect(service.detail(handover.id).videos).toEqual([video]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('stores nothing when redaction fails', async () => {
+    const { service, media, db, handover, redactor } = started();
+    try {
+      vi.spyOn(redactor, 'redact').mockRejectedValue(new Error('privacy tracking failed'));
+      await expect(service.addVideo(handover.id, { data: mp4() })).rejects.toThrow(
+        'privacy tracking failed',
+      );
+      expect(media.files.size).toBe(0);
+      expect(service.detail(handover.id).videos).toEqual([]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('de-duplicates retries by the source hash, including concurrent redactions with different results', async () => {
+    let calls = 0;
+    const { service, handover, db } = started({
+      videoRedactor: {
+        redact: async () => ({
+          data: mp4('isom', `redacted-${++calls}`),
+          mimeType: 'video/mp4',
+          regions: 1,
+        }),
+      },
+    });
+    try {
+      const [first, second] = await Promise.all([
+        service.addVideo(handover.id, { data: mp4() }),
+        service.addVideo(handover.id, { data: mp4() }),
+      ]);
+      expect(second).toEqual(first);
+      expect(service.detail(handover.id).videos).toEqual([first]);
+      expect(await service.addVideo(handover.id, { data: mp4() })).toEqual(first);
+      expect(calls).toBe(2);
     } finally {
       db.close();
     }
@@ -90,6 +151,29 @@ describe('handover video evidence', () => {
         ).rejects.toThrow(ValidationError);
       }
       expect(media.files.size).toBe(0);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('remembers both source hashes when different uploads redact to identical bytes', async () => {
+    let calls = 0;
+    const { service, handover, db } = started({
+      videoRedactor: {
+        redact: async () => ({
+          data: mp4('isom', ++calls <= 2 ? 'shared-redaction' : 'different-redaction'),
+          mimeType: 'video/mp4',
+          regions: 1,
+        }),
+      },
+    });
+    try {
+      const first = await service.addVideo(handover.id, { data: mp4('isom', 'first') });
+      expect(await service.addVideo(handover.id, { data: mp4('isom', 'second') })).toEqual(first);
+      expect(await service.addVideo(handover.id, { data: mp4('isom', 'second') })).toEqual(first);
+      expect(await service.addVideo(handover.id, { data: mp4('isom', 'first') })).toEqual(first);
+      expect(calls).toBe(2);
+      expect(service.detail(handover.id).videos).toEqual([first]);
     } finally {
       db.close();
     }
@@ -199,6 +283,34 @@ describe('handover video evidence', () => {
 });
 
 describe('video HTTP API', () => {
+  it('refuses video evidence with a 503 problem and advertises it as unavailable without a redactor', async () => {
+    const { service, app, handover, db, media, segmenter } = started({ videoRedactor: null });
+    try {
+      expect(InstanceSchema.parse(await (await app.request('/api/instance')).json())).toEqual({
+        notice: null,
+        videoEvidence: false,
+      });
+      await expect(service.addVideo(handover.id, { data: mp4() })).rejects.toThrow(
+        ServiceUnavailableError,
+      );
+      const response = await app.request(`/api/handovers/${handover.id}/videos`, {
+        method: 'POST',
+        body: form(),
+      });
+      expect(response.status).toBe(503);
+      expect(response.headers.get('content-type')).toContain('application/problem+json');
+      expect(ProblemSchema.parse(await response.json())).toMatchObject({
+        status: 503,
+        title: expect.stringContaining('blur people and number plates'),
+      });
+      expect(media.files.size).toBe(0);
+      expect(segmenter.calls).toEqual([]);
+      expect(service.detail(handover.id).videos).toEqual([]);
+    } finally {
+      db.close();
+    }
+  });
+
   it('keeps photo responses and their cache headers', async () => {
     const { service, app, handover, db, media } = started();
     try {
@@ -272,13 +384,14 @@ describe('video HTTP API', () => {
     [mp4(), 'video/mp4'],
     [mp4('qt  '), 'video/quicktime'],
     [webm, 'video/webm'],
-  ] as const)('serves full clips and byte ranges with type %s', async (data, contentType) => {
-    const { app, service, handover, db } = started();
+  ] as const)('serves redacted MP4 bytes and byte ranges for %s', async (source, _contentType) => {
+    const { app, service, handover, db, media } = started();
     try {
-      const video = await service.addVideo(handover.id, { data });
+      const video = await service.addVideo(handover.id, { data: source });
+      const data = (await media.get(video.sha256)) as Uint8Array;
       const full = await app.request(video.url);
       expect(full.status).toBe(200);
-      expect(full.headers.get('content-type')).toBe(contentType);
+      expect(full.headers.get('content-type')).toBe('video/mp4');
       expect(full.headers.get('accept-ranges')).toBe('bytes');
       expect(full.headers.get('content-length')).toBe(String(data.length));
       expect(full.headers.get('cache-control')).toBe('private, max-age=31536000, immutable');
@@ -305,18 +418,21 @@ describe('video HTTP API', () => {
     }
   });
 
-  it('returns cached tracking by the stored hash, or a 404 problem without calling the model', async () => {
+  it('copies cached source tracking to the stored hash and returns 404 when absent without calling the model', async () => {
     const { app, service, handover, db, segmenter } = started();
     try {
-      const video = await service.addVideo(handover.id, { data: mp4() });
-      const path = `/api/handovers/${handover.id}/videos/${video.id}/tracking`;
-      const missing = await app.request(path);
+      const untracked = await service.addVideo(handover.id, { data: mp4('isom', 'untracked') });
+      const missingPath = `/api/handovers/${handover.id}/videos/${untracked.id}/tracking`;
+      const missing = await app.request(missingPath);
       expect(missing.status).toBe(404);
       expect(ProblemSchema.parse(await missing.json()).status).toBe(404);
       expect(segmenter.calls).toEqual([]);
       segmenter.tracked = [{ frame: 0, objects: [rectangleObject(0, 0, 100, 50)] }];
       const tracked = await app.request('/api/videos/track', { method: 'POST', body: form() });
       const tracking = VideoTrackingSchema.parse(await tracked.json());
+      const video = await service.addVideo(handover.id, { data: mp4() });
+      expect(video.sha256).not.toBe(createHash('sha256').update(mp4()).digest('hex'));
+      const path = `/api/handovers/${handover.id}/videos/${video.id}/tracking`;
       const response = await app.request(path);
       expect(response.status).toBe(200);
       expect(VideoTrackingSchema.parse(await response.json())).toEqual({

@@ -33,6 +33,7 @@ COPY apps/web/package.json apps/web/
 RUN npm ci --omit=dev --workspace @plomba/server --include-workspace-root=false
 
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=8080 \

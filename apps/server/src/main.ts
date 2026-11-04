@@ -30,6 +30,7 @@ import {
 import { WebhookNotifier } from './adapters/webhooks.ts';
 import { ConfigError, loadConfig } from './config.ts';
 import { createApp } from './http/app.ts';
+import { FfmpegVideoRedactor, videoRedactionAvailable } from './media/ffmpeg-video-redactor.ts';
 import { FileMediaStore } from './media/file-media-store.ts';
 import { JsonFileCache } from './media/json-file-cache.ts';
 import { SampleClips } from './media/sample-clips.ts';
@@ -39,9 +40,9 @@ import { HandoverService } from './services/handovers.ts';
 import { IdentifyService } from './services/identify.ts';
 import { SpeechService } from './services/speech.ts';
 import { SpokenDamageService } from './services/spoken-damage.ts';
-import { VideoService } from './services/video.ts';
+import { type StoredTracking, VideoService } from './services/video.ts';
 
-function main(): void {
+async function main(): Promise<void> {
   const config = loadConfig();
   const pretty = process.env.NODE_ENV !== 'production' && process.stdout.isTTY;
   const logger = pino({
@@ -80,6 +81,11 @@ function main(): void {
   });
   const segmenter = new Sam3Segmenter(meta, { model: config.meta.segmentationModel });
   const transcriber = new MuseVoiceTranscriber(meta, { model: config.meta.speechModel });
+  const videoRedactor = (await videoRedactionAvailable())
+    ? new FfmpegVideoRedactor(segmenter)
+    : undefined;
+  if (!videoRedactor) logger.warn('Video evidence disabled: install ffmpeg and ffprobe');
+  const videoTracking = new JsonFileCache<StoredTracking>(join(config.dataDir, 'tracks'));
 
   const repositories = {
     containers: new SqliteContainerRepository(db),
@@ -100,6 +106,8 @@ function main(): void {
     newId: randomUUID,
     ediSenderId: config.ediSenderId,
     events,
+    videoRedactor,
+    videoTracking,
   });
   if (config.webhooks) {
     const webhooks = new WebhookNotifier({
@@ -126,7 +134,7 @@ function main(): void {
     video: new VideoService({
       segmenter,
       classifier,
-      cache: new JsonFileCache(join(config.dataDir, 'tracks')),
+      cache: videoTracking,
     }),
     media,
     logger,
@@ -161,7 +169,7 @@ function main(): void {
 }
 
 try {
-  main();
+  await main();
 } catch (error) {
   if (error instanceof ConfigError) {
     console.error(error.message);

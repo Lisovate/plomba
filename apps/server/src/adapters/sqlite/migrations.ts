@@ -106,4 +106,15 @@ export const MIGRATIONS: readonly string[] = [
 
   CREATE INDEX videos_by_handover ON videos(handover_id, created_at, id);
   `,
+  // 2026-11-04: retries identify the upload even though redaction changes its hash.
+  `
+  CREATE TABLE video_sources (
+    handover_id    TEXT NOT NULL REFERENCES handovers(id),
+    source_sha256  TEXT NOT NULL,
+    video_id       TEXT NOT NULL REFERENCES videos(id),
+    PRIMARY KEY (handover_id, source_sha256)
+  ) STRICT;
+  INSERT INTO video_sources (handover_id, source_sha256, video_id)
+    SELECT handover_id, sha256, id FROM videos;
+  `,
 ];

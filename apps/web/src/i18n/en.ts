@@ -291,7 +291,7 @@ export const en = {
   'walk.useAs.right': 'Right of the corner as',
   'walk.notUsed': 'Not used',
   'walk.keepVideo': 'Keep the video with the handover',
-  'walk.keepingVideo': 'Keeping the walk-around video…',
+  'walk.keepingVideo': 'Blurring people and number plates in the walk-around video…',
   'walk.findDamage': 'Look for damage on each photo (Muse Spark and SAM 3.1)',
   'walk.add': 'Add to the handover (photos: {count})',
   'walk.adding': 'Adding photo {n} of {total}: {face}…',

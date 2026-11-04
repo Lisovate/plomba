@@ -34,13 +34,14 @@ import type {
   StoredMedia,
   TrackedFrame,
   VideoInput,
+  VideoRedactor,
 } from '../src/ports.ts';
 import { ClaimService } from '../src/services/claims.ts';
 import { HandoverService } from '../src/services/handovers.ts';
 import { IdentifyService } from '../src/services/identify.ts';
 import { SpeechService } from '../src/services/speech.ts';
 import { SpokenDamageService } from '../src/services/spoken-damage.ts';
-import { VideoService } from '../src/services/video.ts';
+import { type StoredTracking, VideoService } from '../src/services/video.ts';
 
 export const silentLogger = pino({ level: 'silent' });
 
@@ -217,11 +218,29 @@ export class MemoryMediaStore implements MediaStore {
   }
 }
 
-export function createTestHandoverService(options: { events?: EventPublisher } = {}) {
+export class FakeVideoRedactor implements VideoRedactor {
+  readonly calls: Parameters<VideoRedactor['redact']>[0][] = [];
+
+  async redact(video: Parameters<VideoRedactor['redact']>[0]) {
+    this.calls.push(video);
+    const header = new TextEncoder().encode('\0\0\0\x18ftypisom\0\0\0\0isommp42');
+    return {
+      data: new Uint8Array([...header, ...video.data]),
+      mimeType: 'video/mp4' as const,
+      regions: 2,
+    };
+  }
+}
+
+export function createTestHandoverService(
+  options: { events?: EventPublisher; videoRedactor?: VideoRedactor | null } = {},
+) {
   const db = openDatabase(':memory:');
   const segmenter = new FakeSegmenter();
   const detector = new FakeDetector();
   const media = new MemoryMediaStore();
+  const redactor = new FakeVideoRedactor();
+  const videoTracking = new MemoryCache<StoredTracking>();
   const service = new HandoverService({
     containers: new SqliteContainerRepository(db),
     handovers: new SqliteHandoverRepository(db),
@@ -235,9 +254,11 @@ export function createTestHandoverService(options: { events?: EventPublisher } =
     clock: fixedClock(),
     newId: sequentialIds(),
     ediSenderId: 'PLOMBA-TEST',
+    videoRedactor: options.videoRedactor === null ? undefined : (options.videoRedactor ?? redactor),
+    videoTracking,
     ...(options.events ? { events: options.events } : {}),
   });
-  return { db, segmenter, detector, media, service };
+  return { db, segmenter, detector, media, service, redactor, videoTracking };
 }
 
 /** A WAV file of silence: mono, 16-bit PCM. */
@@ -386,9 +407,10 @@ export function createTestApp(
     noteParser?: DamageNoteParser;
     samples?: SampleClips;
     apiTokens?: readonly { name: string; token: string }[];
+    videoRedactor?: VideoRedactor | null;
   } = {},
 ) {
-  const context = createTestHandoverService();
+  const context = createTestHandoverService({ videoRedactor: options.videoRedactor });
   const { service, media, db, segmenter } = context;
   const speech = new SpeechService(new FakeTranscriber());
   const app = createApp({
@@ -411,7 +433,7 @@ export function createTestApp(
     video: new VideoService({
       segmenter,
       classifier: options.classifier ?? new FakeFaceViewClassifier(),
-      cache: new MemoryCache(),
+      cache: context.videoTracking,
     }),
     media,
     logger: silentLogger,

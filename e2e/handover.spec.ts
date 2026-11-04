@@ -1,5 +1,6 @@
-import { readFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { expect, test } from '@playwright/test';
 
 const photo = join(import.meta.dirname, 'fixtures', 'container-side.jpg');
@@ -101,7 +102,22 @@ test('a checker keeps a walk-around, replays tracked and untracked evidence, and
   await expect(
     page.getByRole('checkbox', { name: 'Keep the video with the handover' }),
   ).toBeChecked();
+  let release = () => {};
+  const uploading = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(`**/api/handovers/${id}/videos`, async (route) => {
+    await uploading;
+    await route.continue();
+  });
   await page.getByRole('button', { name: 'Add to the handover (photos: 1)' }).click();
+  try {
+    await expect(
+      page.getByText('Blurring people and number plates in the walk-around video…'),
+    ).toBeVisible();
+  } finally {
+    release();
+  }
   await expect(page).toHaveURL(new RegExp(`/handovers/${id}$`));
   const card = page.locator('.walkaround-evidence');
   await expect(card).toHaveCount(1);
@@ -121,13 +137,35 @@ test('a checker keeps a walk-around, replays tracked and untracked evidence, and
   ]);
   await expect(card.getByText(tracked.sha256)).toBeVisible();
 
-  // The same playable container with a different hash has no cached tracking.
+  // A visibly different clip has no cached tracking; trailing bytes disappear on redaction.
+  const { stdout: untrackedClip } = await promisify(execFile)(
+    'ffmpeg',
+    [
+      '-v',
+      'error',
+      '-i',
+      clipPath,
+      '-vf',
+      'hflip',
+      '-c:v',
+      'libx264',
+      '-threads',
+      '2',
+      '-an',
+      '-movflags',
+      'frag_keyframe+empty_moov',
+      '-f',
+      'mp4',
+      'pipe:1',
+    ],
+    { encoding: 'buffer', maxBuffer: 4 * 1024 * 1024 },
+  );
   const untracked = await page.request.post(`/api/handovers/${id}/videos`, {
     multipart: {
       video: {
         name: 'clip.mp4',
         mimeType: 'video/mp4',
-        buffer: Buffer.concat([await readFile(clipPath), Buffer.from('uncached')]),
+        buffer: untrackedClip,
       },
     },
   });
@@ -173,4 +211,42 @@ test('a checker keeps a walk-around, replays tracked and untracked evidence, and
     chain: { ok: boolean };
   };
   expect(history.chain.ok).toBe(true);
+});
+
+test('a checker can add walk-around photos when video evidence is unavailable', async ({
+  page,
+}) => {
+  await page.route('**/api/instance', (route) =>
+    route.fulfill({
+      json: { notice: null, videoEvidence: false },
+    }),
+  );
+  const number = 'PLBU4000059';
+  await page.request.post('/api/containers', { data: { number, sizeTypeCode: '22G1' } });
+  const started = await page.request.post('/api/handovers', {
+    data: { containerNumber: number, direction: 'in', place: 'Gdynia', checker: 'PL' },
+  });
+  expect(started.status()).toBe(201);
+  const { id } = (await started.json()) as { id: string };
+  let videoUploads = 0;
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && request.url().endsWith(`/handovers/${id}/videos`))
+      videoUploads++;
+  });
+  await page.goto(`/handovers/${id}/walkaround`);
+  await page
+    .locator('input[type=file]')
+    .setInputFiles(join(import.meta.dirname, 'fixtures', 'container-side.mp4'));
+  await page.getByRole('button', { name: 'Analyse the walk-around' }).click();
+  const add = page.getByRole('button', { name: 'Add to the handover (photos: 1)' });
+  await expect(add).toBeVisible();
+  await expect(
+    page.getByRole('checkbox', { name: 'Keep the video with the handover' }),
+  ).toHaveCount(0);
+  await add.click();
+  await expect(page).toHaveURL(new RegExp(`/handovers/${id}$`));
+  const detail = await (await page.request.get(`/api/handovers/${id}`)).json();
+  expect(detail.photos).toHaveLength(1);
+  expect(detail.videos).toEqual([]);
+  expect(videoUploads).toBe(0);
 });

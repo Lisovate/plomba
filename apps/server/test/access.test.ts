@@ -41,8 +41,12 @@ describe('access control', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       notice: 'Demo data. Photos: Cowboy Steve Builds, CC BY 3.0.',
+      videoEvidence: true,
     });
-    expect(await (await app().request('/api/instance')).json()).toEqual({ notice: null });
+    expect(await (await app().request('/api/instance')).json()).toEqual({
+      notice: null,
+      videoEvidence: true,
+    });
   });
 
   it('lets other systems in with an API token, and no one with a wrong one', async () => {

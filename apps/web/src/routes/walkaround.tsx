@@ -481,6 +481,8 @@ function AddToHandover({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [findDamage, setFindDamage] = useState(true);
+  const instance = useQuery({ queryKey: queryKeys.instance, queryFn: api.instance });
+  const videoEvidence = instance.data?.videoEvidence === true;
   const [keepVideo, setKeepVideo] = useState(true);
   const videoStep = useRef<VideoStep>({ uploaded: false });
   const [progress, setProgress] = useState('');
@@ -519,13 +521,14 @@ function AddToHandover({
           api,
           steps: steps.current,
           findDamage,
-          video: keepVideo
-            ? {
-                data: clip,
-                views: chosenVideoViews(analysis.candidates, chosen),
-                step: videoStep.current,
-              }
-            : undefined,
+          video:
+            videoEvidence && keepVideo
+              ? {
+                  data: clip,
+                  views: chosenVideoViews(analysis.candidates, chosen),
+                  step: videoStep.current,
+                }
+              : undefined,
           onVideoProgress: () => setProgress(t('walk.keepingVideo')),
           onProgress: (stage, index, frame) => {
             const face = t(`faceTitle.${frame.face}`);
@@ -543,15 +546,17 @@ function AddToHandover({
 
   return (
     <Card>
-      <label className="check">
-        <input
-          type="checkbox"
-          checked={keepVideo}
-          disabled={add.isPending || videoStep.current.uploaded}
-          onChange={(e) => setKeepVideo(e.target.checked)}
-        />
-        {t('walk.keepVideo')}
-      </label>
+      {videoEvidence && (
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={keepVideo}
+            disabled={add.isPending || videoStep.current.uploaded}
+            onChange={(e) => setKeepVideo(e.target.checked)}
+          />
+          {t('walk.keepVideo')}
+        </label>
+      )}
       <label className="check">
         <input
           type="checkbox"

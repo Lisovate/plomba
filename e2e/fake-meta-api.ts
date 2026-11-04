@@ -72,14 +72,15 @@ createServer((request, response) => {
     const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as ResponsesBody;
     if (body.model === 'sam-3.1') {
       const content = body.input[0]?.content ?? [];
+      const prompt = content.find((c) => c.type === 'input_text')?.text;
       if (content.some((c) => c.type === 'input_video')) {
+        if (prompt !== 'shipping container') return send(200, respond(''));
         // The synthetic two-second fixture holds the same side throughout, at 10 fps.
         const frames = Array.from({ length: 20 }, (_, i) =>
           samContainer.trim().replace('<0f>', `<${i}f>`),
         );
         return send(200, respond(frames.join('\n')));
       }
-      const prompt = content.find((c) => c.type === 'input_text')?.text;
       return send(200, respond(prompt === 'shipping container' ? samContainer : ''));
     }
     if (body.text?.format?.name === 'walkaround_faces') {

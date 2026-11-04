@@ -479,6 +479,22 @@ export class SqliteVideoRepository implements VideoRepository {
     return row && toVideo(row);
   }
 
+  findBySource(handoverId: string, sha256: string): Video | undefined {
+    const row = this.#db
+      .prepare(
+        `SELECT videos.* FROM videos JOIN video_sources ON video_sources.video_id = videos.id
+         WHERE video_sources.handover_id = ? AND video_sources.source_sha256 = ?`,
+      )
+      .get(handoverId, sha256) as Row | undefined;
+    return row && toVideo(row);
+  }
+
+  addSource(video: Pick<Video, 'id' | 'handoverId'>, sha256: string): void {
+    this.#db
+      .prepare('INSERT INTO video_sources (handover_id, source_sha256, video_id) VALUES (?, ?, ?)')
+      .run(video.handoverId, sha256, video.id);
+  }
+
   insert(video: NewVideo): void {
     this.#db
       .prepare(
@@ -494,6 +510,7 @@ export class SqliteVideoRepository implements VideoRepository {
         JSON.stringify(video.views),
         video.createdAt,
       );
+    this.addSource(video, video.sourceSha256);
   }
 
   listForHandover(handoverId: string): Video[] {

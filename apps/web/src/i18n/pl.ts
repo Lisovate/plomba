@@ -294,7 +294,7 @@ export const pl: Messages = {
   'walk.useAs.right': 'Prawa strona narożnika jako',
   'walk.notUsed': 'Nie używaj',
   'walk.keepVideo': 'Zachowaj film przy przekazaniu',
-  'walk.keepingVideo': 'Zapisywanie filmu z obchodu…',
+  'walk.keepingVideo': 'Rozmywanie osób i tablic rejestracyjnych na filmie z obchodu…',
   'walk.findDamage': 'Szukaj uszkodzeń na każdym zdjęciu (Muse Spark i SAM 3.1)',
   'walk.add': 'Dodaj do przekazania (zdjęcia: {count})',
   'walk.adding': 'Dodawanie zdjęcia {n} z {total}: {face}…',

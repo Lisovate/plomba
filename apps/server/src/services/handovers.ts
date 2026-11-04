@@ -45,7 +45,12 @@ import {
   verifyChain,
 } from '@plomba/core';
 import { z } from 'zod';
-import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
+import {
+  ConflictError,
+  NotFoundError,
+  ServiceUnavailableError,
+  ValidationError,
+} from '../errors.ts';
 import { blurRegions, normaliseImage } from '../media/images.ts';
 import { videoContentType } from '../media/video.ts';
 import type {
@@ -59,12 +64,15 @@ import type {
   MarkRepository,
   MediaStore,
   PhotoRepository,
+  ResultCache,
   Segmenter,
   TransactionRunner,
+  VideoRedactor,
   VideoRepository,
 } from '../ports.ts';
 import { findingsToDrafts } from './damage.ts';
 import { SealedRecordSchema } from './sealed-records.ts';
+import type { StoredTracking } from './video.ts';
 import { detectFaceCorners, findPrivacyRegions } from './vision.ts';
 
 export interface HandoverServiceDeps {
@@ -83,6 +91,8 @@ export interface HandoverServiceDeps {
   readonly ediSenderId: string;
   /** Where handover events go (e.g. webhooks); none by default. */
   readonly events?: EventPublisher;
+  readonly videoRedactor?: VideoRedactor;
+  readonly videoTracking?: ResultCache<StoredTracking>;
 }
 
 type Coverage = Record<Face, FaceCoverage>;
@@ -109,6 +119,10 @@ export class HandoverService {
 
   constructor(deps: HandoverServiceDeps) {
     this.#d = deps;
+  }
+
+  get videoEvidence(): boolean {
+    return this.#d.videoRedactor !== undefined;
   }
 
   // Containers -------------------------------------------------------------
@@ -314,6 +328,11 @@ export class HandoverService {
 
   async addVideo(handoverId: string, input: { data: Uint8Array; views?: unknown }): Promise<Video> {
     this.#openHandover(handoverId);
+    if (!this.#d.videoRedactor) {
+      throw new ServiceUnavailableError(
+        'Video evidence is unavailable. Install ffmpeg and ffprobe to blur people and number plates, then restart the server.',
+      );
+    }
     const contentType = videoContentType(input.data);
     if (!contentType) throw new ValidationError('Upload an MP4, MOV or WebM video');
     const parsed = VideoViewsSchema.safeParse(input.views === undefined ? [] : input.views);
@@ -322,26 +341,40 @@ export class HandoverService {
         issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
       });
     }
-    const sha256 = createHash('sha256').update(input.data).digest('hex');
-    const existing = this.#d.videos.listForHandover(handoverId).find((v) => v.sha256 === sha256);
+    const sourceSha256 = createHash('sha256').update(input.data).digest('hex');
+    const existing = this.#d.videos.findBySource(handoverId, sourceSha256);
     // A retry after a lost response must not attach the same clip twice.
     if (existing) return existing;
     if (this.#d.videos.listForHandover(handoverId).length >= 3) {
       throw new ConflictError('A handover can keep at most 3 videos');
     }
-    const stored = await this.#d.media.put(input.data);
+    const redacted = await this.#d.videoRedactor.redact({
+      data: input.data,
+      mimeType: contentType,
+    });
+    const stored = await this.#d.media.put(redacted.data);
+    // Redaction keeps the frame order and size, so the original outline still fits.
+    const tracking = await this.#d.videoTracking?.get(sourceSha256);
+    if (tracking) await this.#d.videoTracking?.put(stored.sha256, tracking);
     return this.#d.transaction(() => {
       this.#openHandover(handoverId);
       const videos = this.#d.videos.listForHandover(handoverId);
-      const duplicate = videos.find((v) => v.sha256 === stored.sha256);
+      const duplicate = this.#d.videos.findBySource(handoverId, sourceSha256);
       if (duplicate) return duplicate;
+      const identical = videos.find((v) => v.sha256 === stored.sha256);
+      if (identical) {
+        // Different uploads can encode to identical bytes; remember both sources for retries.
+        this.#d.videos.addSource(identical, sourceSha256);
+        return identical;
+      }
       if (videos.length >= 3) throw new ConflictError('A handover can keep at most 3 videos');
       const id = this.#d.newId();
       this.#d.videos.insert({
         id,
         handoverId,
         ...stored,
-        contentType,
+        sourceSha256,
+        contentType: redacted.mimeType,
         views: parsed.data,
         createdAt: this.#now(),
       });

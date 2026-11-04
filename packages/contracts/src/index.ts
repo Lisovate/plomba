@@ -460,10 +460,12 @@ export const SampleClipSchema = z.object({
 
 export const SampleClipsSchema = z.array(SampleClipSchema);
 
-/** What the operator says about this installation, shown to everyone (no session needed). */
+/** This installation's notice and capabilities, shown without a session. */
 export const InstanceSchema = z.object({
   /** One line for the foot of every screen, e.g. "Demo data" or photo credits. */
   notice: z.string().nullable(),
+  /** Whether clips can be blurred and kept as handover evidence. */
+  videoEvidence: z.boolean(),
 });
 
 // Errors -------------------------------------------------------------------

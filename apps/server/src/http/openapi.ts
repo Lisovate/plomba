@@ -85,7 +85,7 @@ export const OPERATIONS: readonly Operation[] = [
   {
     method: 'get',
     path: '/instance',
-    summary: "The operator's notice for this installation",
+    summary: "This installation's notice and capabilities",
     tag: 'Session',
     response: InstanceSchema,
   },
@@ -211,7 +211,7 @@ export const OPERATIONS: readonly Operation[] = [
     method: 'post',
     path: '/handovers/{id}/videos',
     summary:
-      'Keep an MP4, MOV or WebM clip as evidence (150 MB body limit, at most 3 per open handover); identical clips reuse the attachment',
+      'Blur people and number plates and keep a silent MP4 as evidence (MP4/MOV/WebM input, 150 MB body limit, at most 3 clips); retries reuse the attachment; 503 without video redaction',
     tag: 'Video',
     body: {
       fields: { video: 'file', views: 'string' },

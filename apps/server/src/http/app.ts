@@ -150,7 +150,9 @@ function api(deps: AppDeps): Hono {
 
   api.get('/health', (c) => c.json({ status: 'ok' }));
 
-  api.get('/instance', (c) => c.json({ notice: deps.notice ?? null }));
+  api.get('/instance', (c) =>
+    c.json({ notice: deps.notice ?? null, videoEvidence: handovers.videoEvidence }),
+  );
 
   const openApi = openApiDocument({ serverUrl: deps.publicUrl ?? '' });
   api.get('/openapi.json', (c) => c.json(openApi));

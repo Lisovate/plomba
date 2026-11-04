@@ -49,3 +49,9 @@ export class UpstreamError extends AppError {
   readonly status = 502;
   readonly type = 'upstream';
 }
+
+export class ServiceUnavailableError extends AppError {
+  override name = 'ServiceUnavailableError';
+  readonly status = 503;
+  readonly type = 'service-unavailable';
+}
