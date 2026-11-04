@@ -12,6 +12,8 @@ export async function useLegacyRecord(db: DatabaseSync, id: string, version: 1 |
   delete content.videos;
   if (version === 1) {
     delete content.notInspected;
+    // The first version 1 writer predates traced damage outlines too.
+    for (const mark of content.marks) delete mark.outline;
     delete content.handover.transportMode;
     delete content.handover.vehicleId;
   }

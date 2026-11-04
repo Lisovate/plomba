@@ -43,7 +43,12 @@ const ClaimRecordSchema = SealedRecordSchema.extend({
     transportMode: HandoverSchema.shape.transportMode.default(null),
     vehicleId: HandoverSchema.shape.vehicleId.default(null),
   }),
-  marks: z.array(MarkSchema.omit({ handoverId: true, createdAt: true })),
+  marks: z.array(
+    MarkSchema.omit({ handoverId: true, createdAt: true }).extend({
+      // The first version 1 records predate traced outlines.
+      outline: MarkSchema.shape.outline.default(null),
+    }),
+  ),
   photos: z.array(z.object({ id: z.string(), sha256: z.string() })),
 });
 
