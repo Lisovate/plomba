@@ -35,8 +35,20 @@ test('the demo tour links to existing stories and resolves the open handover fro
       checker: 'Tour checker',
     },
   });
-  expect(started.ok(), await started.text()).toBe(true);
-  const open = HandoverSchema.parse(await started.json());
+  // Another test on this project's server may already have opened one; the tour finds it either way.
+  const open = started.ok()
+    ? HandoverSchema.parse(await started.json())
+    : await (async () => {
+        expect(started.status(), await started.text()).toBe(409);
+        const history = (await (await page.request.get('/api/containers/PLBU4000043')).json()) as {
+          handovers: unknown[];
+        };
+        const found = history.handovers
+          .map((h) => HandoverSchema.parse(h))
+          .find((h) => h.status === 'open');
+        if (!found) throw new Error('PLBU4000043 has no open handover');
+        return found;
+      })();
   // The recent page need not include the featured handover.
   await page.route('**/api/handovers', (route) => route.fulfill({ json: [] }));
   await page.goto('/');

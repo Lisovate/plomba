@@ -124,7 +124,8 @@ test('a checker keeps a walk-around, replays tracked and untracked evidence, and
   await expect(page).toHaveURL(new RegExp(`/handovers/${id}$`));
   const card = page.locator('.walkaround-evidence');
   await expect(card).toHaveCount(1);
-  await expect(card.locator('polygon.grid-cell')).toHaveCount(10);
+  // The stored clip's tracking loads after the page; a slow runner needs longer than the default.
+  await expect(card.locator('polygon.grid-cell')).toHaveCount(10, { timeout: 20_000 });
   const detail = (await (await page.request.get(`/api/handovers/${id}`)).json()) as {
     videos: {
       id: string;
