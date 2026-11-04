@@ -81,7 +81,6 @@ export const pl: Messages = {
   'try.loadingHistory': 'Ładowanie paszportu uszkodzeń kontenera…',
   'try.sizeUnknown': 'Nieznany rozmiar i typ',
   'try.highCube': 'podwyższony',
-  'try.owner': 'Kod właściciela: {code}',
   'try.lastHandover': 'Ostatnio: {place} · {direction} · {date}',
   'try.noHandovers': 'Brak zapisanych przekazań',
   'try.chainVerified': 'Zaplombowane zapisy zweryfikowane: {count}',

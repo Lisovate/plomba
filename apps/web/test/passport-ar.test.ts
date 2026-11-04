@@ -107,10 +107,9 @@ describe('describeSizeType', () => {
 });
 
 describe('informationLines', () => {
-  it('shows the owner code, latest handover and verification of the sealed records', () => {
+  it('shows the size and type, latest handover and verification of the sealed records', () => {
     expect(informationLines(history(), t, 'en')).toEqual({
       sizeType: '42G1 · 40 ft general purpose',
-      owner: 'Owner code: CSQ',
       lastHandover: 'Last: Łódź · Gate out · Nov 4, 2026',
       chain: 'Sealed records verified: 2',
     });
@@ -132,7 +131,6 @@ describe('informationLines', () => {
 
   it('localizes the handover direction and dates', () => {
     const lines = informationLines(history(), polish, 'pl');
-    expect(lines.owner).toBe('Kod właściciela: CSQ');
     expect(lines.lastHandover).toContain('Łódź');
     expect(lines.lastHandover).toContain(polish('handover.out'));
     expect(lines.lastHandover).toContain(

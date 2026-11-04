@@ -378,7 +378,8 @@ function InformationTag({
     return () => observer.disconnect();
   }, [onHeight]);
   const scale = displayWidth / size.width;
-  const width = Math.min(288, displayWidth - 16);
+  // Compact on a phone, where the tag sits over a landscape clip a few centimetres tall.
+  const width = Math.min(displayWidth < 480 ? 232 : 288, displayWidth - 16);
   const x = ((corners[0].x + corners[1].x) / 2) * scale;
   const y = Math.min(...corners.map((point) => point.y)) * scale;
   const left = Math.max(8, Math.min(displayWidth - width - 8, x - width / 2));
@@ -390,7 +391,6 @@ function InformationTag({
         <ContainerNumberText value={history.container.number} />
       </strong>
       <span>{lines.sizeType}</span>
-      <span>{lines.owner}</span>
       <span>{lines.lastHandover}</span>
       <span
         className={`pill ${history.chain.ok ? (history.chain.length > 0 ? 'ok' : '') : 'error'}`}

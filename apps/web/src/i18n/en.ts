@@ -78,7 +78,6 @@ export const en = {
   'try.loadingHistory': 'Loading the container’s damage passport…',
   'try.sizeUnknown': 'Size and type unknown',
   'try.highCube': 'high cube',
-  'try.owner': 'Owner code: {code}',
   'try.lastHandover': 'Last: {place} · {direction} · {date}',
   'try.noHandovers': 'No handovers recorded',
   'try.chainVerified': 'Sealed records verified: {count}',

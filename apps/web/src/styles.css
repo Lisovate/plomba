@@ -1507,20 +1507,20 @@ a.list-item:hover {
 .video-info {
   position: absolute;
   display: grid;
-  gap: 0.15rem;
-  padding: 0.5rem 0.65rem;
+  gap: 0.1rem;
+  padding: 0.4rem 0.55rem;
   border: 1px solid var(--seal-500);
   border-radius: var(--radius);
   background: rgb(7 20 37 / 0.9);
   color: #fff;
-  font-size: 0.72rem;
-  line-height: 1.35;
+  font-size: 0.68rem;
+  line-height: 1.3;
   pointer-events: none;
 }
 
 .video-info strong {
   color: var(--seal-500);
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
 .video-info::after {

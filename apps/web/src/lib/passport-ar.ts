@@ -45,7 +45,6 @@ export function informationLines(history: ContainerHistory, t: Translate, langua
   );
   return {
     sizeType: describeSizeType(history.container.sizeTypeCode, t),
-    owner: t('try.owner', { code: history.container.number.slice(0, 3) }),
     lastHandover: last
       ? t('try.lastHandover', {
           place: last.place,
