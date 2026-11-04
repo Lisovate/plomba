@@ -70,7 +70,7 @@ Measured on openly licensed data, details in [docs/evaluation.md](docs/evaluatio
 
 ## Status and limits
 
-Everything above works end to end against the Meta Model API, with 200 unit and integration tests, and an end-to-end test of the whole handover on an Android phone (Chromium) and an iPhone (WebKit, Safari's engine), in CI. Progress is logged day by day in [docs/build-log.md](docs/build-log.md).
+Everything above works end to end against the Meta Model API, with 445 unit and integration tests, and an end-to-end test of the whole handover on an Android phone (Chromium) and an iPhone (WebKit, Safari's engine), in CI. Progress is logged day by day in [docs/build-log.md](docs/build-log.md).
 
 **Not yet:**
 - **Live, world-tracked AR on iPhone:** Safari has no WebXR. Ghosts are drawn on photos, on recorded video and on the live camera, re-registered about every 1.5 s.
