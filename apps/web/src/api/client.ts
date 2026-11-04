@@ -32,7 +32,9 @@ import {
   type StartHandoverInput,
   TranscriptionSchema,
   type UpdateMark,
+  VideoSchema,
   VideoTrackingSchema,
+  type VideoViews,
 } from '@plomba/contracts';
 import type { Quad } from '@plomba/core';
 import type { z } from 'zod';
@@ -144,6 +146,16 @@ export const api = {
       PhotoSchema,
     ),
 
+  uploadVideo: (id: string, video: Blob, views: VideoViews) => {
+    const form = new FormData();
+    form.set('video', video, 'clip');
+    form.set('views', JSON.stringify(views));
+    return request(path`/api/handovers/${id}/videos`, { method: 'POST', body: form }, VideoSchema);
+  },
+
+  videoTracking: (id: string, videoId: string) =>
+    request(path`/api/handovers/${id}/videos/${videoId}/tracking`, {}, VideoTrackingSchema),
+
   trackVideo: (video: Blob) => {
     const form = new FormData();
     form.set('video', video, 'clip.mp4');
@@ -208,5 +220,7 @@ export const queryKeys = {
   samples: ['samples'] as const,
   recent: ['handovers'] as const,
   handover: (id: string) => ['handovers', id] as const,
+  videoTracking: (id: string, videoId: string) =>
+    ['handovers', id, 'videos', videoId, 'tracking'] as const,
   container: (number: string) => ['containers', number] as const,
 };

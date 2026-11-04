@@ -29,7 +29,12 @@ import { type FrameView, VideoAr } from '../components/video-ar.tsx';
 import { useI18n } from '../i18n/index.tsx';
 import { prepareUpload } from '../lib/image.ts';
 import { BlankFramesError, frameTime, grabFrames, probeVideo } from '../lib/video-frames.ts';
-import { addFrames, type FrameSteps } from '../lib/walkaround-upload.ts';
+import {
+  addFrames,
+  chosenVideoViews,
+  type FrameSteps,
+  type VideoStep,
+} from '../lib/walkaround-upload.ts';
 
 /** Frames sent to Muse Spark in one call; the server accepts up to 16. */
 const MAX_FRAMES = 12;
@@ -83,7 +88,7 @@ type Step = 'tracking' | 'choosing' | 'naming' | 'reading';
  * 3. Muse Spark names the face in each, and reads the doors;
  * 4. the checker confirms, and the frames go through the same pipeline as
  *    photos (registration, blurring, coverage, damage proposals).
- * The clip itself is never stored. It also plays back with the container's
+ * The clip can be kept as evidence. It plays back with the container's
  * coordinates and the last handover's damage drawn on it.
  */
 export function WalkaroundScreen() {
@@ -285,8 +290,10 @@ export function WalkaroundScreen() {
           <ErrorNotice error={analyse.error} onRetry={() => clip && run(clip)} />
         ))}
 
-      {analysis && (
+      {analysis && clip && (
         <Results
+          key={clip.url}
+          clip={clip.file}
           analysis={analysis}
           detail={detail.data}
           use={use}
@@ -317,12 +324,14 @@ function frameView(c: Candidate, index: number, use: Choices): FrameView | null 
 }
 
 function Results({
+  clip,
   analysis,
   detail,
   use,
   onUse,
   editable,
 }: {
+  clip: File;
   analysis: Analysis;
   detail: HandoverDetail;
   use: Choices;
@@ -401,7 +410,7 @@ function Results({
       )}
 
       {editable && use.size > 0 && (
-        <AddToHandover handoverId={detail.handover.id} analysis={analysis} use={use} />
+        <AddToHandover handoverId={detail.handover.id} clip={clip} analysis={analysis} use={use} />
       )}
     </>
   );
@@ -459,10 +468,12 @@ function DoorsCheck({ doors, expected }: { doors: IdentifyResult | null; expecte
 
 function AddToHandover({
   handoverId,
+  clip,
   analysis,
   use,
 }: {
   handoverId: string;
+  clip: File;
   analysis: Analysis;
   use: Choices;
 }) {
@@ -470,6 +481,8 @@ function AddToHandover({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [findDamage, setFindDamage] = useState(true);
+  const [keepVideo, setKeepVideo] = useState(true);
+  const videoStep = useRef<VideoStep>({ uploaded: false });
   const [progress, setProgress] = useState('');
   // How far each chosen frame got, kept across retries (see addFrames).
   const steps = useRef<FrameSteps>(new Map());
@@ -478,10 +491,10 @@ function AddToHandover({
       [...use]
         .map(([key, face]) => {
           const { index, part } = parseKey(key);
-          return { key, face, part, candidate: analysis.candidates[index] };
+          return { key, face, part, index, candidate: analysis.candidates[index] };
         })
         .filter(
-          (c): c is { key: string; face: Face; part: Part; candidate: Candidate } =>
+          (c): c is { key: string; face: Face; part: Part; index: number; candidate: Candidate } =>
             c.candidate !== undefined,
         )
         .sort((a, b) => FACES.indexOf(a.face) - FACES.indexOf(b.face)),
@@ -506,6 +519,14 @@ function AddToHandover({
           api,
           steps: steps.current,
           findDamage,
+          video: keepVideo
+            ? {
+                data: clip,
+                views: chosenVideoViews(analysis.candidates, chosen),
+                step: videoStep.current,
+              }
+            : undefined,
+          onVideoProgress: () => setProgress(t('walk.keepingVideo')),
           onProgress: (stage, index, frame) => {
             const face = t(`faceTitle.${frame.face}`);
             setProgress(
@@ -522,6 +543,15 @@ function AddToHandover({
 
   return (
     <Card>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={keepVideo}
+          disabled={add.isPending || videoStep.current.uploaded}
+          onChange={(e) => setKeepVideo(e.target.checked)}
+        />
+        {t('walk.keepVideo')}
+      </label>
       <label className="check">
         <input
           type="checkbox"

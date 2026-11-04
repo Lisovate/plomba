@@ -9,7 +9,7 @@ const SHA256 = /^[0-9a-f]{64}$/;
 /**
  * Content-addressed media on the local filesystem: a file's name is the
  * SHA-256 of its bytes, so the hash in a sealed handover record identifies the
- * exact photo, and a changed file no longer matches its name.
+ * exact photo or clip, and a changed file no longer matches its name.
  */
 export class FileMediaStore implements MediaStore {
   readonly #root: string;

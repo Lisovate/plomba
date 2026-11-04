@@ -255,7 +255,7 @@ export const pl: Messages = {
     'Historia kontenera nie przechodzi weryfikacji, więc historia uszkodzeń nie jest pokazana.',
   'walk.title': 'Nagranie obchodu',
   'walk.intro':
-    'Jedno nagranie z telefonu lub okularów Meta AI staje się zdjęciami tego przekazania. Samo nagranie nie jest zapisywane.',
+    'Jedno nagranie z telefonu lub okularów Meta AI staje się zdjęciami tego przekazania. Zachowaj film przy przekazaniu jako zaplombowany dowód.',
   'walk.tip':
     'Zatrzymaj się na sekundę na wprost każdej ściany, na tyle daleko, by cała ściana mieściła się w kadrze.',
   'walk.samples': 'Albo wypróbuj przykładowy klip',
@@ -293,6 +293,8 @@ export const pl: Messages = {
   'walk.useAs.left': 'Lewa strona narożnika jako',
   'walk.useAs.right': 'Prawa strona narożnika jako',
   'walk.notUsed': 'Nie używaj',
+  'walk.keepVideo': 'Zachowaj film przy przekazaniu',
+  'walk.keepingVideo': 'Zapisywanie filmu z obchodu…',
   'walk.findDamage': 'Szukaj uszkodzeń na każdym zdjęciu (Muse Spark i SAM 3.1)',
   'walk.add': 'Dodaj do przekazania (zdjęcia: {count})',
   'walk.adding': 'Dodawanie zdjęcia {n} z {total}: {face}…',

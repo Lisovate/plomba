@@ -1492,6 +1492,10 @@ a.list-item:hover {
   height: auto;
 }
 
+.walkaround-evidence .overlay-frame {
+  margin-block: 12px;
+}
+
 .overlay.passive {
   pointer-events: none;
 }

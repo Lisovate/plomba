@@ -1,8 +1,9 @@
-import type { Face, Photo } from '@plomba/contracts';
+import type { Face, FaceView, Photo, VideoViews } from '@plomba/contracts';
 import type { Quad } from '@plomba/core';
 import { describe, expect, it } from 'vitest';
 import {
   addFrames,
+  chosenVideoViews,
   type FrameSteps,
   type FrameUpload,
   type FrameUploadApi,
@@ -19,6 +20,7 @@ const SQUARE: NonNullable<Photo['corners']> = [
 /** An API that records every call and can be told to fail a call once. */
 function fakeApi(failOnce: Partial<Record<keyof FrameUploadApi, number>> = {}) {
   const calls: string[] = [];
+  const videos: { handoverId: string; video: Blob; views: VideoViews }[] = [];
   let photos = 0;
   const failures = { ...failOnce };
   const maybeFail = (name: keyof FrameUploadApi) => {
@@ -59,13 +61,18 @@ function fakeApi(failOnce: Partial<Record<keyof FrameUploadApi, number>> = {}) {
         cornersSource: 'adjusted',
       };
     },
+    async uploadVideo(handoverId, video, views) {
+      calls.push('video');
+      maybeFail('uploadVideo');
+      videos.push({ handoverId, video, views });
+    },
     async proposeDamage(_handoverId, photoId) {
       calls.push(`damage ${photoId.slice(-1)}`);
       maybeFail('proposeDamage');
       return [];
     },
   };
-  return { api, calls };
+  return { api, calls, videos };
 }
 
 const frame = (key: string, face: Face, outline: Quad | null = null): FrameUpload => ({
@@ -76,6 +83,50 @@ const frame = (key: string, face: Face, outline: Quad | null = null): FrameUploa
 });
 
 describe('addFrames', () => {
+  it('uploads the clip last with the chosen views and never repeats a completed upload', async () => {
+    const { api, calls, videos } = fakeApi();
+    const steps: FrameSteps = new Map();
+    const frames = [frame('0:whole', 'D')];
+    const video = {
+      data: new Blob(['video']),
+      views: [{ frame: 12, view: doorView }],
+      step: { uploaded: false },
+    };
+    await addFrames(HANDOVER, frames, { api, steps, findDamage: true, video });
+    await addFrames(HANDOVER, frames, { api, steps, findDamage: true, video });
+    expect(calls).toEqual(['upload D', 'damage 1', 'video']);
+    expect(videos).toEqual([{ handoverId: HANDOVER, video: video.data, views: video.views }]);
+    expect(video.step.uploaded).toBe(true);
+  });
+
+  it('resumes a failed clip upload without repeating photos, outlines or damage searches', async () => {
+    const { api, calls } = fakeApi({ uploadVideo: 0 });
+    const steps: FrameSteps = new Map();
+    const frames = [frame('3:right', 'R', SQUARE)];
+    const video = { data: new Blob(['video']), views: [], step: { uploaded: false } };
+    await expect(
+      addFrames(HANDOVER, frames, { api, steps, findDamage: true, video }),
+    ).rejects.toThrow('uploadVideo failed');
+    expect(video.step.uploaded).toBe(false);
+    await addFrames(HANDOVER, frames, { api, steps, findDamage: true, video });
+    expect(calls).toEqual(['upload R', 'corners 1', 'damage 1', 'video', 'video']);
+    expect(video.step.uploaded).toBe(true);
+  });
+
+  it('waits for all photo steps to succeed before uploading the clip', async () => {
+    const { api, calls } = fakeApi({ proposeDamage: 0 });
+    const steps: FrameSteps = new Map();
+    const frames = [frame('0:whole', 'D')];
+    const video = { data: new Blob(['video']), views: [], step: { uploaded: false } };
+    await expect(
+      addFrames(HANDOVER, frames, { api, steps, findDamage: true, video }),
+    ).rejects.toThrow();
+    expect(calls).toEqual(['upload D', 'damage 1']);
+    expect(video.step.uploaded).toBe(false);
+    await addFrames(HANDOVER, frames, { api, steps, findDamage: true, video });
+    expect(calls).toEqual(['upload D', 'damage 1', 'damage 1', 'video']);
+  });
+
   it('uploads each frame, sets a corner part outline, and asks for damage', async () => {
     const { api, calls } = fakeApi();
     await addFrames(HANDOVER, [frame('0:whole', 'D'), frame('3:right', 'R', SQUARE)], {
@@ -125,5 +176,54 @@ describe('addFrames', () => {
     await addFrames(HANDOVER, frames, { api, steps, findDamage: true });
     await addFrames(HANDOVER, frames, { api, steps, findDamage: true });
     expect(calls).toEqual(['upload D', 'damage 1']);
+  });
+});
+
+const doorView: FaceView = {
+  face: 'D',
+  squareOn: true,
+  clear: true,
+  corner: null,
+  doorEnd: null,
+  confidence: 0.9,
+  note: 'doors',
+};
+
+describe('chosenVideoViews', () => {
+  it('keeps selected frames in clip order, applies corrections and combines the parts of a corner', () => {
+    const candidates = [
+      { frame: 0, view: doorView },
+      { frame: 12, view: doorView },
+      {
+        frame: 24,
+        view: {
+          ...doorView,
+          face: null,
+          squareOn: false,
+          corner: { left: 'D' as const, right: 'R' as const },
+        },
+      },
+    ];
+    const views = chosenVideoViews(candidates, [
+      { index: 2, part: 'right', face: 'F' },
+      { index: 0, part: 'whole', face: 'L' },
+      { index: 2, part: 'left', face: 'R' },
+    ]);
+    expect(views).toEqual([
+      { frame: 0, view: { ...doorView, face: 'L' } },
+      { frame: 24, view: { ...candidates[2]?.view, corner: { left: 'R', right: 'F' } } },
+    ]);
+  });
+
+  it('keeps the other named face when only one part of a corner becomes a photo', () => {
+    const view = {
+      ...doorView,
+      face: null,
+      squareOn: false,
+      corner: { left: 'D' as const, right: 'R' as const },
+    };
+    expect(
+      chosenVideoViews([{ frame: 24, view }], [{ index: 0, part: 'right', face: 'R' }]),
+    ).toEqual([{ frame: 24, view }]);
   });
 });

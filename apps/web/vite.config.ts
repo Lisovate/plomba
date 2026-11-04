@@ -45,8 +45,9 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//, /^\/media\//],
         runtimeCaching: [
           {
-            // Photos are content-addressed and never change.
-            urlPattern: ({ url }) => url.pathname.startsWith('/media/'),
+            // Let video range requests reach the server, even if a full clip was cached.
+            urlPattern: ({ url, request }) =>
+              url.pathname.startsWith('/media/') && !request.headers.has('range'),
             handler: 'CacheFirst',
             options: {
               cacheName: 'media',

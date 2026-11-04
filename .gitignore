@@ -20,6 +20,7 @@ data/cache/
 media/raw/
 *.mp4
 *.mov
+!e2e/fixtures/container-side.mp4
 
 # OS
 .DS_Store

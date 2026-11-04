@@ -58,6 +58,8 @@ createServer((request, response) => {
     if (request.headers.authorization !== 'Bearer e2e-test-key')
       return send(401, { error: 'bad key' });
 
+    if (request.url === '/v1/files') return send(200, { id: 'file-test-clip' });
+
     if (request.url === '/v1/asr/transcribe') {
       return send(200, {
         transcript: 'wgniecenie przy drzwiach',
@@ -69,8 +71,38 @@ createServer((request, response) => {
 
     const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as ResponsesBody;
     if (body.model === 'sam-3.1') {
-      const prompt = body.input[0]?.content?.find((c) => c.type === 'input_text')?.text;
+      const content = body.input[0]?.content ?? [];
+      if (content.some((c) => c.type === 'input_video')) {
+        // The synthetic two-second fixture holds the same side throughout, at 10 fps.
+        const frames = Array.from({ length: 20 }, (_, i) =>
+          samContainer.trim().replace('<0f>', `<${i}f>`),
+        );
+        return send(200, respond(frames.join('\n')));
+      }
+      const prompt = content.find((c) => c.type === 'input_text')?.text;
       return send(200, respond(prompt === 'shipping container' ? samContainer : ''));
+    }
+    if (body.text?.format?.name === 'walkaround_faces') {
+      const frames = body.input
+        .flatMap((message) => message.content ?? [])
+        .filter((c) => c.type === 'input_image');
+      return send(
+        200,
+        respond(
+          JSON.stringify({
+            views: frames.map((_, i) => ({
+              frame: i + 1,
+              face: 'R',
+              squareOn: true,
+              clear: true,
+              corner: null,
+              ends: { left: 'doors', right: 'front' },
+              confidence: 0.9,
+              note: 'synthetic side',
+            })),
+          }),
+        ),
+      );
     }
     const answer = SPARK_ANSWERS[body.text?.format?.name ?? ''];
     if (!answer) return send(400, { error: `no fake answer for ${body.text?.format?.name}` });

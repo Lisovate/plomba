@@ -31,7 +31,7 @@ export function ReportScreen() {
   if (detail.isPending) return <Spinner label={t('common.loading')} />;
   if (detail.isError) return <ErrorNotice error={detail.error} onRetry={() => detail.refetch()} />;
 
-  const { handover, container, photos, marks, previousMarks } = detail.data;
+  const { handover, container, photos, videos, marks, previousMarks } = detail.data;
   const active = marks.filter((m) => m.source === 'confirmed');
   const date = (iso: string | null) => (iso ? new Date(iso).toLocaleString(language) : '—');
   const latestPhotos = FACES.flatMap((face) => {
@@ -174,6 +174,24 @@ export function ReportScreen() {
           ))}
         </div>
       </section>
+
+      {videos.length > 0 && (
+        <section>
+          <h2>{t('walk.title')}</h2>
+          <ul className="list">
+            {videos.map((video) => (
+              <li key={video.id} className="list-item">
+                <a href={video.url}>
+                  {t('walk.title')} · {date(video.createdAt)}
+                </a>
+                <span>
+                  SHA-256 <code className="hash">{video.sha256}</code>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="signatures">
         {[

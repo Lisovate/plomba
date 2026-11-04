@@ -199,6 +199,20 @@ describe('handover video evidence', () => {
 });
 
 describe('video HTTP API', () => {
+  it('keeps photo responses and their cache headers', async () => {
+    const { service, app, handover, db, media } = started();
+    try {
+      const photo = await service.addPhoto(handover.id, { face: 'D', data: await makePhoto() });
+      const response = await app.request(photo.url);
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toBe('image/jpeg');
+      expect(response.headers.get('cache-control')).toBe('private, max-age=31536000, immutable');
+      expect(new Uint8Array(await response.arrayBuffer())).toEqual(await media.get(photo.sha256));
+    } finally {
+      db.close();
+    }
+  });
+
   it('uploads and lists a clip, returning problem details for invalid inputs and closed handovers', async () => {
     const { app, handover, db, service } = started();
     const upload = (body: FormData) =>

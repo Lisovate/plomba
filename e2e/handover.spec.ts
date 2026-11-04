@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 
@@ -76,4 +77,100 @@ test('a checker identifies a container, records damage, seals the handover and s
   // The container's history verifies.
   await page.goto('/containers/CSQU3054383');
   await expect(page.getByText('History intact · sealed handovers: 1')).toBeVisible();
+});
+
+test('a checker keeps a walk-around, replays tracked and untracked evidence, and prints its hashes', async ({
+  page,
+}) => {
+  const number = 'PLBU4000043';
+  await page.request.post('/api/containers', { data: { number, sizeTypeCode: '22G1' } });
+  const started = await page.request.post('/api/handovers', {
+    data: {
+      containerNumber: number,
+      direction: 'in',
+      place: 'Gdynia',
+      checker: 'PL',
+    },
+  });
+  expect(started.status()).toBe(201);
+  const { id } = (await started.json()) as { id: string };
+  await page.goto(`/handovers/${id}/walkaround`);
+  const clipPath = join(import.meta.dirname, 'fixtures', 'container-side.mp4');
+  await page.locator('input[type=file]').setInputFiles(clipPath);
+  await page.getByRole('button', { name: 'Analyse the walk-around' }).click();
+  await expect(
+    page.getByRole('checkbox', { name: 'Keep the video with the handover' }),
+  ).toBeChecked();
+  await page.getByRole('button', { name: 'Add to the handover (photos: 1)' }).click();
+  await expect(page).toHaveURL(new RegExp(`/handovers/${id}$`));
+  const card = page.locator('.walkaround-evidence');
+  await expect(card).toHaveCount(1);
+  await expect(card.locator('polygon.grid-cell')).toHaveCount(10);
+  const detail = (await (await page.request.get(`/api/handovers/${id}`)).json()) as {
+    videos: {
+      id: string;
+      url: string;
+      sha256: string;
+      views: { frame: number; view: { face: string } }[];
+    }[];
+  };
+  const tracked = detail.videos[0];
+  if (!tracked) throw new Error('No saved clip');
+  expect(tracked.views).toEqual([
+    expect.objectContaining({ view: expect.objectContaining({ face: 'R' }) }),
+  ]);
+  await expect(card.getByText(tracked.sha256)).toBeVisible();
+
+  // The same playable container with a different hash has no cached tracking.
+  const untracked = await page.request.post(`/api/handovers/${id}/videos`, {
+    multipart: {
+      video: {
+        name: 'clip.mp4',
+        mimeType: 'video/mp4',
+        buffer: Buffer.concat([await readFile(clipPath), Buffer.from('uncached')]),
+      },
+    },
+  });
+  expect(untracked.status()).toBe(201);
+  const plain = (await untracked.json()) as { id: string; url: string; sha256: string };
+  const missing = await page.request.get(`/api/handovers/${id}/videos/${plain.id}/tracking`);
+  expect(missing.status()).toBe(404);
+  await page.reload();
+  await expect(card).toHaveCount(2);
+  await expect(card.nth(1).locator('svg.overlay')).toHaveCount(0);
+  const players = card.locator('video');
+  for (const player of await players.all()) {
+    await player.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() => player.evaluate((element: HTMLVideoElement) => element.readyState))
+      .toBeGreaterThanOrEqual(2);
+    await player.evaluate(async (element: HTMLVideoElement) => {
+      await element.play();
+    });
+    await expect
+      .poll(() => player.evaluate((element: HTMLVideoElement) => element.currentTime))
+      .toBeGreaterThan(0);
+    await player.evaluate((element: HTMLVideoElement) => {
+      element.pause();
+      element.currentTime = 1;
+    });
+    await expect
+      .poll(() => player.evaluate((element: HTMLVideoElement) => element.currentTime))
+      .toBeCloseTo(1, 1);
+  }
+  const range = await page.request.get(tracked.url, { headers: { range: 'bytes=0-3' } });
+  expect(range.status()).toBe(206);
+  expect(range.headers()['content-range']).toMatch(/^bytes 0-3\//);
+
+  page.once('dialog', (dialog) => {
+    void dialog.accept();
+  });
+  await page.getByRole('button', { name: 'Seal handover' }).click();
+  await page.getByRole('link', { name: 'Open the EIR' }).click();
+  await expect(page.getByText(tracked.sha256)).toBeVisible();
+  await expect(page.getByText(plain.sha256)).toBeVisible();
+  const history = (await (await page.request.get(`/api/containers/${number}`)).json()) as {
+    chain: { ok: boolean };
+  };
+  expect(history.chain.ok).toBe(true);
 });

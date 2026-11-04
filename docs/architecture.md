@@ -1,6 +1,6 @@
 # Architecture
 
-First written 2026-10-26 as a plan; rewritten 2026-10-28 when development moved from a native iPhone app to an installable web app; updated 2026-11-03 with walk-around videos, the damage passport and the open-weights model. Sections marked **(planned)** aren't built yet. What's built, and when, is in [build-log.md](build-log.md).
+First written 2026-10-26 as a plan; rewritten 2026-10-28 when development moved from a native iPhone app to an installable web app; updated 2026-11-04 with sealed walk-around videos, the damage passport and the open-weights model. Sections marked **(planned)** aren't built yet. What's built, and when, is in [build-log.md](build-log.md).
 
 ## Components
 
@@ -36,7 +36,7 @@ One process serves the API and the web app, so a company can run Plomba as one c
 - **Adapters** implement them:
   - `adapters/meta`: the Meta Model API (Muse Spark, SAM 3.1);
   - `adapters/sqlite`: Node's built-in `node:sqlite`, so there are no native modules to build;
-  - `media`: a content-addressed photo store on the filesystem.
+  - `media`: a content-addressed media store on the filesystem.
 - **`main.ts` is the only place that reads configuration and wires adapters to services.** Tests swap in in-memory fakes at the ports.
 - **The HTTP layer** (`http/app.ts`) validates every body with the shared contracts and reports errors as RFC 9457 problem details.
 

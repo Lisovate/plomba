@@ -70,7 +70,7 @@ interface VideoArProps {
   readonly tracking: VideoTracking | undefined;
   readonly detail: HandoverDetail;
   /** What is in view at a frame, or `null` where it isn't known. */
-  readonly viewAt: (frame: number) => FrameView | null;
+  readonly viewAt: (frame: number, fps: number) => FrameView | null;
 }
 
 /**
@@ -85,6 +85,7 @@ export function VideoAr({ src, tracking, detail, viewAt }: VideoArProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [frame, setFrame] = useState(0);
+  const [duration, setDuration] = useState(0);
   const { dimensions } = detail.container;
 
   // Follow the frame on screen: per presented frame where the browser supports it.
@@ -123,7 +124,7 @@ export function VideoAr({ src, tracking, detail, viewAt }: VideoArProps) {
   }, [tracking]);
 
   const tracked = tracking ? trackedAt(tracking, frame) : null;
-  const view = viewAt(frame);
+  const view = viewAt(frame, (tracking?.frameCount ?? 0) / (duration || 1));
   const drawn = useMemo(() => {
     if (!tracked) return [];
     return facesInView(tracked, view).flatMap(({ face, quad }) => {
@@ -145,9 +146,10 @@ export function VideoAr({ src, tracking, detail, viewAt }: VideoArProps) {
         muted
         playsInline
         loop
-        onLoadedMetadata={(e) =>
-          setSize({ width: e.currentTarget.videoWidth, height: e.currentTarget.videoHeight })
-        }
+        onLoadedMetadata={(e) => {
+          setSize({ width: e.currentTarget.videoWidth, height: e.currentTarget.videoHeight });
+          setDuration(e.currentTarget.duration);
+        }}
       />
       {size && tracking && (
         <svg

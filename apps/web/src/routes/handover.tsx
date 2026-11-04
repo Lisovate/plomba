@@ -1,4 +1,10 @@
-import type { HandoverDetail, Mark, MarkStatus, Photo } from '@plomba/contracts';
+import type {
+  HandoverDetail,
+  Video as HandoverVideo,
+  Mark,
+  MarkStatus,
+  Photo,
+} from '@plomba/contracts';
 import {
   DAMAGE_CODES,
   FACES,
@@ -6,6 +12,7 @@ import {
   type FaceCoverage,
   faceCoverage,
   isDamageCode,
+  viewAtFrame,
 } from '@plomba/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -26,6 +33,7 @@ import { Link, useParams } from 'react-router';
 import { api, queryKeys } from '../api/client.ts';
 import { FacePanel } from '../components/face-panel.tsx';
 import { Card, ContainerNumberText, ErrorNotice, Spinner } from '../components/ui.tsx';
+import { VideoAr } from '../components/video-ar.tsx';
 import { useI18n } from '../i18n/index.tsx';
 import { describeTransport } from '../lib/transport.ts';
 
@@ -175,6 +183,10 @@ export function HandoverScreen() {
           setSelectedMarkId(mark.id);
         }}
       />
+
+      {detail.data.videos.map((video) => (
+        <WalkaroundVideo key={video.id} video={video} detail={detail.data} />
+      ))}
 
       {editable ? (
         <SealButton
@@ -461,6 +473,34 @@ function SealInfo({ detail }: { detail: HandoverDetail }) {
       <Link to={`/handovers/${detail.handover.id}/report`} className="button primary">
         {t('report.open')}
       </Link>
+    </Card>
+  );
+}
+
+function WalkaroundVideo({ video, detail }: { video: HandoverVideo; detail: HandoverDetail }) {
+  const { t } = useI18n();
+  const tracking = useQuery({
+    queryKey: queryKeys.videoTracking(detail.handover.id, video.id),
+    queryFn: () => api.videoTracking(detail.handover.id, video.id),
+    retry: false,
+  });
+  return (
+    <Card className="walkaround-evidence">
+      <h2>
+        <Video size={20} aria-hidden /> {t('walk.title')}
+      </h2>
+      <VideoAr
+        src={video.url}
+        tracking={tracking.data}
+        detail={detail}
+        viewAt={(frame, fps) => {
+          const view = viewAtFrame(video.views, frame, Math.round(fps * 1.5));
+          return view?.corner ? { corner: view.corner } : view?.face ? { face: view.face } : null;
+        }}
+      />
+      <p className="muted">
+        SHA-256 <code className="hash">{video.sha256}</code>
+      </p>
     </Card>
   );
 }

@@ -1,4 +1,4 @@
-import type { Face, Photo } from '@plomba/contracts';
+import type { Face, FaceView, Photo, VideoViews } from '@plomba/contracts';
 import type { Quad } from '@plomba/core';
 
 /** One frame the checker chose from a walk-around, to become a photo of `face`. */
@@ -15,21 +15,62 @@ export interface FrameUpload {
   readonly outline: (photo: Photo) => Quad | null;
 }
 
-/** The three calls adding a frame takes; the app's API client provides them. */
+/** The calls adding frames and their clip takes; the app's API client provides them. */
 export interface FrameUploadApi {
   uploadPhoto(handoverId: string, face: Face, image: Blob): Promise<Photo>;
   updateCorners(handoverId: string, photoId: string, corners: Quad): Promise<Photo>;
   proposeDamage(handoverId: string, photoId: string): Promise<unknown>;
+  uploadVideo(handoverId: string, video: Blob, views: VideoViews): Promise<unknown>;
 }
 
 /** How far each frame got. Kept by the caller between attempts. */
 export type FrameSteps = Map<string, { photo: Photo; outlined: boolean; searched: boolean }>;
+
+/** Kept separately from the frame steps so retries can resume the final clip upload. */
+export interface VideoStep {
+  uploaded: boolean;
+}
+
+/** Keep only selected frames, with any face corrections made by the checker. */
+export function chosenVideoViews(
+  candidates: readonly { readonly frame: number; readonly view: FaceView }[],
+  choices: readonly {
+    readonly index: number;
+    readonly part: 'whole' | 'left' | 'right';
+    readonly face: Face;
+  }[],
+): VideoViews {
+  return candidates.flatMap((candidate, index) => {
+    const kept = choices.filter((choice) => choice.index === index);
+    if (kept.length === 0) return [];
+    const whole = kept.find((choice) => choice.part === 'whole');
+    const corner =
+      !whole && candidate.view.corner
+        ? {
+            left: kept.find((choice) => choice.part === 'left')?.face ?? candidate.view.corner.left,
+            right:
+              kept.find((choice) => choice.part === 'right')?.face ?? candidate.view.corner.right,
+          }
+        : null;
+    return [
+      {
+        frame: candidate.frame,
+        view: {
+          ...candidate.view,
+          face: whole?.face ?? (corner ? null : candidate.view.face),
+          corner,
+        },
+      },
+    ];
+  });
+}
 
 /**
  * Adds the chosen frames to a handover: upload, set a corner view's outline,
  * then ask for damage proposals. Each step is recorded in `steps` as soon as
  * it succeeds, so calling again after a failure resumes at the step that
  * failed: a photo is never uploaded twice, nor its damage searched twice.
+ * The optional clip is uploaded last, with its own progress kept across retries.
  */
 export async function addFrames(
   handoverId: string,
@@ -38,10 +79,14 @@ export async function addFrames(
     readonly api: FrameUploadApi;
     readonly steps: FrameSteps;
     readonly findDamage: boolean;
+    readonly video?:
+      | { readonly data: Blob; readonly views: VideoViews; readonly step: VideoStep }
+      | undefined;
+    readonly onVideoProgress?: () => void;
     readonly onProgress?: (stage: 'upload' | 'damage', index: number, frame: FrameUpload) => void;
   },
 ): Promise<void> {
-  const { api, steps, findDamage, onProgress } = options;
+  const { api, steps, findDamage, onProgress, video } = options;
   for (const [index, frame] of frames.entries()) {
     let step = steps.get(frame.key);
     if (!step) {
@@ -62,5 +107,10 @@ export async function addFrames(
       }
       step.searched = true;
     }
+  }
+  if (video && !video.step.uploaded) {
+    options.onVideoProgress?.();
+    await api.uploadVideo(handoverId, video.data, video.views);
+    video.step.uploaded = true;
   }
 }

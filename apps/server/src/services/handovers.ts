@@ -1,6 +1,6 @@
 /**
  * The handover workflow: register the container, start a handover against the
- * previous one, collect photos and marks, then seal the record into the
+ * previous one, collect photos, videos and marks, then seal the record into the
  * container's hash chain.
  */
 
@@ -522,8 +522,8 @@ export class HandoverService {
 
   /**
    * Closes the handover and appends it to the container's hash chain. The
-   * sealed record lists every photo by its SHA-256, so the photos are covered
-   * by the chain too.
+   * sealed record lists every photo and video by its SHA-256, so their bytes
+   * are covered by the chain too.
    */
   async close(handoverId: string, options: { acceptGaps?: boolean } = {}): Promise<Handover> {
     this.#openHandover(handoverId);
