@@ -109,7 +109,7 @@ export const cloud: Page = {
     eyebrow: 'Cloud and plans',
     eyebrowIcon: 'cloud',
     title: 'Run it yourself, or let us run it',
-    lead: 'Plomba is open core. Anyone can self-host it for free. Plomba Cloud is the managed version for companies that would rather not run it, and Enterprise connects it to your own systems.',
+    lead: 'Plomba is open source: the whole app, under Apache-2.0. Anyone can self-host it for free. Plomba Cloud is the managed version for companies that would rather not run it, and Enterprise connects it to your own systems.',
   })}
 ${plans()}
 ${waitlist()}`,

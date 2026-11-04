@@ -80,9 +80,19 @@ The server checks the configuration at startup and exits with a list of every pr
 
 ## Running the vision model on your own hardware
 
-Reading markings and finding damage can run on Meta's open-weights **Muse Glimmer** on your own machine, so photos of the doors and damage don't leave the site. SAM 3.1 (outlines, privacy blurring) and Muse Voice Transcribe stay on the Meta Model API.
+Reading markings, naming faces and finding damage can run on Meta's open weights, so photos of the doors and damage don't have to leave the company. SAM 3.1 (outlines, privacy blurring) and Muse Voice Transcribe stay on the Meta Model API.
 
-Any server that speaks the OpenAI-compatible Chat Completions API with image input and JSON-schema output works, for example Ollama:
+**Measured: Muse Spark Open.** The open-weights `meta-models/muse-spark-open-1026`, hosted on Baseten, runs every vision job; the results are in [evaluation.md](evaluation.md):
+
+```sh
+META_VISION_BASE_URL=https://inference.baseten.co/v1
+META_VISION_API_STYLE=chat-completions
+META_VISION_MODEL=meta-models/muse-spark-open-1026
+META_VISION_API_KEY_FILE=/run/secrets/vision_api_key
+META_VISION_MAX_IMAGES=8      # Baseten takes at most 8 images per request
+```
+
+**On your own machine** (not yet measured): any server that speaks the OpenAI-compatible Chat Completions API with image input and JSON-schema output works, for example Ollama with Muse Glimmer:
 
 ```sh
 # On a Mac with 24–32 GB of memory or more
@@ -101,7 +111,7 @@ META_VISION_MODEL=muse-glimmer:30b-mlx
 
 - The Meta key is never sent to `META_VISION_BASE_URL`; that endpoint gets `META_VISION_API_KEY(_FILE)` or no key at all.
 - The claim agent stays on the Meta Model API.
-- **Status:** the Chat Completions path is tested against the Meta Model API (`META_VISION_BASE_URL=https://api.meta.ai/v1`). It hasn't yet been run against Glimmer itself; measure it with `apps/server/scripts/eval-identify.ts` before relying on it.
+- **Status:** the Chat Completions path is measured on Muse Spark Open (Baseten) and tested against the Meta Model API. It hasn't been run against Glimmer itself; measure it with `apps/server/scripts/eval-identify.ts` before relying on it.
 
 ## Backups
 

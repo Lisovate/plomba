@@ -20,7 +20,8 @@ import {
   sectionRect,
 } from '@plomba/core';
 
-const NUMBER = 'PLBU4000043';
+// An illustration, not a container from the live demo.
+const NUMBER = 'PLBU4000995';
 const SIZE_TYPE = '42G1';
 
 function dimensionsOf(code: string): ContainerDimensions {

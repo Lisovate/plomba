@@ -40,21 +40,21 @@ A container's handover is recorded on an **equipment interchange receipt (EIR)**
 - Registration of each face photo to the container, and marks stored in the container's own coordinates
 - The previous handover's damage shown on the container in a new session
 - Coverage highlighting by face and section
-- Damage proposals from SAM 3.1 with checker confirmation
+- Damage proposals (found by Muse Spark, outlined by SAM 3.1) with checker confirmation
 - ISO 9897 (CEDEX) location codes derived from mark positions
 - EIR PDF, handover comparison and CODECO message
 - Blurring of faces and number plates
 - A measured evaluation on licensed, labelled container photos
 
-**Stretch goals**
+**Stretch goals** (status on Nov 4)
 
-- Voice commands and dispute recordings labelled by speaker
-- Offline mode with Muse Glimmer
-- Synthetic rare-damage test cases with Muse Image (excluded from reported accuracy)
-- Draft claims from the comparison agent
-- Hands-free capture from Meta AI glasses: a walk-around recorded on the glasses, uploaded into the same pipeline (live streaming through the Wearables Device Access Toolkit needs a native app)
-- Rail wagon number capture at rail handovers
-- A mixed-reality "claims room" on Quest 3 showing a container's history at full size
+- Damage by voice: **built** (Muse Voice Transcribe, then Muse Spark codes it). Dispute recordings labelled by speaker: not built
+- Vision on open weights: **built and measured** on Muse Spark Open. Offline mode with Muse Glimmer: not built
+- Synthetic rare-damage test cases with Muse Image (excluded from reported accuracy): **built**
+- Draft claims from the comparison agent: **built**, every cited item checked against the sealed records
+- Hands-free capture from Meta AI glasses: **built** as a walk-around video uploaded into the same pipeline (live streaming through the Wearables Device Access Toolkit needs a native app: not built)
+- Rail wagon numbers at rail handovers: **built**, checked by their UIC check digit
+- A mixed-reality "claims room" on Quest 3 showing a container's history at full size: not built
 
 **Not in scope**
 
