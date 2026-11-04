@@ -18,19 +18,19 @@ export const IMAGES = {
     src: '/images/screen-walkaround.jpg',
     width: 559,
     height: 1211,
-    alt: 'Plomba on a phone, playing a walk-around video. SAM 3.1 tracks the container through 180 frames, and Muse Spark has named the doors and right side of this corner view, outlined on the video. Below are the frames chosen from the clip, each with the faces Muse Spark named.',
+    alt: 'Plomba on a phone, playing sample footage of a rusty 40 ft container. SAM 3.1 tracks it; a tag follows it with its number, type, last sealed handover and verified records, and the rust recorded at Gdynia, LX30 CO, is drawn on the side.',
   },
   handover: {
     src: '/images/screen-handover.jpg',
     width: 559,
     height: 1211,
-    alt: 'A gate-out handover of container PLBU 400004 3 at Łódź inland terminal. A photo of the left side on a truck shows the corrosion recorded at the last handover, LX50 CO, drawn on the same spot.',
+    alt: 'An open gate-out of container PLBU 400004 3 at Łódź inland terminal. On the left side, the rust recorded at the last handover, LX30 CO, is drawn on the same spot of the new photo.',
   },
   passport: {
     src: '/images/screen-passport.jpg',
     width: 559,
     height: 1211,
-    alt: "A container's damage passport: a map of its faces with each damage coloured by the handover that first recorded it, then the handovers and each damage's history.",
+    alt: "A container's damage passport: a map of its faces with each damage coloured by the handover that first recorded it, and a dent that wasn't there at Gdańsk and was at Łódź: it happened between these two handovers.",
   },
   social: {
     src: '/images/social.jpg',

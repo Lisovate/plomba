@@ -9,7 +9,7 @@
 > - **Meta models at run time:** SAM 3.1 tracks and outlines the container and blurs people; Muse Spark reads the number, names faces, finds and codes damage, and drafts claims as an agent; Muse Voice Transcribe takes spoken damage notes; Muse Spark Open runs the vision on open weights.
 > - **Website:** https://plomba.lisovate.com · **Integrations:** [docs/integrations.md](docs/integrations.md) and [examples/](examples)
 
-![Plomba on a phone: the checker's handovers; a walk-around video where SAM 3.1 tracks the container and Muse Spark names the doors and right side of a corner view; the damage recorded at the last handover drawn on the same spot of a new photo; the container's damage passport](docs/images/screens.jpg)
+![Plomba on a phone: Home with "Start here" for a first visit; sample footage where SAM 3.1 tracks a container and its tag shows the number, type, last sealed handover and the rust recorded at Gdynia; the open gate-out at Łódź with that rust drawn on the new photo; the damage passport placing a dent between two handovers](docs/images/screens.jpg)
 
 *Plomba* is Polish for the seal on a container's doors, the tag that proves the box wasn't opened. Plomba does the same for the container's condition.
 

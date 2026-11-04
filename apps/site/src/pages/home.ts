@@ -179,7 +179,7 @@ function moments(): Html {
         <p>The checker confirms each one still there, changed or repaired, so only damage that's really new counts as new.</p>`,
       visual: device(IMAGES.handover, {
         caption:
-          'A corrosion mark from the last handover, LX50 CO, drawn on a new photo of the left side.',
+          'A corrosion mark from the last handover, LX30 CO, drawn on a new photo of the left side.',
       }),
     }),
     feature({
@@ -191,7 +191,7 @@ function moments(): Html {
         <p>The checker confirms, and the frames become the photos.</p>`,
       visual: device(IMAGES.walkaround, {
         caption:
-          'SAM 3.1 tracks the container through the clip; Muse Spark named the doors and the right side of this corner view.',
+          'SAM 3.1 tracks the container through the clip; the tag and the rust recorded at Gdynia follow it.',
       }),
     }),
     feature({
