@@ -239,8 +239,18 @@ test('sample photos identify the doors and go through the face and walk-around p
   await expect(
     page.getByRole('heading', { name: 'No container here? Try a sample door photo' }),
   ).toBeVisible();
-  await page.getByRole('button', { name: /^Synthetic door photo/ }).click();
+  await expect(page.locator('.sample-grid')).not.toContainText('CSQU3054383');
+  await expect(page.getByRole('button', { name: /^Sample door photo 1\/1/ })).toContainText(
+    'Synthetic test fixture',
+  );
+  await page.getByRole('button', { name: 'Język: polski' }).click();
+  await expect(page.getByRole('button', { name: /^Przykładowe zdjęcie drzwi 1\/1/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Language: English' }).click();
+  await page.getByRole('button', { name: /^Sample door photo 1\/1/ }).click();
   await expect(page.getByRole('heading', { name: 'Check digit verified' })).toBeVisible();
+  await expect(
+    page.getByText('Read by Muse Spark · verified by the ISO 6346 check digit'),
+  ).toBeVisible();
   await expect(page.getByText('Sample photo ·')).toContainText('Apache-2.0');
   await page.getByRole('button', { name: 'Confirm container' }).click();
   await expect(page.getByLabel('Checker', { exact: true })).toHaveValue('');
@@ -257,6 +267,8 @@ test('sample photos identify the doors and go through the face and walk-around p
   await page.getByRole('button', { name: /^Synthetic face L/ }).click();
   await expect(page.locator('.grid-cell.covered')).toHaveCount(10);
   await expect(page.getByText('Sections with a photo: 10 of 46')).toBeVisible();
+  await page.getByRole('button', { name: 'Find damage', exact: true }).click();
+  await expect(page.getByText('Found by Muse Spark, outlined by SAM 3.1')).toBeVisible();
 
   await page.getByRole('link', { name: 'Walk-around video' }).click();
   await expect(page.getByRole('button', { name: /^Synthetic face/ })).toHaveCount(0);

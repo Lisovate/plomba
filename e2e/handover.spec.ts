@@ -116,7 +116,7 @@ test('a checker keeps a walk-around, replays tracked and untracked evidence, and
   await page.getByRole('button', { name: 'Add to the handover (photos: 1)' }).click();
   try {
     await expect(
-      page.getByText('Blurring people and number plates in the walk-around video…'),
+      page.getByText('SAM 3.1 · blurring people and number plates in the walk-around video…'),
     ).toBeVisible();
   } finally {
     release();

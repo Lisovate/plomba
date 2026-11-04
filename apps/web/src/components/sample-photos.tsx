@@ -45,7 +45,7 @@ export function SamplePhotos({
       )}
       {expanded && (
         <ul className="sample-grid">
-          {photos.map((sample) => (
+          {photos.map((sample, index) => (
             <li key={sample.url}>
               <button
                 type="button"
@@ -55,7 +55,11 @@ export function SamplePhotos({
               >
                 <img src={sample.url} alt="" loading="lazy" />
                 <span>
-                  <strong>{sample.title}</strong>
+                  <strong>
+                    {use === 'doors'
+                      ? t('samples.doorPhoto', { n: index + 1, total: photos.length })
+                      : sample.title}
+                  </strong>
                   <small>{sample.credit}</small>
                 </span>
               </button>

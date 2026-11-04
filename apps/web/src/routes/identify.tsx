@@ -167,6 +167,7 @@ function ConfirmContainer({
       {result && (
         <>
           <h2>{verdictText(t, result)}</h2>
+          {result.verdict !== 'verified' && <p className="muted">{t('identify.readBy')}</p>}
           {result.read.containerNumber && result.verdict !== 'verified' && (
             <p>{t('identify.readAs', { read: result.read.containerNumber })}</p>
           )}

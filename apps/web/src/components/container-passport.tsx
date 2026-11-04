@@ -1,5 +1,6 @@
 import type { Container, DamageHistory, Handover } from '@plomba/contracts';
 import { DAMAGE_CODES, type Face, faceCells, faceSize, isDamageCode } from '@plomba/core';
+import { Link } from 'react-router';
 import { useI18n } from '../i18n/index.tsx';
 import { describeTransport } from '../lib/transport.ts';
 
@@ -157,6 +158,9 @@ export function ContainerPassport({
               </span>
               <span>{t('passport.firstRecorded', { handover: name(d.firstRecorded) })}</span>
               <DamageOrigin history={d} name={name} />
+              {d.lastClear && !d.recordedNearbyAt && (
+                <Link to={`/handovers/${d.firstRecorded}/report`}>{t('passport.claim')}</Link>
+              )}
             </li>
           ))}
         </ul>

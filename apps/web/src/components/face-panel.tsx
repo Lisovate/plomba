@@ -176,14 +176,18 @@ export function FacePanel(props: FacePanelProps) {
       )}
       {propose.isPending && <Spinner label={t('handover.finding')} />}
       {propose.isSuccess && (
-        <p className="notice">
-          {propose.data.length > 0
-            ? t('handover.found', { count: propose.data.length })
-            : t('handover.noneFound')}
-        </p>
+        <div className="notice">
+          <p>{t('handover.proposedBy')}</p>
+          <p>
+            {propose.data.length > 0
+              ? t('handover.found', { count: propose.data.length })
+              : t('handover.noneFound')}
+          </p>
+        </div>
       )}
       {spoken && (
         <div className="notice">
+          <p>{t('handover.spokenBy')}</p>
           <p>“{spoken.transcript}”</p>
           <p>
             {spoken.marks.length > 0

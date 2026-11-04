@@ -27,6 +27,7 @@ export function ClaimPanel({ handoverId }: { handoverId: string }) {
       {draft.data?.status === 'no-new-damage' && <p>{draft.data.explanation}</p>}
       {draft.data?.status === 'drafted' && (
         <>
+          <p className="muted">{t('claim.attribution')}</p>
           <p>
             <strong>{t('claim.to')}:</strong> {draft.data.claim.addressee}
             <br />

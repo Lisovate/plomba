@@ -19,7 +19,7 @@ const credit = 'Synthetic test fixture, Plomba authors, Apache-2.0';
 const samples = [
   { file: 'side.mp4', title: 'Synthetic sample clip', credit, containerNumber: 'PLBU1234562' },
   { file: 'unlinked.mp4', title: 'Unlinked synthetic clip', credit },
-  { file: 'doors.jpg', title: 'Synthetic door photo', credit, use: 'doors' },
+  { file: 'doors.jpg', title: 'Synthetic door photo CSQU3054383', credit, use: 'doors' },
   ...['D', 'R', 'F', 'L', 'T'].map((use) => ({
     file: `${use}.jpg`,
     title: `Synthetic face ${use}`,
