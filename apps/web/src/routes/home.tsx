@@ -21,6 +21,7 @@ import { Card, ContainerNumberText, ErrorNotice, Spinner } from '../components/u
 import { useI18n } from '../i18n/index.tsx';
 import { useInstallPrompt } from '../lib/install.ts';
 import { isComplete, type Profile, useProfile } from '../lib/profile.ts';
+import { vehicleLabel } from '../lib/transport.ts';
 
 export function HomeScreen() {
   const { t } = useI18n();
@@ -222,7 +223,7 @@ function HandoverRow({ handover: h }: { handover: HandoverSummary }) {
               ) : (
                 <Truck size={14} aria-hidden />
               )}
-              {h.vehicleId}
+              {vehicleLabel(h)}
             </span>
           )}
           <span>
