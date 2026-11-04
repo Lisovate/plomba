@@ -33,7 +33,8 @@ export function ReportScreen() {
 
   const { handover, container, photos, videos, marks, previousMarks } = detail.data;
   const active = marks.filter((m) => m.source === 'confirmed');
-  const date = (iso: string | null) => (iso ? new Date(iso).toLocaleString(language) : '—');
+  const date = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleString(language, { dateStyle: 'medium', timeStyle: 'short' }) : '—';
   const latestPhotos = FACES.flatMap((face) => {
     const photo = photos.filter((p) => p.face === face).at(-1);
     return photo ? [photo] : [];

@@ -683,6 +683,12 @@ legend {
   white-space: nowrap;
 }
 
+/* Long Polish labels wrap inside the pill instead of widening the page. */
+.pill {
+  max-width: 100%;
+  white-space: normal;
+}
+
 .badge.ok,
 .pill.ok {
   background: var(--green-50);
@@ -1909,9 +1915,10 @@ button.sample small {
 
 .facts {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: minmax(0, 40%) minmax(0, 1fr);
   gap: 0.35rem 1rem;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .facts dt {

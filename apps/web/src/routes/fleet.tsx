@@ -84,7 +84,7 @@ function ContainerRow({ container, language }: { container: ContainerSummary; la
           {last && (
             <span>
               {t(last.direction === 'in' ? 'handover.in' : 'handover.out')} · {last.place} ·{' '}
-              {new Date(last.startedAt).toLocaleDateString(language)}
+              {new Date(last.startedAt).toLocaleDateString(language, { dateStyle: 'medium' })}
             </span>
           )}
         </span>

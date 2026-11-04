@@ -462,7 +462,7 @@ function SealButton({
 }
 
 function SealInfo({ detail }: { detail: HandoverDetail }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const seal = detail.handover.seal;
   if (!seal) return null;
   return (
@@ -472,7 +472,11 @@ function SealInfo({ detail }: { detail: HandoverDetail }) {
       </h2>
       <p className="muted">
         #{seal.sequence + 1} ·{' '}
-        {detail.handover.closedAt && new Date(detail.handover.closedAt).toLocaleString()}
+        {detail.handover.closedAt &&
+          new Date(detail.handover.closedAt).toLocaleString(language, {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          })}
       </p>
       <p>
         {t('handover.hash')}: <code className="hash">{seal.hash}</code>
