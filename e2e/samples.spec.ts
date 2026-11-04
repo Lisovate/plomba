@@ -82,11 +82,43 @@ test('sample AR shows the passport, follows the clip, switches layers and create
 }, testInfo) => {
   const history = await passport(page.request);
   const before = await (await page.request.get('/api/handovers')).json();
+  let releaseFaces = () => {};
+  const facesReady = new Promise<void>((resolve) => {
+    releaseFaces = resolve;
+  });
+  await page.route('**/api/videos/faces', async (route) => {
+    await facesReady;
+    await route.continue();
+  });
   await page.goto('/');
   await page.getByRole('link', { name: 'No container nearby? See it on sample footage' }).click();
   await expect(page.getByRole('heading', { name: 'See what the checker sees' })).toBeVisible();
   await page.getByRole('button', { name: /^Synthetic sample clip/ }).click();
+  try {
+    await expect(page.locator('.face-outline')).toHaveCount(1);
+    await expect(page.locator('.guide-grid')).toHaveCount(20);
+    await expect(page.locator('.video-info')).toContainText('PLBU 123456 2');
+    await expect(page.locator('.video-face-name')).toHaveCount(0);
+    await expect(page.locator('.passport-ghost')).toHaveCount(0);
+    await expect(page.locator('.video-ar [role="status"]')).toHaveText(
+      'Muse Spark is naming each face…',
+    );
+    await expect(page.locator('.sample-player .spinner')).toHaveCount(0);
+    await expect(page.locator('.video-ar video')).toHaveJSProperty('paused', false);
+    await page.getByRole('button', { name: 'Język: polski' }).click();
+    await expect(page.locator('.video-ar [role="status"]')).toHaveText(
+      'Muse Spark rozpoznaje każdą ścianę…',
+    );
+    await page.getByRole('button', { name: 'Language: English' }).click();
+    await page
+      .locator('.sample-player')
+      .screenshot({ path: testInfo.outputPath('sample-tracking.png') });
+  } finally {
+    releaseFaces();
+  }
   await expect(page.locator('.passport-ghost')).toHaveCount(1);
+  await expect(page.locator('.guide-grid')).toHaveCount(0);
+  await expect(page.locator('.video-ar [role="status"]')).toHaveCount(0);
   await still(page, 0.2);
   await expect(page.locator('.video-info')).toContainText('PLBU 123456 2');
   await expect(page.locator('.video-info')).toContainText('42G1 · 40 ft general purpose');
@@ -159,6 +191,43 @@ test('an unlinked clip still shows faces and the grid without inventing a passpo
   await expect(page.getByRole('checkbox', { name: 'Open damage', exact: true })).toBeDisabled();
   await expect(page.getByRole('checkbox', { name: 'Container information' })).toBeDisabled();
   await expect(page.getByText('This clip has no linked container.')).toBeVisible();
+});
+
+test('a face naming failure keeps the outline and retries without tracking again', async ({
+  page,
+}) => {
+  let tracks = 0;
+  let names = 0;
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/videos/track')) tracks++;
+  });
+  await page.route('**/api/videos/faces', async (route) => {
+    if (++names === 1) {
+      await route.fulfill({
+        status: 502,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({
+          type: 'https://plomba.app/problems/upstream',
+          title: 'Face naming unavailable',
+          status: 502,
+        }),
+      });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.goto('/try');
+  await page.getByRole('button', { name: /^Unlinked synthetic clip/ }).click();
+  await expect(page.getByRole('alert')).toContainText('Face naming unavailable');
+  await expect(page.locator('.face-outline')).toHaveCount(1);
+  await expect(page.locator('.guide-grid')).toHaveCount(20);
+  await expect(page.locator('.video-face-name')).toHaveCount(0);
+  await expect(page.locator('.video-ar [role="status"]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.locator('.video-face-name')).toHaveText('Right');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  expect(tracks).toBe(1);
+  expect(names).toBe(2);
 });
 
 test('sample photos identify the doors and go through the face and walk-around pipelines', async ({

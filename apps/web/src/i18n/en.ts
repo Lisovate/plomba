@@ -76,6 +76,8 @@ export const en = {
   'try.layer.information': 'Container information',
   'try.noContainer': 'This clip has no linked container. It shows the outline, faces and grid.',
   'try.loadingHistory': 'Loading the container’s damage passport…',
+  'try.step.choosing': 'Preparing frames for face naming…',
+  'try.step.naming': 'Muse Spark is naming each face…',
   'try.sizeUnknown': 'Size and type unknown',
   'try.highCube': 'high cube',
   'try.lastHandover': 'Last: {place} · {direction} · {date}',

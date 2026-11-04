@@ -1557,6 +1557,11 @@ a.list-item:hover {
   pointer-events: none;
 }
 
+.video-analysis-status {
+  max-width: calc(100% - 1.2rem);
+  pointer-events: none;
+}
+
 .layer-toggles {
   display: flex;
   flex-wrap: wrap;

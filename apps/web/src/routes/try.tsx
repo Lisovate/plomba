@@ -9,7 +9,12 @@ import { Card, ErrorNotice, Spinner } from '../components/ui.tsx';
 import { VideoAr, type VideoArLayers } from '../components/video-ar.tsx';
 import { useI18n } from '../i18n/index.tsx';
 import { firstRecordedLabel, openDamageInView } from '../lib/passport-ar.ts';
-import { analyseVideo, candidateView, type VideoAnalysisStep } from '../lib/video-analysis.ts';
+import {
+  candidateView,
+  nameVideoFaces,
+  trackVideo,
+  type VideoAnalysisStep,
+} from '../lib/video-analysis.ts';
 import { BlankFramesError } from '../lib/video-frames.ts';
 
 export function TryScreen() {
@@ -79,10 +84,22 @@ function SamplePlayer({ sample }: { sample: Sample }) {
     setUrl(created);
     return () => URL.revokeObjectURL(created);
   }, [download.data]);
+  const tracking = useQuery({
+    queryKey: ['sample-tracking', sample.url],
+    queryFn: () => trackVideo({ file: download.data as File, url: url as string }),
+    enabled: url !== null && download.isSuccess,
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: false,
+  });
   const analysis = useQuery({
     queryKey: ['sample-analysis', sample.url],
-    queryFn: async () => analyseVideo({ file: download.data as File, url: url as string }, setStep),
-    enabled: url !== null && download.isSuccess,
+    queryFn: () =>
+      nameVideoFaces(
+        { file: download.data as File, url: url as string },
+        tracking.data as NonNullable<typeof tracking.data>,
+        setStep,
+      ),
+    enabled: url !== null && download.isSuccess && tracking.isSuccess,
     staleTime: Number.POSITIVE_INFINITY,
     retry: false,
   });
@@ -108,6 +125,11 @@ function SamplePlayer({ sample }: { sample: Sample }) {
     [data],
   );
   const damage = history.data ? openDamageInView(history.data, ['D', 'R', 'F', 'L', 'T']) : [];
+  const status = tracking.isFetching
+    ? t('walk.step.tracking')
+    : analysis.isFetching
+      ? t(step === 'naming' ? 'try.step.naming' : 'try.step.choosing')
+      : undefined;
 
   return (
     <section ref={ref} className="stack sample-player" aria-label={sample.title}>
@@ -115,10 +137,12 @@ function SamplePlayer({ sample }: { sample: Sample }) {
       {url && (
         <VideoAr
           src={url}
-          tracking={data?.tracking}
+          tracking={tracking.data?.tracking}
           passport={history.data}
           viewAt={viewAt}
           layers={layers}
+          status={status}
+          unlabeledGrid
           autoPlay
         />
       )}
@@ -150,7 +174,9 @@ function SamplePlayer({ sample }: { sample: Sample }) {
       {download.isError && (
         <ErrorNotice error={download.error} onRetry={() => download.refetch()} />
       )}
-      {analysis.isFetching && <Spinner label={t(`walk.step.${step}`)} />}
+      {tracking.isError && (
+        <ErrorNotice error={tracking.error} onRetry={() => tracking.refetch()} />
+      )}
       {analysis.isError &&
         (analysis.error instanceof BlankFramesError ? (
           <p className="notice error">{t('walk.blankFrames')}</p>

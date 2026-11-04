@@ -79,6 +79,8 @@ export const pl: Messages = {
   'try.noContainer':
     'To nagranie nie jest powiązane z kontenerem. Pokazuje obrys, ściany i siatkę.',
   'try.loadingHistory': 'Ładowanie paszportu uszkodzeń kontenera…',
+  'try.step.choosing': 'Przygotowywanie klatek do rozpoznania ścian…',
+  'try.step.naming': 'Muse Spark rozpoznaje każdą ścianę…',
   'try.sizeUnknown': 'Nieznany rozmiar i typ',
   'try.highCube': 'podwyższony',
   'try.lastHandover': 'Ostatnio: {place} · {direction} · {date}',

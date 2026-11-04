@@ -11,6 +11,7 @@ import {
   projectFaceRect,
   type Quad,
   quadArea,
+  solveHomography,
 } from '@plomba/core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../i18n/index.tsx';
@@ -83,6 +84,9 @@ interface VideoArProps {
   readonly passport?: ContainerHistory | undefined;
   readonly layers?: VideoArLayers;
   readonly autoPlay?: boolean;
+  readonly status?: string | undefined;
+  /** An unlabeled guide grid until the face is known, without damage or CEDEX codes. */
+  readonly unlabeledGrid?: boolean;
   /** What is in view at a frame, or `null` where it isn't known. */
   readonly viewAt: (frame: number, fps: number) => FrameView | null;
 }
@@ -92,7 +96,7 @@ interface VideoArProps {
  * by frame from SAM 3.1's tracking: the CEDEX sections of the faces in view,
  * the previous handover's damage (dashed) and this handover's damage. Seen
  * corner-on, both faces are drawn, each on its side of the near edge; where
- * the faces aren't known, only the container's outline.
+ * the faces aren't known, the container's outline and an optional guide grid.
  */
 export function VideoAr({
   src,
@@ -102,6 +106,8 @@ export function VideoAr({
   layers = ALL_LAYERS,
   viewAt,
   autoPlay = false,
+  status,
+  unlabeledGrid = false,
 }: VideoArProps) {
   const { t } = useI18n();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -209,11 +215,20 @@ export function VideoAr({
           aria-hidden
         >
           {layers.outlineGrid && tracked && drawn.length === 0 && (
-            <polygon
-              points={points(tracked.corners)}
-              className="face-outline faint"
-              strokeWidth={2 * px}
-            />
+            <>
+              {unlabeledGrid &&
+                (tracked.split ? [tracked.split.left, tracked.split.right] : [tracked.corners]).map(
+                  (quad, i) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: stable left and right outlines
+                    <GuideGrid key={i} quad={quad} px={px} />
+                  ),
+                )}
+              <polygon
+                points={points(tracked.corners)}
+                className="face-outline faint"
+                strokeWidth={2 * px}
+              />
+            </>
           )}
           {drawn.map(({ face, quad, h }, i) => (
             <FaceLayer
@@ -243,23 +258,63 @@ export function VideoAr({
         />
       )}
       <p
+        role={status ? 'status' : undefined}
         className={
-          passport && layers.information ? 'live-status video-status-bottom' : 'live-status'
+          passport && layers.information
+            ? 'live-status video-status-bottom'
+            : 'live-status video-analysis-status'
         }
       >
-        {tracking
-          ? tracked
-            ? [
-                t('walk.frame', { frame: frame + 1, total: tracking.frameCount }),
-                drawn.map((d) => t(`faceTitle.${d.face}`)).join(' | ') || null,
-              ]
-                .filter(Boolean)
-                .join(' · ')
-            : t('walk.lost')
-          : t('walk.label')}
+        {status ??
+          (tracking
+            ? tracked
+              ? [
+                  t('walk.frame', { frame: frame + 1, total: tracking.frameCount }),
+                  drawn.map((d) => t(`faceTitle.${d.face}`)).join(' | ') || null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+              : t('walk.lost')
+            : t('walk.label'))}
       </p>
     </div>
   );
+}
+
+/** Geometry alone gives a guide grid; named CEDEX sections wait for Muse Spark. */
+function GuideGrid({ quad, px }: { quad: Quad; px: number }) {
+  const cells = useMemo(() => {
+    try {
+      const h = solveHomography(
+        [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 1, y: 1 },
+          { x: 0, y: 1 },
+        ],
+        quad,
+      );
+      return Array.from({ length: 20 }, (_, i) => ({
+        id: i,
+        corners: projectFaceRect(h, {
+          u0: (i % 10) / 10,
+          u1: ((i % 10) + 1) / 10,
+          v0: Math.floor(i / 10) / 2,
+          v1: (Math.floor(i / 10) + 1) / 2,
+        }),
+      }));
+    } catch {
+      return [];
+    }
+  }, [quad]);
+  return cells.map((cell) => (
+    <polygon
+      key={cell.id}
+      points={points(cell.corners)}
+      className="grid-cell guide-grid"
+      strokeWidth={px}
+    />
+  ));
 }
 
 /** One face's sections, outline and damage, drawn through its homography. */

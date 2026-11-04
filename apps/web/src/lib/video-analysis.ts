@@ -24,10 +24,13 @@ export interface VideoCandidate extends FrameCandidate {
   readonly guessedSide: boolean;
 }
 
-export interface VideoAnalysis {
+export interface TrackedVideo {
   readonly tracking: VideoTracking;
   readonly fps: number;
   readonly size: { readonly width: number; readonly height: number };
+}
+
+export interface VideoAnalysis extends TrackedVideo {
   readonly candidates: readonly VideoCandidate[];
   readonly choices: readonly PhotoChoice[];
 }
@@ -40,10 +43,25 @@ export async function analyseVideo(
   onStep: (step: VideoAnalysisStep) => void,
 ): Promise<VideoAnalysis> {
   onStep('tracking');
-  const tracking = await api.trackVideo(chosen.file);
-  const { width, height, duration } = await probeVideo(chosen.url);
+  const tracked = await trackVideo(chosen);
+  return nameVideoFaces(chosen, tracked, onStep);
+}
+
+/** Enough to play the outline while frame capture and face naming continue. */
+export async function trackVideo(chosen: { file: File; url: string }): Promise<TrackedVideo> {
+  const [tracking, { width, height, duration }] = await Promise.all([
+    api.trackVideo(chosen.file),
+    probeVideo(chosen.url),
+  ]);
   const fps = tracking.frameCount / (duration || 1);
-  const size = { width, height };
+  return { tracking, fps, size: { width, height } };
+}
+
+export async function nameVideoFaces(
+  chosen: { file: File; url: string },
+  { tracking, fps, size }: TrackedVideo,
+  onStep: (step: VideoAnalysisStep) => void,
+): Promise<VideoAnalysis> {
   onStep('choosing');
   const picked = pickCandidateFrames(tracking.frames, size, {
     minGap: Math.max(1, Math.round(fps)),
@@ -54,11 +72,11 @@ export async function analyseVideo(
     chosen.url,
     picked.map((c) => frameTime(c.frame, fps)),
   );
-  onStep('naming');
   const digest = await crypto.subtle.digest('SHA-256', await chosen.file.arrayBuffer());
   const sha256 = Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, '0'),
   ).join('');
+  onStep('naming');
   const { views: named } = await api.videoFaces(blobs, {
     sha256,
     frames: picked.map((c) => c.frame),

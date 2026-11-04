@@ -60,7 +60,10 @@ function isBlank(source: HTMLCanvasElement): boolean {
   return max - min < 4;
 }
 
-/** The frames at the given times (seconds), as JPEG at the clip's own resolution. */
+/**
+ * Fixed native canvas size and JPEG quality for the same clip and times.
+ * Encoders can still differ by browser, so face naming also sends the clip hash and frame numbers.
+ */
 export async function grabFrames(src: string, times: readonly number[]): Promise<Blob[]> {
   const video = document.createElement('video');
   video.muted = true;
