@@ -34,7 +34,7 @@ function hero(): Html {
           icon: 'git-fork',
         }),
       )}
-      <p class="hero__note">Try the live demo at <a href="${SITE.demo}">app.plomba.lisovate.com</a>. Ask <a href="${mailto('Plomba demo access code')}">${SITE.email}</a> for the access code.</p>
+      <p class="hero__note">No container nearby? <a href="${SITE.demo}/try">Try the live demo on sample footage</a>. Ask <a href="${mailto('Plomba demo access code')}">${SITE.email}</a> for the access code.</p>
     </div>
     <div class="hero__screens">
       ${device(IMAGES.walkaround, { className: 'hero__screen hero__screen--back-left' })}

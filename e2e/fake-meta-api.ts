@@ -15,6 +15,13 @@ const port = Number(process.env.FAKE_META_PORT ?? 4010);
 
 /** SAM 3.1's real output for "shipping container" on fixtures/container-side.jpg. */
 const samContainer = readFileSync(join(here, 'fixtures', 'sam-shipping-container.txt'), 'utf8');
+/** The outline moves through the synthetic two-second clip, at 10 fps. */
+const samVideo = Array.from({ length: 20 }, (_, frame) =>
+  samContainer
+    .replace('<0f>', `<${frame}f>`)
+    .replace('x1=116', `x1=${116 + frame * 3}`)
+    .replace('x2=1083', `x2=${1083 + frame * 3}`),
+).join('');
 
 /** What Muse Spark answers, by the name of the JSON schema Plomba asks for. */
 const SPARK_ANSWERS: Record<string, unknown> = {
@@ -75,11 +82,7 @@ createServer((request, response) => {
       const prompt = content.find((c) => c.type === 'input_text')?.text;
       if (content.some((c) => c.type === 'input_video')) {
         if (prompt !== 'shipping container') return send(200, respond(''));
-        // The synthetic two-second fixture holds the same side throughout, at 10 fps.
-        const frames = Array.from({ length: 20 }, (_, i) =>
-          samContainer.trim().replace('<0f>', `<${i}f>`),
-        );
-        return send(200, respond(frames.join('\n')));
+        return send(200, respond(samVideo));
       }
       return send(200, respond(prompt === 'shipping container' ? samContainer : ''));
     }

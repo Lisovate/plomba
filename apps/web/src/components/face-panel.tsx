@@ -11,6 +11,7 @@ import { defaultCorners, FaceOverlay, type OverlayMode } from './face-overlay.ts
 import { LiveGhost } from './live-ghost.tsx';
 import { MarkForm } from './mark-form.tsx';
 import { RecordButton } from './record-button.tsx';
+import { SamplePhotos } from './sample-photos.tsx';
 import { ErrorNotice, Spinner } from './ui.tsx';
 
 interface FacePanelProps {
@@ -103,6 +104,14 @@ export function FacePanel(props: FacePanelProps) {
             }
           />
         )}
+        <SamplePhotos
+          use={face}
+          compact
+          busy={upload.isPending}
+          onChoose={async (file) => {
+            await upload.mutateAsync(file);
+          }}
+        />
         {upload.isError && <ErrorNotice error={upload.error} onRetry={() => upload.reset()} />}
         {retaking && (
           <button type="button" className="link" onClick={() => setRetaking(false)}>
@@ -257,6 +266,18 @@ export function FacePanel(props: FacePanelProps) {
           )}
         </div>
       )}
+      {editable && !pendingRect && !editingCorners && (
+        <SamplePhotos
+          use={face}
+          compact
+          busy={upload.isPending}
+          onChoose={async (file) => {
+            await upload.mutateAsync(file);
+          }}
+        />
+      )}
+      {photo && upload.isPending && <Spinner label={t('handover.uploading')} />}
+      {photo && upload.isError && <ErrorNotice error={upload.error} />}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   ArrowUpFromLine,
   Camera,
   ChevronRight,
+  CirclePlay,
   ClipboardList,
   Download,
   MapPin,
@@ -109,6 +110,10 @@ export function HomeScreen() {
           </button>
         )}
       </section>
+
+      <Link to="/try" className="button secondary">
+        <CirclePlay size={20} aria-hidden /> {t('home.try')}
+      </Link>
 
       {install.kind === 'prompt' && (
         <button type="button" className="secondary" onClick={install.prompt}>

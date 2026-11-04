@@ -18,6 +18,7 @@ import { HandoverScreen } from './routes/handover.tsx';
 import { HomeScreen } from './routes/home.tsx';
 import { IdentifyScreen } from './routes/identify.tsx';
 import { ReportScreen } from './routes/report.tsx';
+import { TryScreen } from './routes/try.tsx';
 import { WalkaroundScreen } from './routes/walkaround.tsx';
 
 /** A 401 means the session ended: ask the server again, which brings back the access-code form. */
@@ -129,6 +130,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <HomeScreen /> },
       { path: 'identify', element: <IdentifyScreen /> },
+      { path: 'try', element: <TryScreen /> },
       { path: 'containers', element: <FleetScreen /> },
       { path: 'containers/:number', element: <ContainerScreen /> },
       { path: 'handovers/:id', element: <HandoverScreen /> },

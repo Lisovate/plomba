@@ -1496,6 +1496,82 @@ a.list-item:hover {
   margin-block: 12px;
 }
 
+.video-face-name {
+  fill: var(--seal-500);
+  paint-order: stroke;
+  stroke: var(--navy-950);
+  stroke-width: 3px;
+  font-weight: 700;
+}
+
+.video-info {
+  position: absolute;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--seal-500);
+  border-radius: var(--radius);
+  background: rgb(7 20 37 / 0.9);
+  color: #fff;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.video-info strong {
+  color: var(--seal-500);
+  font-size: 1rem;
+}
+
+.video-info::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  height: 12px;
+  border-left: 1px solid var(--seal-500);
+}
+
+.video-info .pill {
+  justify-self: start;
+  white-space: normal;
+  font-size: 0.68rem;
+}
+
+.video-info .pill.error {
+  background: var(--red-50);
+  color: var(--red-700);
+}
+
+.video-status-bottom {
+  top: auto;
+  bottom: 3rem;
+  max-width: calc(100% - 1.2rem);
+  font-size: 0.7rem;
+  pointer-events: none;
+}
+
+.layer-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius);
+}
+
+.layer-toggles .check {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.layer-toggles legend {
+  padding: 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
 .overlay.passive {
   pointer-events: none;
 }
@@ -1557,7 +1633,7 @@ a.list-item:hover {
 
 .sample-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
   gap: 0.6rem;
   margin: 0;
   padding: 0;
@@ -1572,6 +1648,36 @@ button.sample {
   border-radius: var(--radius);
   text-align: left;
   font-weight: 500;
+}
+
+button.sample[aria-pressed="true"] {
+  border-color: var(--navy-700);
+  background: var(--navy-50);
+}
+
+.sample span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sample img {
+  width: 64px;
+  height: 54px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: var(--radius);
+}
+
+.sample-photos h2 {
+  font-size: 1rem;
+}
+
+.sample-caption {
+  margin: 0;
+}
+
+.sample-player {
+  scroll-margin-top: calc(var(--header-h) + 1rem);
 }
 
 button.sample svg {

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { api } from '../api/client.ts';
 import { CameraCapture } from '../components/camera-capture.tsx';
+import { SamplePhotos } from '../components/sample-photos.tsx';
 import { Card, ContainerNumberText, ErrorNotice, Spinner } from '../components/ui.tsx';
 import { type Translate, useI18n } from '../i18n/index.tsx';
 import { prepareUpload } from '../lib/image.ts';
@@ -21,6 +22,7 @@ export function IdentifyScreen() {
   const navigate = useNavigate();
   const [preview, setPreview] = useState<string | null>(null);
   const [manual, setManual] = useState(false);
+  const [sampleCredit, setSampleCredit] = useState<string | null>(null);
 
   const identify = useMutation({
     mutationFn: async (photo: Blob) => api.identify(await prepareUpload(photo, 1600)),
@@ -34,6 +36,7 @@ export function IdentifyScreen() {
   );
 
   const onCapture = (photo: Blob) => {
+    setSampleCredit(null);
     setPreview(URL.createObjectURL(photo));
     identify.mutate(photo);
   };
@@ -55,12 +58,22 @@ export function IdentifyScreen() {
       {!preview && !manual && (
         <>
           <CameraCapture guide={t('identify.guide')} onCapture={onCapture} />
+          <SamplePhotos
+            use="doors"
+            onChoose={(file, sample) => {
+              onCapture(file);
+              setSampleCredit(sample.credit);
+            }}
+          />
           <button type="button" className="link" onClick={() => setManual(true)}>
             {t('identify.manual')}
           </button>
         </>
       )}
       {preview && <img src={preview} alt="" className="preview" />}
+      {preview && sampleCredit && (
+        <p className="muted">{t('samples.credit', { credit: sampleCredit })}</p>
+      )}
       {identify.isPending && (
         <Card>
           <Spinner label={t('identify.reading')} />

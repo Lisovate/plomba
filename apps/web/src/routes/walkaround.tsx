@@ -1,24 +1,5 @@
-import type {
-  FaceView,
-  HandoverDetail,
-  IdentifyResult,
-  Photo,
-  SampleClip,
-  VideoTracking,
-} from '@plomba/contracts';
-import {
-  type CornerSplit,
-  chooseWalkaroundPhotos,
-  FACES,
-  type Face,
-  type FrameCandidate,
-  harmonizeSides,
-  type PhotoChoice,
-  pickCandidateFrames,
-  type Quad,
-  usableSplit,
-  viewAtFrame,
-} from '@plomba/core';
+import type { HandoverDetail, IdentifyResult, Photo, Sample } from '@plomba/contracts';
+import { FACES, type Face, type PhotoChoice, type Quad, viewAtFrame } from '@plomba/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Circle, CircleCheck, CirclePlay, Frame, ScanSearch, Sparkles, Upload } from 'lucide-react';
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -28,7 +9,13 @@ import { Card, ContainerNumberText, ErrorNotice, Spinner } from '../components/u
 import { type FrameView, VideoAr } from '../components/video-ar.tsx';
 import { useI18n } from '../i18n/index.tsx';
 import { prepareUpload } from '../lib/image.ts';
-import { BlankFramesError, frameTime, grabFrames, probeVideo } from '../lib/video-frames.ts';
+import {
+  analyseVideo,
+  type VideoCandidate as Candidate,
+  candidateView,
+  type VideoAnalysis,
+} from '../lib/video-analysis.ts';
+import { BlankFramesError } from '../lib/video-frames.ts';
 import {
   addFrames,
   chosenVideoViews,
@@ -36,27 +23,7 @@ import {
   type VideoStep,
 } from '../lib/walkaround-upload.ts';
 
-/** Frames sent to Muse Spark in one call; the server accepts up to 16. */
-const MAX_FRAMES = 12;
-
-interface Candidate extends FrameCandidate {
-  readonly blob: Blob;
-  readonly view: FaceView;
-  /** Seen corner-on: the two faces' outlines, from SAM 3.1's mask. */
-  readonly split: CornerSplit | null;
-  /** Left or right was inferred without the doors in view: the checker should confirm it. */
-  readonly guessedSide: boolean;
-}
-
-interface Analysis {
-  readonly tracking: VideoTracking;
-  readonly fps: number;
-  /** The clip's size in pixels: the frames' and the tracked outlines' coordinates. */
-  readonly size: { readonly width: number; readonly height: number };
-  readonly candidates: readonly Candidate[];
-  /** The photos proposed to the checker. */
-  readonly choices: readonly PhotoChoice[];
-  /** The door end's markings, read from the best door frame. */
+interface Analysis extends VideoAnalysis {
   readonly doors: IdentifyResult | null;
 }
 
@@ -97,8 +64,9 @@ export function WalkaroundScreen() {
   const detail = useQuery({ queryKey: queryKeys.handover(id), queryFn: () => api.handover(id) });
   const [clip, setClip] = useState<{ file: File; url: string; credit?: string } | null>(null);
   const samples = useQuery({ queryKey: queryKeys.samples, queryFn: api.samples });
+  const clips = samples.data?.filter((s) => s.kind === 'clip') ?? [];
   const sample = useMutation({
-    mutationFn: (s: SampleClip) => api.sampleClip(s.url, `${s.title}.mp4`),
+    mutationFn: (s: Sample) => api.sampleFile(s),
     onSuccess: (file, s) => start(file, s.credit),
   });
   const [step, setStep] = useState<Step>('tracking');
@@ -106,54 +74,12 @@ export function WalkaroundScreen() {
 
   const analyse = useMutation({
     mutationFn: async (chosen: { file: File; url: string }): Promise<Analysis> => {
-      setStep('tracking');
-      const tracking = await api.trackVideo(chosen.file);
-      const { width, height, duration } = await probeVideo(chosen.url);
-      const fps = tracking.frameCount / (duration || 1);
-      setStep('choosing');
-      const picked = pickCandidateFrames(
-        tracking.frames,
-        { width, height },
-        { minGap: Math.max(1, Math.round(fps)), max: MAX_FRAMES },
-      );
-      const size = { width, height };
-      if (picked.length === 0) {
-        return { tracking, fps, size, candidates: [], choices: [], doors: null };
-      }
-      const blobs = await grabFrames(
-        chosen.url,
-        picked.map((c) => frameTime(c.frame, fps)),
-      );
-      setStep('naming');
-      const { views: named } = await api.videoFaces(blobs);
-      const unnamed: FaceView = {
-        face: null,
-        squareOn: false,
-        corner: null,
-        doorEnd: null,
-        clear: false,
-        confidence: 0,
-        note: '',
-      };
-      // One continuous view of a side is one side, whatever single frames say.
-      const { views, guessed } = harmonizeSides(
-        picked.map((c, i) => ({ frame: c.frame, view: named[i] ?? unnamed })),
-        tracking.frames,
-      );
-      // A split whose near edge the frame cuts off would guess both faces' outlines.
-      const splits = new Map(tracking.frames.map((f) => [f.frame, usableSplit(f.split, size)]));
-      const candidates = picked.map((c, i) => {
-        const blob = blobs[i] as Blob;
-        const view = views[i] ?? unnamed;
-        const split = splits.get(c.frame) ?? null;
-        return { ...c, blob, view, split, guessedSide: guessed.has(i) };
-      });
-      const choices = chooseWalkaroundPhotos(candidates);
-      const door = choices.find((c) => c.face === 'D');
-      const doorFrame = door ? candidates[door.index] : undefined;
+      const analysis = await analyseVideo(chosen, setStep);
+      const door = analysis.choices.find((c) => c.face === 'D');
+      const doorFrame = door ? analysis.candidates[door.index] : undefined;
       setStep('reading');
       const doors = doorFrame ? await api.identify(doorFrame.blob).catch(() => null) : null;
-      return { tracking, fps, size, candidates, choices, doors };
+      return { ...analysis, doors };
     },
   });
   // Callbacks given to mutate() fire only for the latest analysis, so a slow
@@ -235,13 +161,13 @@ export function WalkaroundScreen() {
         </label>
       </Card>
 
-      {samples.data && samples.data.length > 0 && (
+      {clips.length > 0 && (
         <section className="samples">
           <div className="section-head">
             <h2>{t('walk.samples')}</h2>
           </div>
           <ul className="sample-grid">
-            {samples.data.map((s) => (
+            {clips.map((s) => (
               <li key={s.url}>
                 <button
                   type="button"
@@ -320,7 +246,7 @@ function frameView(c: Candidate, index: number, use: Choices): FrameView | null 
   const right = use.get(choiceKey(index, 'right')) ?? c.view.corner?.right;
   if (c.split && left && right) return { corner: { left, right } };
   // Any named face is drawn, even at an angle: the overlay is a guide, not a photo.
-  return c.view.face ? { face: c.view.face } : null;
+  return candidateView(c);
 }
 
 function Results({

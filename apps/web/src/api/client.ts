@@ -26,7 +26,8 @@ import {
   ProblemSchema,
   ProposalsSchema,
   type RegisterContainer,
-  SampleClipsSchema,
+  type Sample,
+  SamplesSchema,
   SessionSchema,
   SpokenDamageResultSchema,
   type StartHandoverInput,
@@ -89,7 +90,18 @@ export const api = {
 
   instance: () => request('/api/instance', {}, InstanceSchema),
 
-  samples: () => request('/api/samples', {}, SampleClipsSchema),
+  samples: () => request('/api/samples', {}, SamplesSchema),
+
+  /** Download a sample for the normal identification, photo or video pipeline. */
+  sampleFile: async (sample: Sample): Promise<File> => {
+    const response = await fetch(sample.url, { credentials: 'same-origin' });
+    if (!response.ok) throw new ApiError(`Could not load ${sample.title}`, response.status);
+    const blob = await response.blob();
+    const name = decodeURIComponent(sample.url.split('/').at(-1) ?? 'sample');
+    return new File([blob], name, {
+      type: blob.type || (sample.kind === 'photo' ? 'image/jpeg' : 'video/mp4'),
+    });
+  },
 
   /** A sample clip as a file, as if the checker had chosen it. */
   sampleClip: async (url: string, name: string): Promise<File> => {
