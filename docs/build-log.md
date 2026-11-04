@@ -214,3 +214,4 @@ A dated record of what was built and when. The newest entry is at the bottom.
   - Sample door photos no longer give the number away.
   - Polish labels fit a phone, and dates use one format.
   - The docs lead open weights with the measured Muse Spark Open.
+- **Safari face-naming tests corrected after reproducing CI in Playwright's Docker image.** Frame capture and face naming completed, but WebKit bypassed the tests' delayed response and injected error after the service worker took control. Those two tests now block the worker while retaining all assertions. The unlinked sample test waits for an active worker and then requires face names, so the real progressive playback path remains covered with the PWA running. No playback or frame-capture change was needed.
