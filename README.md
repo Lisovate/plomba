@@ -2,6 +2,13 @@
 
 **A digital seal on a shipping container's condition at every handover.**
 
+[![CI](https://github.com/Lisovate/plomba/actions/workflows/ci.yml/badge.svg)](https://github.com/Lisovate/plomba/actions/workflows/ci.yml)
+
+> **For judges** · Built during the Meta Global AI Developer Hackathon, Oct 26 – Nov 4, 2026 ([build log](docs/build-log.md)).
+> - **Live app:** https://app.plomba.lisovate.com (access code in the submission). Start with [Try](https://app.plomba.lisovate.com/try): sample footage with the AR a checker sees, no container needed. Then container **PLBU 400004 3**: rust recorded at Gdynia, drawn on a new photo at Łódź.
+> - **Meta models at run time:** SAM 3.1 tracks and outlines the container and blurs people; Muse Spark reads the number, names faces, finds and codes damage, and drafts claims as an agent; Muse Voice Transcribe takes spoken damage notes; Muse Spark Open runs the vision on open weights.
+> - **Website:** https://plomba.lisovate.com · **Integrations:** [docs/integrations.md](docs/integrations.md) and [examples/](examples)
+
 ![Plomba on a phone: the checker's handovers; a walk-around video where SAM 3.1 tracks the container and Muse Spark names the doors and right side of a corner view; the damage recorded at the last handover drawn on the same spot of a new photo; the container's damage passport](docs/images/screens.jpg)
 
 *Plomba* is Polish for the seal on a container's doors, the tag that proves the box wasn't opened. Plomba does the same for the container's condition.
