@@ -2,6 +2,8 @@
 
 A dated record of what was built and when. The newest entry is at the bottom.
 
+Everything here was built during the hackathon (Oct 26 – Nov 4, 2026). Work between the dated entries was kept local and committed in batches, so the commit dates in git cluster on a few days; each entry records what was built by then.
+
 ## 2026-10-26 (Mon): Day 0
 
 - Created the repository at the hackathon kickoff.
