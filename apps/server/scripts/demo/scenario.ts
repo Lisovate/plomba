@@ -19,12 +19,12 @@ export interface FrameRef {
   readonly at: number;
 }
 
-export interface PhotoSpec {
+/** A photo of a face: a frame of a clip, or a still photo (a file in the clips folder). */
+export type PhotoSpec = {
   readonly face: Face;
-  readonly frame: FrameRef;
   /** Ask Muse Spark for damage on it, and confirm what it proposes. */
   readonly findDamage?: boolean;
-}
+} & ({ readonly frame: FrameRef } | { readonly image: string });
 
 /** Damage the checker records by hand at this handover. */
 export interface MarkSpec {
@@ -108,7 +108,7 @@ export const SCENARIO: readonly ContainerSpec[] = [
         handedOverBy: GDYNIA,
         receivedBy: RAIL,
         sealNumbers: ['PL 0412377'],
-        photos: [{ face: 'L', frame: { clip: CLIPS.rusty, at: 1.8 }, findDamage: true }],
+        photos: [{ face: 'R', frame: { clip: CLIPS.rusty, at: 1.8 }, findDamage: true }],
         video: CLIPS.rusty,
       },
       {
@@ -121,7 +121,7 @@ export const SCENARIO: readonly ContainerSpec[] = [
         handedOverBy: RAIL,
         receivedBy: LODZ,
         sealNumbers: ['PL 0412377'],
-        photos: [{ face: 'L', frame: { clip: CLIPS.rusty, at: 6.3 } }],
+        photos: [{ face: 'R', frame: { clip: CLIPS.rusty, at: 6.3 } }],
       },
       {
         at: '2026-11-04T10:05:00+01:00',
@@ -132,7 +132,7 @@ export const SCENARIO: readonly ContainerSpec[] = [
         vehicleId: 'EL 4K217',
         handedOverBy: LODZ,
         receivedBy: 'Mazovia Haulage',
-        photos: [{ face: 'L', frame: { clip: CLIPS.rusty, at: 11 } }],
+        photos: [{ face: 'R', frame: { clip: CLIPS.rusty, at: 11 } }],
         open: true,
       },
     ],
@@ -150,7 +150,7 @@ export const SCENARIO: readonly ContainerSpec[] = [
         vehicleId: 'GD 3J118',
         handedOverBy: 'Pomorze Trans',
         receivedBy: GDYNIA,
-        photos: [{ face: 'L', frame: { clip: CLIPS.reefer, at: 1.2 } }],
+        photos: [{ face: 'R', frame: { clip: CLIPS.reefer, at: 1.2 } }],
         video: CLIPS.reefer,
       },
       {
@@ -163,7 +163,7 @@ export const SCENARIO: readonly ContainerSpec[] = [
         handedOverBy: GDYNIA,
         receivedBy: RAIL,
         sealNumbers: ['PL 0398120'],
-        photos: [{ face: 'L', frame: { clip: CLIPS.reefer, at: 4.2 } }],
+        photos: [{ face: 'R', frame: { clip: CLIPS.reefer, at: 4.2 } }],
       },
       {
         at: '2026-10-23T16:15:00+02:00',
@@ -175,7 +175,7 @@ export const SCENARIO: readonly ContainerSpec[] = [
         handedOverBy: RAIL,
         receivedBy: POZNAN,
         sealNumbers: ['PL 0398120'],
-        photos: [{ face: 'L', frame: { clip: CLIPS.reefer, at: 7.5 } }],
+        photos: [{ face: 'R', frame: { clip: CLIPS.reefer, at: 7.5 } }],
       },
       {
         at: '2026-10-24T09:40:00+02:00',
@@ -186,7 +186,7 @@ export const SCENARIO: readonly ContainerSpec[] = [
         vehicleId: 'PO 8M341',
         handedOverBy: POZNAN,
         receivedBy: 'Wielkopolska Cargo',
-        photos: [{ face: 'L', frame: { clip: CLIPS.reefer, at: 10.5 } }],
+        photos: [{ face: 'R', frame: { clip: CLIPS.reefer, at: 10.5 } }],
       },
     ],
   },
@@ -326,7 +326,7 @@ export const SCENARIO: readonly ContainerSpec[] = [
         vehicleId: 'GA 52713',
         handedOverBy: GDYNIA,
         receivedBy: 'Pomorze Trans',
-        photos: [{ face: 'L', frame: { clip: CLIPS.hamburgSud, at: 1.8 } }],
+        photos: [{ face: 'R', frame: { clip: CLIPS.hamburgSud, at: 1.8 } }],
         video: CLIPS.hamburgSud,
       },
       {
@@ -338,7 +338,7 @@ export const SCENARIO: readonly ContainerSpec[] = [
         vehicleId: 'GA 52713',
         handedOverBy: 'Pomorze Trans',
         receivedBy: DEPOT,
-        photos: [{ face: 'L', frame: { clip: CLIPS.hamburgSud, at: 6.3 } }],
+        photos: [{ face: 'R', frame: { clip: CLIPS.hamburgSud, at: 6.3 } }],
       },
     ],
   },

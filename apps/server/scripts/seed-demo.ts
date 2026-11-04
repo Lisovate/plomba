@@ -23,7 +23,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import type { FaceView } from '@plomba/contracts';
+import type { Face, FaceView } from '@plomba/contracts';
 import { harmonizeSides, pickCandidateFrames } from '@plomba/core';
 import { pino } from 'pino';
 import { MetaClient } from '../src/adapters/meta/client.ts';
@@ -126,6 +126,8 @@ function frame(path: string, at: number): Uint8Array {
       '1',
       '-q:v',
       '2',
+      '-pix_fmt',
+      'yuvj420p',
       '-f',
       'image2pipe',
       '-vcodec',
@@ -177,8 +179,8 @@ const UNNAMED: FaceView = {
  * it (cached, so it replays with its outline), Muse Spark names the faces in
  * the frames the app would pick, and the clip is stored with those views.
  */
-async function addVideo(handoverId: string, clip: string): Promise<void> {
-  if (!videosDir) return;
+async function addVideo(handoverId: string, clip: string): Promise<Face | null> {
+  if (!videosDir) return null;
   const path = join(videosDir, clip);
   const data = new Uint8Array(readFileSync(path));
   const tracking = await video.track(data);
@@ -191,9 +193,11 @@ async function addVideo(handoverId: string, clip: string): Promise<void> {
   );
   if (picked.length === 0) {
     console.log(`    video ${clip}: no usable frames, not kept`);
-    return;
+    return null;
   }
-  const { views: named } = await video.faces(picked.map((c) => frame(path, (c.frame + 0.5) / fps)));
+  // The middle of each frame, but never past the last one: seeking beyond it returns nothing.
+  const at = (n: number) => Math.min(n + 0.5, tracking.frameCount - 1) / fps;
+  const { views: named } = await video.faces(picked.map((c) => frame(path, at(c.frame))));
   const { views } = harmonizeSides(
     picked.map((c, i) => ({ frame: c.frame, view: named[i] ?? UNNAMED })),
     tracking.frames,
@@ -202,10 +206,28 @@ async function addVideo(handoverId: string, clip: string): Promise<void> {
     data,
     views: picked.map((c, i) => ({ frame: c.frame, view: views[i] ?? UNNAMED })),
   });
-  const faces = views.map((v) => v.face ?? '-').join('');
+  const seen = views.flatMap((v) => [v.face, v.corner?.left, v.corner?.right]);
+  const left = seen.filter((f) => f === 'L').length;
+  const right = seen.filter((f) => f === 'R').length;
+  const side = left === right ? null : left > right ? 'L' : 'R';
   console.log(
-    `    video ${clip}: ${tracking.frames.length}/${tracking.frameCount} frames tracked, faces ${faces}`,
+    `    video ${clip}: ${tracking.frames.length}/${tracking.frameCount} frames tracked, long side ${side ?? 'not named'}`,
   );
+  return side;
+}
+
+/**
+ * Containers whose long side the model named the other way round from the
+ * scenario. Which side is left can't be told from a side alone (it depends on
+ * where the doors are), and the model decides it from the walk-around; the
+ * container's photos and marks follow it, so the video, the photos and the
+ * passport agree.
+ */
+const mirrored = new Set<string>();
+
+function sideOf(number: string, face: Face): Face {
+  if (!mirrored.has(number)) return face;
+  return face === 'L' ? 'R' : face === 'R' ? 'L' : face;
 }
 
 async function record(container: ContainerSpec, spec: HandoverSpec): Promise<void> {
@@ -245,14 +267,24 @@ async function record(container: ContainerSpec, spec: HandoverSpec): Promise<voi
     });
   }
 
+  if (spec.video) {
+    const seen = await addVideo(handover.id, spec.video);
+    const planned = spec.photos?.find((p) => p.face === 'L' || p.face === 'R')?.face;
+    if (seen && planned && seen !== planned) mirrored.add(container.number);
+  }
+
   for (const photoSpec of spec.photos ?? []) {
+    const face = sideOf(container.number, photoSpec.face);
     const photo = await handovers.addPhoto(handover.id, {
-      face: photoSpec.face,
-      data: frame(join(clipsDir as string, photoSpec.frame.clip), photoSpec.frame.at),
+      face,
+      data:
+        'image' in photoSpec
+          ? new Uint8Array(readFileSync(join(clipsDir as string, photoSpec.image)))
+          : frame(join(clipsDir as string, photoSpec.frame.clip), photoSpec.frame.at),
       capturedAt: clock.now().toISOString(),
     });
     const registered = photo.corners ? 'registered' : 'NOT registered';
-    console.log(`    photo ${photoSpec.face}: ${registered}, ${photo.redactedRegions} blurred`);
+    console.log(`    photo ${face}: ${registered}, ${photo.redactedRegions} blurred`);
     if (photoSpec.findDamage && photo.corners) {
       const proposals = await handovers.proposeDamage(handover.id, photo.id);
       for (const mark of proposals) {
@@ -264,11 +296,9 @@ async function record(container: ContainerSpec, spec: HandoverSpec): Promise<voi
     }
   }
 
-  if (spec.video) await addVideo(handover.id, spec.video);
-
   for (const mark of spec.marks ?? []) {
     handovers.addMark(handover.id, {
-      face: mark.face,
+      face: sideOf(container.number, mark.face),
       rect: mark.rect,
       outline: null,
       damageCode: mark.damageCode,
